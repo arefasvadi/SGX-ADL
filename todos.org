@@ -1,0 +1,21 @@
+* build model-weight class
+* build data class
+* follow train-cifar code
+** configuration and weight file is loaded through load_network  
+** training is done through train_network_sgd 
+** handle random batch
+* follow predict-cifar code
+** network_predict
+** network_predict_data
+* variables
+** net->subdivisions 
+** net->batch
+** net->seen
+* functions
+** get_random_batch
+** get_next_batch
+* think about copy/move construct-assign
+* fix enc/decr module
+** make use of templates for IOBuffer type
+* fix load net config part 
+* use template variables for DNNConfig Class

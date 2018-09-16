@@ -1,0 +1,505 @@
+Inference phase is about to be initiated
+Loading data...
+Building model and compiling functions...
+number of parameters in model: 269722
+Inference for all saved models with npz format is about to be started...
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000001-copy.npz
+  validation loss:		1.009232
+  validation accuracy:		63.80 %
+  test loss:			0.980438
+  test accuracy:		65.38 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000002-copy.npz
+  validation loss:		0.755400
+  validation accuracy:		74.20 %
+  test loss:			0.755823
+  test accuracy:		74.16 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000003-copy.npz
+  validation loss:		0.602813
+  validation accuracy:		78.58 %
+  test loss:			0.616324
+  test accuracy:		78.98 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000004-copy.npz
+  validation loss:		0.638045
+  validation accuracy:		78.24 %
+  test loss:			0.647280
+  test accuracy:		78.36 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000005-copy.npz
+  validation loss:		0.726535
+  validation accuracy:		76.30 %
+  test loss:			0.717405
+  test accuracy:		76.48 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000006-copy.npz
+  validation loss:		0.562161
+  validation accuracy:		81.06 %
+  test loss:			0.560695
+  test accuracy:		80.82 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000007-copy.npz
+  validation loss:		0.550048
+  validation accuracy:		81.80 %
+  test loss:			0.549655
+  test accuracy:		82.22 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000008-copy.npz
+  validation loss:		0.627468
+  validation accuracy:		79.32 %
+  test loss:			0.645236
+  test accuracy:		79.68 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000009-copy.npz
+  validation loss:		0.591753
+  validation accuracy:		80.32 %
+  test loss:			0.602553
+  test accuracy:		80.42 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000010-copy.npz
+  validation loss:		0.587951
+  validation accuracy:		79.84 %
+  test loss:			0.608565
+  test accuracy:		80.34 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000011-copy.npz
+  validation loss:		0.687546
+  validation accuracy:		77.62 %
+  test loss:			0.700735
+  test accuracy:		78.00 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000012-copy.npz
+  validation loss:		0.520513
+  validation accuracy:		82.62 %
+  test loss:			0.519560
+  test accuracy:		82.74 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000013-copy.npz
+  validation loss:		0.567515
+  validation accuracy:		81.62 %
+  test loss:			0.591830
+  test accuracy:		80.74 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000014-copy.npz
+  validation loss:		0.750259
+  validation accuracy:		75.70 %
+  test loss:			0.733465
+  test accuracy:		77.48 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000015-copy.npz
+  validation loss:		0.589180
+  validation accuracy:		79.84 %
+  test loss:			0.606863
+  test accuracy:		80.20 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000016-copy.npz
+  validation loss:		0.430623
+  validation accuracy:		85.14 %
+  test loss:			0.460788
+  test accuracy:		84.52 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000017-copy.npz
+  validation loss:		0.482240
+  validation accuracy:		83.58 %
+  test loss:			0.511088
+  test accuracy:		83.38 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000018-copy.npz
+  validation loss:		0.589625
+  validation accuracy:		80.76 %
+  test loss:			0.592086
+  test accuracy:		81.28 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000019-copy.npz
+  validation loss:		0.473767
+  validation accuracy:		84.52 %
+  test loss:			0.484112
+  test accuracy:		84.42 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000020-copy.npz
+  validation loss:		0.566096
+  validation accuracy:		81.36 %
+  test loss:			0.579106
+  test accuracy:		81.46 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000021-copy.npz
+  validation loss:		0.440960
+  validation accuracy:		85.10 %
+  test loss:			0.474650
+  test accuracy:		84.38 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000022-copy.npz
+  validation loss:		0.467495
+  validation accuracy:		84.80 %
+  test loss:			0.460852
+  test accuracy:		84.90 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000023-copy.npz
+  validation loss:		0.539415
+  validation accuracy:		82.58 %
+  test loss:			0.551688
+  test accuracy:		82.08 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000024-copy.npz
+  validation loss:		0.606326
+  validation accuracy:		80.46 %
+  test loss:			0.606201
+  test accuracy:		81.14 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000025-copy.npz
+  validation loss:		0.553127
+  validation accuracy:		82.40 %
+  test loss:			0.554497
+  test accuracy:		82.32 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000026-copy.npz
+  validation loss:		0.502540
+  validation accuracy:		83.84 %
+  test loss:			0.528724
+  test accuracy:		83.90 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000027-copy.npz
+  validation loss:		0.519676
+  validation accuracy:		84.00 %
+  test loss:			0.514796
+  test accuracy:		83.40 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000028-copy.npz
+  validation loss:		0.440042
+  validation accuracy:		85.76 %
+  test loss:			0.471581
+  test accuracy:		84.66 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000029-copy.npz
+  validation loss:		0.529540
+  validation accuracy:		82.06 %
+  test loss:			0.532547
+  test accuracy:		82.38 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000030-copy.npz
+  validation loss:		0.485584
+  validation accuracy:		83.68 %
+  test loss:			0.493926
+  test accuracy:		84.22 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000031-copy.npz
+  validation loss:		0.462170
+  validation accuracy:		84.62 %
+  test loss:			0.481953
+  test accuracy:		84.32 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000032-copy.npz
+  validation loss:		0.461972
+  validation accuracy:		85.06 %
+  test loss:			0.482809
+  test accuracy:		84.84 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000033-copy.npz
+  validation loss:		0.483968
+  validation accuracy:		83.70 %
+  test loss:			0.524918
+  test accuracy:		83.04 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000034-copy.npz
+  validation loss:		0.483568
+  validation accuracy:		83.68 %
+  test loss:			0.491467
+  test accuracy:		83.62 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000035-copy.npz
+  validation loss:		0.556994
+  validation accuracy:		82.32 %
+  test loss:			0.579983
+  test accuracy:		82.10 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000036-copy.npz
+  validation loss:		0.478687
+  validation accuracy:		84.52 %
+  test loss:			0.488949
+  test accuracy:		84.94 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000037-copy.npz
+  validation loss:		0.521568
+  validation accuracy:		83.16 %
+  test loss:			0.553300
+  test accuracy:		82.82 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000038-copy.npz
+  validation loss:		0.647004
+  validation accuracy:		80.24 %
+  test loss:			0.653120
+  test accuracy:		80.64 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000039-copy.npz
+  validation loss:		0.486916
+  validation accuracy:		84.70 %
+  test loss:			0.477001
+  test accuracy:		85.24 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000040-copy.npz
+  validation loss:		0.466245
+  validation accuracy:		84.94 %
+  test loss:			0.492936
+  test accuracy:		84.54 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000041-copy.npz
+  validation loss:		0.501708
+  validation accuracy:		83.22 %
+  test loss:			0.499164
+  test accuracy:		84.32 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000042-copy.npz
+  validation loss:		0.288801
+  validation accuracy:		90.16 %
+  test loss:			0.313121
+  test accuracy:		90.14 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000043-copy.npz
+  validation loss:		0.292739
+  validation accuracy:		90.22 %
+  test loss:			0.317708
+  test accuracy:		90.30 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000044-copy.npz
+  validation loss:		0.299377
+  validation accuracy:		90.24 %
+  test loss:			0.325310
+  test accuracy:		90.40 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000045-copy.npz
+  validation loss:		0.318142
+  validation accuracy:		90.52 %
+  test loss:			0.338557
+  test accuracy:		90.12 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000046-copy.npz
+  validation loss:		0.320523
+  validation accuracy:		90.28 %
+  test loss:			0.351797
+  test accuracy:		90.26 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000047-copy.npz
+  validation loss:		0.334420
+  validation accuracy:		90.28 %
+  test loss:			0.367398
+  test accuracy:		89.98 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000048-copy.npz
+  validation loss:		0.339752
+  validation accuracy:		90.28 %
+  test loss:			0.367499
+  test accuracy:		90.36 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000049-copy.npz
+  validation loss:		0.353583
+  validation accuracy:		90.38 %
+  test loss:			0.385046
+  test accuracy:		90.22 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000050-copy.npz
+  validation loss:		0.353674
+  validation accuracy:		90.24 %
+  test loss:			0.386943
+  test accuracy:		90.02 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000051-copy.npz
+  validation loss:		0.362594
+  validation accuracy:		90.08 %
+  test loss:			0.393165
+  test accuracy:		90.12 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000052-copy.npz
+  validation loss:		0.360799
+  validation accuracy:		90.04 %
+  test loss:			0.390309
+  test accuracy:		90.06 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000053-copy.npz
+  validation loss:		0.357008
+  validation accuracy:		90.48 %
+  test loss:			0.395502
+  test accuracy:		90.06 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000054-copy.npz
+  validation loss:		0.361264
+  validation accuracy:		90.48 %
+  test loss:			0.397322
+  test accuracy:		90.12 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000055-copy.npz
+  validation loss:		0.370852
+  validation accuracy:		90.36 %
+  test loss:			0.403994
+  test accuracy:		90.12 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000056-copy.npz
+  validation loss:		0.365038
+  validation accuracy:		90.54 %
+  test loss:			0.407371
+  test accuracy:		90.00 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000057-copy.npz
+  validation loss:		0.362535
+  validation accuracy:		90.68 %
+  test loss:			0.400972
+  test accuracy:		89.88 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000058-copy.npz
+  validation loss:		0.369748
+  validation accuracy:		90.48 %
+  test loss:			0.405750
+  test accuracy:		90.04 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000059-copy.npz
+  validation loss:		0.373353
+  validation accuracy:		90.06 %
+  test loss:			0.414572
+  test accuracy:		90.00 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000060-copy.npz
+  validation loss:		0.373612
+  validation accuracy:		90.08 %
+  test loss:			0.413713
+  test accuracy:		89.64 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000061-copy.npz
+  validation loss:		0.375016
+  validation accuracy:		90.38 %
+  test loss:			0.412394
+  test accuracy:		89.68 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000062-copy.npz
+  validation loss:		0.372358
+  validation accuracy:		90.40 %
+  test loss:			0.409508
+  test accuracy:		90.08 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000063-copy.npz
+  validation loss:		0.369783
+  validation accuracy:		90.60 %
+  test loss:			0.408143
+  test accuracy:		90.22 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000064-copy.npz
+  validation loss:		0.374681
+  validation accuracy:		90.36 %
+  test loss:			0.412697
+  test accuracy:		89.80 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000065-copy.npz
+  validation loss:		0.372582
+  validation accuracy:		90.44 %
+  test loss:			0.408099
+  test accuracy:		89.86 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000066-copy.npz
+  validation loss:		0.370034
+  validation accuracy:		90.22 %
+  test loss:			0.405759
+  test accuracy:		89.78 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000067-copy.npz
+  validation loss:		0.375985
+  validation accuracy:		90.40 %
+  test loss:			0.411704
+  test accuracy:		89.82 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000068-copy.npz
+  validation loss:		0.371127
+  validation accuracy:		90.40 %
+  test loss:			0.409506
+  test accuracy:		89.88 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000069-copy.npz
+  validation loss:		0.372655
+  validation accuracy:		90.62 %
+  test loss:			0.410834
+  test accuracy:		89.78 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000070-copy.npz
+  validation loss:		0.370547
+  validation accuracy:		90.42 %
+  test loss:			0.407691
+  test accuracy:		89.74 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000071-copy.npz
+  validation loss:		0.372991
+  validation accuracy:		90.44 %
+  test loss:			0.408213
+  test accuracy:		89.92 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000072-copy.npz
+  validation loss:		0.371760
+  validation accuracy:		90.42 %
+  test loss:			0.410691
+  test accuracy:		89.94 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000073-copy.npz
+  validation loss:		0.370748
+  validation accuracy:		90.24 %
+  test loss:			0.407992
+  test accuracy:		89.70 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000074-copy.npz
+  validation loss:		0.370105
+  validation accuracy:		90.44 %
+  test loss:			0.407714
+  test accuracy:		89.86 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000075-copy.npz
+  validation loss:		0.370289
+  validation accuracy:		90.30 %
+  test loss:			0.411657
+  test accuracy:		89.80 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000076-copy.npz
+  validation loss:		0.368312
+  validation accuracy:		90.46 %
+  test loss:			0.408630
+  test accuracy:		90.00 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000077-copy.npz
+  validation loss:		0.368309
+  validation accuracy:		90.40 %
+  test loss:			0.405996
+  test accuracy:		89.92 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000078-copy.npz
+  validation loss:		0.371686
+  validation accuracy:		90.54 %
+  test loss:			0.408618
+  test accuracy:		89.84 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000079-copy.npz
+  validation loss:		0.369959
+  validation accuracy:		90.36 %
+  test loss:			0.406424
+  test accuracy:		89.82 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000080-copy.npz
+  validation loss:		0.372312
+  validation accuracy:		90.30 %
+  test loss:			0.409189
+  test accuracy:		89.82 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000081-copy.npz
+  validation loss:		0.370968
+  validation accuracy:		90.40 %
+  test loss:			0.410067
+  test accuracy:		89.90 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000082-copy.npz
+  validation loss:		0.368598
+  validation accuracy:		90.40 %
+  test loss:			0.407823
+  test accuracy:		89.80 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000083-copy.npz
+  validation loss:		0.370205
+  validation accuracy:		90.50 %
+  test loss:			0.409856
+  test accuracy:		89.90 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000084-copy.npz
+  validation loss:		0.374158
+  validation accuracy:		90.34 %
+  test loss:			0.408749
+  test accuracy:		89.68 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000085-copy.npz
+  validation loss:		0.367984
+  validation accuracy:		90.44 %
+  test loss:			0.404983
+  test accuracy:		89.84 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000086-copy.npz
+  validation loss:		0.370972
+  validation accuracy:		90.46 %
+  test loss:			0.407775
+  test accuracy:		89.82 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000087-copy.npz
+  validation loss:		0.370501
+  validation accuracy:		90.26 %
+  test loss:			0.407769
+  test accuracy:		89.96 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000088-copy.npz
+  validation loss:		0.373132
+  validation accuracy:		90.36 %
+  test loss:			0.410874
+  test accuracy:		89.70 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000089-copy.npz
+  validation loss:		0.367881
+  validation accuracy:		90.44 %
+  test loss:			0.406449
+  test accuracy:		89.78 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000090-copy.npz
+  validation loss:		0.371080
+  validation accuracy:		90.32 %
+  test loss:			0.410979
+  test accuracy:		89.76 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000091-copy.npz
+  validation loss:		0.373308
+  validation accuracy:		90.34 %
+  test loss:			0.408337
+  test accuracy:		89.62 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000092-copy.npz
+  validation loss:		0.367464
+  validation accuracy:		90.48 %
+  test loss:			0.407577
+  test accuracy:		89.80 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000093-copy.npz
+  validation loss:		0.371323
+  validation accuracy:		90.48 %
+  test loss:			0.411066
+  test accuracy:		89.74 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000094-copy.npz
+  validation loss:		0.369670
+  validation accuracy:		90.48 %
+  test loss:			0.409464
+  test accuracy:		89.92 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000095-copy.npz
+  validation loss:		0.372970
+  validation accuracy:		90.28 %
+  test loss:			0.411092
+  test accuracy:		89.68 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000096-copy.npz
+  validation loss:		0.370485
+  validation accuracy:		90.22 %
+  test loss:			0.406590
+  test accuracy:		89.80 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000097-copy.npz
+  validation loss:		0.371769
+  validation accuracy:		90.20 %
+  test loss:			0.409264
+  test accuracy:		89.94 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000098-copy.npz
+  validation loss:		0.373034
+  validation accuracy:		90.32 %
+  test loss:			0.409553
+  test accuracy:		89.76 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000099-copy.npz
+  validation loss:		0.371647
+  validation accuracy:		90.28 %
+  test loss:			0.408238
+  test accuracy:		89.68 %
+* processing file ./saved_models/las-cifar10-100-0.5-0.0005/model-00000100-copy.npz
+  validation loss:		0.373253
+  validation accuracy:		90.36 %
+  test loss:			0.408980
+  test accuracy:		89.76 %

@@ -1,0 +1,14 @@
+enclave {
+    trusted {
+              public void ecall_enclave_init(void); 
+            };
+    untrusted {
+              void ocall_load_net_config(
+                     [in, size = path_len] const unsigned char* path,
+                     size_t path_len,
+                     [out, size = config_len] char* config,
+                     size_t config_len);
+
+              void ocall_print_string([in, string] const char *str);
+            };
+};

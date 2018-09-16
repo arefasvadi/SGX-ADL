@@ -1,0 +1,504 @@
+Inference phase is about to be initiated
+Loading data...
+Building model and compiling functions...
+Inference for all saved models with npz format is about to be started...
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000001-copy.npz
+  validation loss:		0.495238
+  validation accuracy:		84.92 %
+  test loss:			0.509642
+  test accuracy:		84.12 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000002-copy.npz
+  validation loss:		0.240430
+  validation accuracy:		92.67 %
+  test loss:			0.252374
+  test accuracy:		92.50 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000003-copy.npz
+  validation loss:		0.189645
+  validation accuracy:		94.88 %
+  test loss:			0.196663
+  test accuracy:		94.26 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000004-copy.npz
+  validation loss:		0.160299
+  validation accuracy:		95.18 %
+  test loss:			0.163362
+  test accuracy:		95.00 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000005-copy.npz
+  validation loss:		0.159580
+  validation accuracy:		95.99 %
+  test loss:			0.160363
+  test accuracy:		95.74 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000006-copy.npz
+  validation loss:		0.117323
+  validation accuracy:		96.38 %
+  test loss:			0.119280
+  test accuracy:		96.30 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000007-copy.npz
+  validation loss:		0.162097
+  validation accuracy:		95.10 %
+  test loss:			0.154542
+  test accuracy:		95.27 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000008-copy.npz
+  validation loss:		0.102347
+  validation accuracy:		97.18 %
+  test loss:			0.102340
+  test accuracy:		96.73 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000009-copy.npz
+  validation loss:		0.108732
+  validation accuracy:		96.84 %
+  test loss:			0.108465
+  test accuracy:		96.89 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000010-copy.npz
+  validation loss:		0.107220
+  validation accuracy:		96.80 %
+  test loss:			0.100033
+  test accuracy:		97.06 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000011-copy.npz
+  validation loss:		0.085100
+  validation accuracy:		97.39 %
+  test loss:			0.075831
+  test accuracy:		97.35 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000012-copy.npz
+  validation loss:		0.105565
+  validation accuracy:		96.67 %
+  test loss:			0.104526
+  test accuracy:		96.45 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000013-copy.npz
+  validation loss:		0.071613
+  validation accuracy:		97.89 %
+  test loss:			0.067122
+  test accuracy:		97.77 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000014-copy.npz
+  validation loss:		0.152438
+  validation accuracy:		95.23 %
+  test loss:			0.142554
+  test accuracy:		95.84 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000015-copy.npz
+  validation loss:		0.090019
+  validation accuracy:		97.56 %
+  test loss:			0.092308
+  test accuracy:		97.27 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000016-copy.npz
+  validation loss:		0.084096
+  validation accuracy:		97.50 %
+  test loss:			0.076227
+  test accuracy:		97.49 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000017-copy.npz
+  validation loss:		0.087532
+  validation accuracy:		97.65 %
+  test loss:			0.077274
+  test accuracy:		97.81 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000018-copy.npz
+  validation loss:		0.074989
+  validation accuracy:		97.79 %
+  test loss:			0.069038
+  test accuracy:		97.76 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000019-copy.npz
+  validation loss:		0.086081
+  validation accuracy:		97.38 %
+  test loss:			0.081231
+  test accuracy:		97.31 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000020-copy.npz
+  validation loss:		0.112053
+  validation accuracy:		96.76 %
+  test loss:			0.101028
+  test accuracy:		96.61 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000021-copy.npz
+  validation loss:		0.068171
+  validation accuracy:		98.07 %
+  test loss:			0.063344
+  test accuracy:		97.97 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000022-copy.npz
+  validation loss:		0.079677
+  validation accuracy:		97.56 %
+  test loss:			0.069567
+  test accuracy:		97.75 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000023-copy.npz
+  validation loss:		0.086189
+  validation accuracy:		97.31 %
+  test loss:			0.079507
+  test accuracy:		97.50 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000024-copy.npz
+  validation loss:		0.075065
+  validation accuracy:		97.73 %
+  test loss:			0.065419
+  test accuracy:		97.79 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000025-copy.npz
+  validation loss:		0.089498
+  validation accuracy:		97.33 %
+  test loss:			0.079570
+  test accuracy:		97.50 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000026-copy.npz
+  validation loss:		0.057809
+  validation accuracy:		98.34 %
+  test loss:			0.048849
+  test accuracy:		98.31 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000027-copy.npz
+  validation loss:		0.065881
+  validation accuracy:		98.00 %
+  test loss:			0.063118
+  test accuracy:		98.05 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000028-copy.npz
+  validation loss:		0.053702
+  validation accuracy:		98.46 %
+  test loss:			0.046719
+  test accuracy:		98.63 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000029-copy.npz
+  validation loss:		0.062348
+  validation accuracy:		98.08 %
+  test loss:			0.057196
+  test accuracy:		98.06 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000030-copy.npz
+  validation loss:		0.062722
+  validation accuracy:		98.16 %
+  test loss:			0.055844
+  test accuracy:		98.15 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000031-copy.npz
+  validation loss:		0.054327
+  validation accuracy:		98.41 %
+  test loss:			0.045387
+  test accuracy:		98.49 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000032-copy.npz
+  validation loss:		0.061935
+  validation accuracy:		98.33 %
+  test loss:			0.052490
+  test accuracy:		98.31 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000033-copy.npz
+  validation loss:		0.069482
+  validation accuracy:		97.83 %
+  test loss:			0.058052
+  test accuracy:		97.98 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000034-copy.npz
+  validation loss:		0.070051
+  validation accuracy:		97.76 %
+  test loss:			0.061311
+  test accuracy:		98.02 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000035-copy.npz
+  validation loss:		0.076332
+  validation accuracy:		97.69 %
+  test loss:			0.070244
+  test accuracy:		97.64 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000036-copy.npz
+  validation loss:		0.068103
+  validation accuracy:		98.06 %
+  test loss:			0.058652
+  test accuracy:		98.11 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000037-copy.npz
+  validation loss:		0.051509
+  validation accuracy:		98.52 %
+  test loss:			0.042656
+  test accuracy:		98.49 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000038-copy.npz
+  validation loss:		0.062876
+  validation accuracy:		98.16 %
+  test loss:			0.054288
+  test accuracy:		98.32 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000039-copy.npz
+  validation loss:		0.048880
+  validation accuracy:		98.67 %
+  test loss:			0.037222
+  test accuracy:		98.79 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000040-copy.npz
+  validation loss:		0.060657
+  validation accuracy:		98.22 %
+  test loss:			0.049453
+  test accuracy:		98.41 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000041-copy.npz
+  validation loss:		0.052966
+  validation accuracy:		98.53 %
+  test loss:			0.050223
+  test accuracy:		98.44 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000042-copy.npz
+  validation loss:		0.058890
+  validation accuracy:		98.23 %
+  test loss:			0.054457
+  test accuracy:		98.16 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000043-copy.npz
+  validation loss:		0.055485
+  validation accuracy:		98.36 %
+  test loss:			0.045534
+  test accuracy:		98.60 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000044-copy.npz
+  validation loss:		0.056155
+  validation accuracy:		98.42 %
+  test loss:			0.043499
+  test accuracy:		98.66 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000045-copy.npz
+  validation loss:		0.054739
+  validation accuracy:		98.39 %
+  test loss:			0.046842
+  test accuracy:		98.42 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000046-copy.npz
+  validation loss:		0.050314
+  validation accuracy:		98.59 %
+  test loss:			0.043360
+  test accuracy:		98.49 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000047-copy.npz
+  validation loss:		0.061267
+  validation accuracy:		98.03 %
+  test loss:			0.057791
+  test accuracy:		98.22 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000048-copy.npz
+  validation loss:		0.048131
+  validation accuracy:		98.61 %
+  test loss:			0.039605
+  test accuracy:		98.62 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000049-copy.npz
+  validation loss:		0.056734
+  validation accuracy:		98.30 %
+  test loss:			0.043924
+  test accuracy:		98.65 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000050-copy.npz
+  validation loss:		0.083215
+  validation accuracy:		97.64 %
+  test loss:			0.063924
+  test accuracy:		97.99 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000051-copy.npz
+  validation loss:		0.045471
+  validation accuracy:		98.77 %
+  test loss:			0.031392
+  test accuracy:		99.03 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000052-copy.npz
+  validation loss:		0.048308
+  validation accuracy:		98.59 %
+  test loss:			0.037558
+  test accuracy:		98.81 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000053-copy.npz
+  validation loss:		0.086199
+  validation accuracy:		97.43 %
+  test loss:			0.074181
+  test accuracy:		97.55 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000054-copy.npz
+  validation loss:		0.050330
+  validation accuracy:		98.53 %
+  test loss:			0.044106
+  test accuracy:		98.55 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000055-copy.npz
+  validation loss:		0.054860
+  validation accuracy:		98.38 %
+  test loss:			0.045741
+  test accuracy:		98.69 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000056-copy.npz
+  validation loss:		0.046703
+  validation accuracy:		98.68 %
+  test loss:			0.040855
+  test accuracy:		98.65 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000057-copy.npz
+  validation loss:		0.045143
+  validation accuracy:		98.68 %
+  test loss:			0.038084
+  test accuracy:		98.68 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000058-copy.npz
+  validation loss:		0.061639
+  validation accuracy:		98.08 %
+  test loss:			0.049498
+  test accuracy:		98.43 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000059-copy.npz
+  validation loss:		0.050359
+  validation accuracy:		98.54 %
+  test loss:			0.046517
+  test accuracy:		98.54 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000060-copy.npz
+  validation loss:		0.053940
+  validation accuracy:		98.34 %
+  test loss:			0.041756
+  test accuracy:		98.65 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000061-copy.npz
+  validation loss:		0.108088
+  validation accuracy:		96.69 %
+  test loss:			0.105669
+  test accuracy:		96.45 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000062-copy.npz
+  validation loss:		0.044807
+  validation accuracy:		98.65 %
+  test loss:			0.038951
+  test accuracy:		98.65 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000063-copy.npz
+  validation loss:		0.056437
+  validation accuracy:		98.16 %
+  test loss:			0.052748
+  test accuracy:		98.36 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000064-copy.npz
+  validation loss:		0.048529
+  validation accuracy:		98.61 %
+  test loss:			0.039647
+  test accuracy:		98.70 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000065-copy.npz
+  validation loss:		0.051694
+  validation accuracy:		98.62 %
+  test loss:			0.036694
+  test accuracy:		98.72 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000066-copy.npz
+  validation loss:		0.041320
+  validation accuracy:		98.92 %
+  test loss:			0.030798
+  test accuracy:		99.03 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000067-copy.npz
+  validation loss:		0.038669
+  validation accuracy:		98.85 %
+  test loss:			0.027587
+  test accuracy:		99.03 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000068-copy.npz
+  validation loss:		0.047467
+  validation accuracy:		98.60 %
+  test loss:			0.037257
+  test accuracy:		98.78 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000069-copy.npz
+  validation loss:		0.042240
+  validation accuracy:		98.83 %
+  test loss:			0.029647
+  test accuracy:		98.98 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000070-copy.npz
+  validation loss:		0.050864
+  validation accuracy:		98.59 %
+  test loss:			0.046869
+  test accuracy:		98.53 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000071-copy.npz
+  validation loss:		0.042149
+  validation accuracy:		98.75 %
+  test loss:			0.038351
+  test accuracy:		98.76 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000072-copy.npz
+  validation loss:		0.046830
+  validation accuracy:		98.65 %
+  test loss:			0.041677
+  test accuracy:		98.65 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000073-copy.npz
+  validation loss:		0.042620
+  validation accuracy:		98.80 %
+  test loss:			0.036750
+  test accuracy:		98.79 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000074-copy.npz
+  validation loss:		0.043473
+  validation accuracy:		98.68 %
+  test loss:			0.035387
+  test accuracy:		98.84 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000075-copy.npz
+  validation loss:		0.040022
+  validation accuracy:		98.77 %
+  test loss:			0.031338
+  test accuracy:		99.09 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000076-copy.npz
+  validation loss:		0.037719
+  validation accuracy:		98.90 %
+  test loss:			0.037934
+  test accuracy:		98.70 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000077-copy.npz
+  validation loss:		0.056199
+  validation accuracy:		98.33 %
+  test loss:			0.041601
+  test accuracy:		98.68 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000078-copy.npz
+  validation loss:		0.052136
+  validation accuracy:		98.47 %
+  test loss:			0.044843
+  test accuracy:		98.49 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000079-copy.npz
+  validation loss:		0.053643
+  validation accuracy:		98.43 %
+  test loss:			0.049115
+  test accuracy:		98.38 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000080-copy.npz
+  validation loss:		0.042734
+  validation accuracy:		98.77 %
+  test loss:			0.037661
+  test accuracy:		98.80 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000081-copy.npz
+  validation loss:		0.049119
+  validation accuracy:		98.52 %
+  test loss:			0.043569
+  test accuracy:		98.58 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000082-copy.npz
+  validation loss:		0.042769
+  validation accuracy:		98.76 %
+  test loss:			0.029709
+  test accuracy:		99.02 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000083-copy.npz
+  validation loss:		0.043305
+  validation accuracy:		98.91 %
+  test loss:			0.029758
+  test accuracy:		99.06 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000084-copy.npz
+  validation loss:		0.041414
+  validation accuracy:		98.76 %
+  test loss:			0.033949
+  test accuracy:		98.86 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000085-copy.npz
+  validation loss:		0.040985
+  validation accuracy:		98.71 %
+  test loss:			0.036543
+  test accuracy:		98.77 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000086-copy.npz
+  validation loss:		0.055436
+  validation accuracy:		98.39 %
+  test loss:			0.060593
+  test accuracy:		98.25 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000087-copy.npz
+  validation loss:		0.042366
+  validation accuracy:		98.70 %
+  test loss:			0.039241
+  test accuracy:		98.66 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000088-copy.npz
+  validation loss:		0.070224
+  validation accuracy:		98.09 %
+  test loss:			0.060919
+  test accuracy:		97.98 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000089-copy.npz
+  validation loss:		0.038894
+  validation accuracy:		98.88 %
+  test loss:			0.026560
+  test accuracy:		99.04 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000090-copy.npz
+  validation loss:		0.045970
+  validation accuracy:		98.71 %
+  test loss:			0.035370
+  test accuracy:		98.86 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000091-copy.npz
+  validation loss:		0.047952
+  validation accuracy:		98.59 %
+  test loss:			0.038931
+  test accuracy:		98.67 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000092-copy.npz
+  validation loss:		0.040523
+  validation accuracy:		98.83 %
+  test loss:			0.030480
+  test accuracy:		99.05 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000093-copy.npz
+  validation loss:		0.037860
+  validation accuracy:		98.89 %
+  test loss:			0.026311
+  test accuracy:		99.16 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000094-copy.npz
+  validation loss:		0.043241
+  validation accuracy:		98.77 %
+  test loss:			0.028991
+  test accuracy:		99.02 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000095-copy.npz
+  validation loss:		0.054230
+  validation accuracy:		98.44 %
+  test loss:			0.044266
+  test accuracy:		98.58 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000096-copy.npz
+  validation loss:		0.055297
+  validation accuracy:		98.27 %
+  test loss:			0.047728
+  test accuracy:		98.49 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000097-copy.npz
+  validation loss:		0.050290
+  validation accuracy:		98.73 %
+  test loss:			0.040580
+  test accuracy:		98.75 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000098-copy.npz
+  validation loss:		0.042367
+  validation accuracy:		98.88 %
+  test loss:			0.032004
+  test accuracy:		98.88 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000099-copy.npz
+  validation loss:		0.044058
+  validation accuracy:		98.66 %
+  test loss:			0.035827
+  test accuracy:		98.83 %
+* processing file ./saved_models/las-mnist-100-0.5-0.05/model-00000100-copy.npz
+  validation loss:		0.033905
+  validation accuracy:		99.02 %
+  test loss:			0.026753
+  test accuracy:		99.10 %
