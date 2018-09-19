@@ -10,7 +10,7 @@
  *   Invokes OCALL to display the enclave buffer to the terminal.
  */
 namespace sgt = ::sgx::trusted;
-sgt::darknet::DNNTrainer trainer("~/projects/SGX-DDL/test/config/cifar10","","");
+sgt::darknet::DNNTrainer trainer("~/projects/SGX-DDL/test/config/cifar10/cifar_small.cfg","","");
 
 void printf(const char *fmt, ...) {
   char buf[BUFSIZ] = {'\0'};
@@ -22,5 +22,5 @@ void printf(const char *fmt, ...) {
 }
 
 void ecall_enclave_init() {
-  printf("enclave_init is called!");
+  printf("enclave_init is called!\n");
 }

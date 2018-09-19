@@ -19,3 +19,5 @@
 ** make use of templates for IOBuffer type
 * fix load net config part 
 * use template variables for DNNConfig Class
+* add cppcheck and clang-tidy support
+* check all TODOS

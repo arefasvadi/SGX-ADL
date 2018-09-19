@@ -40,15 +40,15 @@ private:
   const Key key_;
   // for IV look into
   // https://crypto.stackexchange.com/questions/31196/randomness-and-increment-of-nonce-in-gcm
-  IV iv_;
-  // uint64_t counter_;
+  // IV iv_;
+  uint64_t counter_;
 };
 
 template <typename T>
 CryptoEngine<T>::CryptoEngine(const Key &key)
-    : key_(key),
-      // counter_(0),
-      iv_({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}){
+    : key_(key), counter_(0),
+      // iv_({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+      {
 
       };
 
@@ -57,13 +57,12 @@ template <typename T>
 std::tuple<typename CryptoEngine<T>::IOBuffer, typename CryptoEngine<T>::IV,
            typename CryptoEngine<T>::MAC>
 CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) const {
-  IOBuffer cipher{plain_text.size(), 0};
-  // uint64_t *unsafe_ptr = (uint64_t *)iv_.data();
-  // ++(*unsfate_ptr);
-  // IV iv = iv_;
-  MAC mac{};
-  static_assert(iv_.size() == 12, "IV size is zero!");
-  static_assert(mac.size() == 16, "MAC size is zero!");
+  IOBuffer cipher(plain_text.size(), 0);
+  IV iv({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+  std::memcpy(iv.data(), (uint8_t *)&counter_, iv.size());
+  MAC mac;
+  // static_assert(iv_.size() == 12, "IV size is zero!");
+  // static_assert(mac.size() == 16, "MAC size is zero!");
 
   sgx_status_t success = sgx_rijndael128GCM_encrypt(
       &key_.data(), (const uint8_t *)plain_text.data(),
@@ -72,7 +71,7 @@ CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) const {
 
   if (success != SGX_SUCCESS)
     throw std::runtime_error("encryption failed!\n");
-  // ++counter_;
+  ++counter_;
   // TODO When IV fixed you can use std::move
   return make_tuple(std::move(cipher), iv_, std::move(mac));
 }
@@ -87,9 +86,9 @@ typename CryptoEngine<T>::IOBuffer CryptoEngine<T>::decrypt(
   IV iv;
   MAC mac;
 
-  std::tie(plain, iv, mac) = cipher_text;
-  static_assert(iv.size() != 0, "IV size is zero!");
-  static_assert(mac.size() != 0, "MAC size is zero!");
+  std::tie(cipher, iv, mac) = cipher_text;
+  static_assert(iv.size() == 12, "IV size is zero!");
+  static_assert(mac.size() == 16, "MAC size is zero!");
   plain.resize(cipher.size());
   sgx_status_t success = sgx_rijndael128GCM_decrypt(
       &key_.data(), (const uint8_t *)cipher.data(), cipher.size(),

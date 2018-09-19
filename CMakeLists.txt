@@ -125,7 +125,9 @@ target_compile_options(Enclave_T PUBLIC "${Trusted_C_Flags}")
 ########################################################################################################################
 #Untrusted Code
 # file(GLOB App_Cpp_Files "${Untrusted_Home}/src/*.cpp" "${Untrusted_Home}/UTHeaders/*.h" "${Untrusted_Home}/*.h")
-set(App_Cpp_Files "${Untrusted_Home}/src/app.cpp")
+set(App_Cpp_Files
+  "${Untrusted_Home}/src/app.cpp"
+  )
 add_executable(${Untrusted_Name} "${App_Cpp_Files}" $<TARGET_OBJECTS:Enclave_U>)
 target_include_directories(${Untrusted_Name} PUBLIC
   "${Untrusted_Home}"
@@ -133,7 +135,7 @@ target_include_directories(${Untrusted_Name} PUBLIC
   "${SGX_SDK}/include")
 target_compile_options(${Untrusted_Name} PUBLIC "${Untrusted_Cpp_Flags}" "-msse4.2")
 set_target_properties(${Untrusted_Name} PROPERTIES LINK_FLAGS "${Untrusted_Link_Flags}")
-target_link_libraries(${Untrusted_Name} ${Urts_Library_Name} "pthread" "sgx_uae_service")
+target_link_libraries(${Untrusted_Name} ${Urts_Library_Name} "crypto" "pthread" "sgx_uae_service")
 ########################################################################################################################
 #Trusted Code
 # file(GLOB Enclave_Cpp_Files "${Trusted_Home}/src/*.cpp"
