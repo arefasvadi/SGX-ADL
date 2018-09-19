@@ -25,7 +25,7 @@ public:
   // using IOBuffer = std::vector<uint8_t>;
 
   explicit CryptoEngine(const Key &key);
-  std::tuple<IOBuffer, IV, MAC> encrypt(const IOBuffer &plain_text) const;
+  std::tuple<IOBuffer, IV, MAC> encrypt(const IOBuffer &plain_text) ;
   IOBuffer decrypt(const std::tuple<IOBuffer, IV, MAC> &cipher_text) const;
 
   // making class non-copyable
@@ -46,17 +46,17 @@ private:
 
 template <typename T>
 CryptoEngine<T>::CryptoEngine(const Key &key)
-    : key_(key), counter_(0),
+    : key_(key), counter_(0)
       // iv_({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
       {
 
-      };
+      }
 
 // unsafe operation of increment on iv_ is done.
 template <typename T>
 std::tuple<typename CryptoEngine<T>::IOBuffer, typename CryptoEngine<T>::IV,
            typename CryptoEngine<T>::MAC>
-CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) const {
+CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) {
   IOBuffer cipher(plain_text.size(), 0);
   IV iv({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
   std::memcpy(iv.data(), (uint8_t *)&counter_, iv.size());
@@ -66,14 +66,14 @@ CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) const {
 
   sgx_status_t success = sgx_rijndael128GCM_encrypt(
       &key_.data(), (const uint8_t *)plain_text.data(),
-      plain_text.size() * sizeof(T), (uint8_t *)cipher.data(), iv_.data(),
-      iv_.size(), nullptr, 0, mac.data());
+      plain_text.size() * sizeof(T), (uint8_t *)cipher.data(), iv.data(),
+      iv.size(), nullptr, 0, mac.data());
 
   if (success != SGX_SUCCESS)
     throw std::runtime_error("encryption failed!\n");
   ++counter_;
   // TODO When IV fixed you can use std::move
-  return make_tuple(std::move(cipher), iv_, std::move(mac));
+  return std::make_tuple(cipher, iv, mac);
 }
 
 template <typename T>
