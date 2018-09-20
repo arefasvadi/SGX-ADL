@@ -16,17 +16,26 @@
 ** get_random_batch
 ** get_next_batch
 * fix load net config part 
-** load_network 
+** load_network accepts config file and weight file 
 *** parse_network_cfg
 **** read_cfg
+***** reads a file!
+***** look into fgetl function 
 **** modify error function 
 **** make_network 
 **** parse_net_options 
 **** fprintf on stderr
+**** get_network_output_layer is fine 
 **** check all these parse_sth 
-**** get_network_output_layer 
 *** load_weights 
-*** clear then net->>seen = 0
+*** clear then net->seen = 0
+** should I change learning rate with respect to available threads! since there is no gpu inside SGX? 
+** imgs var goes into args of type load_args
+** dataconfig file is fed into read_data_cfg function 
+** load_thread and load_data functions 
+** call to train_network functionality 
+** call to save_weights and its overrides 
+** load_weights for predictions 
 * use template variables for DNNConfig Class
 * add cppcheck and clang-tidy support
 * check all TODOS
