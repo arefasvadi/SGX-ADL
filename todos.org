@@ -1,3 +1,4 @@
+
 * build model-weight class
 * build data class
 * follow train-cifar code
@@ -14,10 +15,18 @@
 * functions
 ** get_random_batch
 ** get_next_batch
-* think about copy/move construct-assign
-* fix enc/decr module
-** make use of templates for IOBuffer type
 * fix load net config part 
+** load_network 
+*** parse_network_cfg
+**** read_cfg
+**** modify error function 
+**** make_network 
+**** parse_net_options 
+**** fprintf on stderr
+**** check all these parse_sth 
+**** get_network_output_layer 
+*** load_weights 
+*** clear then net->>seen = 0
 * use template variables for DNNConfig Class
 * add cppcheck and clang-tidy support
 * check all TODOS

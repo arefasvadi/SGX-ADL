@@ -8,9 +8,8 @@
 // #undef OPENMP
 #include "darknet.h"
 
-namespace sgxdarknet {
+namespace sgx {
 namespace trusted {
-
-
+namespace darknet {}
 };
 };

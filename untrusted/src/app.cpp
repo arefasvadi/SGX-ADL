@@ -117,16 +117,17 @@ int SGX_CDECL main(int argc, char *argv[]) {
   if (ret != SGX_SUCCESS)
     abort();
 
-  sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
-      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-  std::vector<uint8_t> plain = {1,  2,  3,  4,  5,  6,  7,  8, 9,
-                                10, 11, 12, 13, 14, 15, 16, 17};
-  auto cipher_pack = crypto_engine.encrypt(plain);
-  decltype(plain) plain2 = crypto_engine.decrypt(cipher_pack);
+  // sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
+  //     {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+  // std::vector<uint8_t> plain = {1,  2,  3,  4,  5,  6,  7,  8, 9,
+  //                               10, 11, 12, 13, 14, 15, 16, 17};
+  // auto cipher_pack = crypto_engine.encrypt(plain);
+  // decltype(plain) plain2 = crypto_engine.decrypt(cipher_pack);
 
-  if (std::equal(plain.begin(),plain.end(),plain2.begin())) {
-    std::cout << "enc-dec success!\n";
-    }
+  // if (std::equal(plain.begin(), plain.end(), plain2.begin())) {
+  //   std::cout << "enc-dec success!\n";
+  // }
+
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);
   return 0;
