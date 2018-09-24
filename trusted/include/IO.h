@@ -1,12 +1,12 @@
 #pragma once
 
+#include "CryptoEngine.hpp"
 #include <algorithm>
 #include <array>
 #include <functional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
-#include "CryptoEngine.hpp"
 
 namespace sgx {
 namespace trusted {
@@ -30,8 +30,8 @@ public:
   using IOCipher = std::vector<C>;
   using IOPlain = std::vector<P>;
 
-  explicit IO(const CryptoEngine<uint8_t> &cryptoEngine,
-              const IOCipher &cipherBuff, const IOPlain &plainBuff);
+  explicit IO(const CryptoEngine<uint8_t> &crypto_engine,
+              const IOCipher &cipher_buff, const IOPlain &plain_buff);
   IO(const IO &) = delete;
   IO(IO &&) = delete;
 
@@ -44,7 +44,7 @@ public:
   virtual void emptyPlainBuffer();
   virtual bool sendToUntrusted(const FS &write_handler) = 0;
   virtual bool receiveFromUntrusted(const FR &read_handler) = 0;
-  virtual ~IO(){};
+  virtual ~IO() = default;
 
 protected:
   IOCipher cipherBuffer_;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.h"
 #include "sgx_error.h"
 #include "sgx_tcrypto.h"
 #include <array>
@@ -18,14 +19,14 @@ namespace trusted {
 namespace std = ::std;
 template <typename T = uint8_t> class CryptoEngine {
 public:
-  using Key = std::array<uint8_t, 16>;
-  using IV = std::array<uint8_t, 12>;
-  using MAC = std::array<uint8_t, 16>;
+  using Key = std::array<uint8_t, AES_GCM_KEY_SIZE>;
+  using IV = std::array<uint8_t, AES_GCM_IV_SIZE>;
+  using MAC = std::array<uint8_t, AES_GCM_TAG_SIZE>;
   using IOBuffer = std::vector<T>;
   // using IOBuffer = std::vector<uint8_t>;
 
   explicit CryptoEngine(const Key &key);
-  std::tuple<IOBuffer, IV, MAC> encrypt(const IOBuffer &plain_text) ;
+  std::tuple<IOBuffer, IV, MAC> encrypt(const IOBuffer &plain_text);
   IOBuffer decrypt(const std::tuple<IOBuffer, IV, MAC> &cipher_text) const;
 
   // making class non-copyable
@@ -47,10 +48,8 @@ private:
 template <typename T>
 CryptoEngine<T>::CryptoEngine(const Key &key)
     : key_(key), counter_(0)
-      // iv_({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-      {
-
-      }
+// iv_({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+{}
 
 // unsafe operation of increment on iv_ is done.
 template <typename T>
@@ -64,13 +63,15 @@ CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) {
   // static_assert(iv_.size() == 12, "IV size is zero!");
   // static_assert(mac.size() == 16, "MAC size is zero!");
 
+  auto key_data = key_.data();
   sgx_status_t success = sgx_rijndael128GCM_encrypt(
-      &key_.data(), (const uint8_t *)plain_text.data(),
+      key_data, (const uint8_t *)plain_text.data(),
       plain_text.size() * sizeof(T), (uint8_t *)cipher.data(), iv.data(),
       iv.size(), nullptr, 0, mac.data());
 
-  if (success != SGX_SUCCESS)
+  if (success != SGX_SUCCESS) {
     throw std::runtime_error("encryption failed!\n");
+  }
   ++counter_;
   // TODO When IV fixed you can use std::move
   return std::make_tuple(cipher, iv, mac);
@@ -87,14 +88,17 @@ typename CryptoEngine<T>::IOBuffer CryptoEngine<T>::decrypt(
   MAC mac;
 
   std::tie(cipher, iv, mac) = cipher_text;
-  static_assert(iv.size() == 12, "IV size is zero!");
-  static_assert(mac.size() == 16, "MAC size is zero!");
+  // static_assert(iv.size() == 12, "IV size is zero!");
+  // static_assert(mac.size() == 16, "MAC size is zero!");
   plain.resize(cipher.size());
+  // auto key_data = key_.data();
   sgx_status_t success = sgx_rijndael128GCM_decrypt(
-      &key_.data(), (const uint8_t *)cipher.data(), cipher.size(),
-      (uint8_t *)plain.data(), iv.data(), iv.size(), nullptr, 0, &mac);
-  if (success != SGX_SUCCESS)
+      (uint8_t const(*) [16]) & key_, (const uint8_t *)cipher.data(),
+      cipher.size(), (uint8_t *)plain.data(), iv.data(), iv.size(), nullptr, 0,
+      (uint8_t const(*) [16])&mac);
+  if (success != SGX_SUCCESS) {
     throw std::runtime_error("decryption failed!\n");
+  }
   return plain;
 }
 }

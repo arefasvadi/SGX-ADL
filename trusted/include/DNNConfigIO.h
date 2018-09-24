@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 
+extern void printf(const char *fmt, ...);
 namespace sgx {
 namespace trusted {
 namespace darknet {
@@ -18,14 +19,15 @@ public:
                        const sgt::CryptoEngine<uint8_t> &crypto_engine);
 
   // TODO try to have the type name in a variable of parent!
-  virtual bool
+  bool
   sendToUntrusted(const std::function<void(void)> &write_handler) override {
     return false;
   };
 
-  virtual bool receiveFromUntrusted(
-      const std::function<decltype(ocall_load_net_config)> &read_handler)
-      override;
+  bool receiveFromUntrusted(const std::function<decltype(ocall_load_net_config)>
+                                &read_handler) override;
+
+  // ~DNNConfigIO() override { printf("DNNConfigIO destructor is called!\n"); };
 
 private:
   const std::string configFilePath_;

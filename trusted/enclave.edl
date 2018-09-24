@@ -7,7 +7,10 @@ enclave {
                      [in, size = path_len] const unsigned char* path,
                      size_t path_len,
                      [out, size = config_len] char* config,
-                     size_t config_len);
+                     size_t config_len,
+                     [out] unsigned int* real_len,
+                     [out, size = 12] unsigned char* config_iv,
+                     [out, size = 16] unsigned char* config_mac);
 
               void ocall_print_string([in, string] const char *str);
             };

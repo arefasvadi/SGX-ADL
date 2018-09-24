@@ -1,3 +1,6 @@
+#pragma once
+
+#include "common.h"
 #include <array>
 #include <cstring>
 #include <fstream>
@@ -24,14 +27,14 @@ namespace untrusted {
 namespace std = ::std;
 template <typename T = uint8_t> class CryptoEngine {
 public:
-  using Key = std::array<uint8_t, 16>;
-  using IV = std::array<uint8_t, 12>;
-  using MAC = std::array<uint8_t, 16>;
+  using Key = std::array<uint8_t, AES_GCM_KEY_SIZE>;
+  using IV = std::array<uint8_t, AES_GCM_IV_SIZE>;
+  using MAC = std::array<uint8_t, AES_GCM_TAG_SIZE>;
   using IOBuffer = std::vector<T>;
   // using IOBuffer = std::vector<uint8_t>;
 
   explicit CryptoEngine(const Key &key);
-  std::tuple<IOBuffer, IV, MAC> encrypt(const IOBuffer &plain_text) ;
+  std::tuple<IOBuffer, IV, MAC> encrypt(const IOBuffer &plain_text);
   IOBuffer decrypt(const std::tuple<IOBuffer, IV, MAC> &cipher_text) const;
 
   // making class non-copyable
@@ -53,10 +56,8 @@ private:
 template <typename T>
 CryptoEngine<T>::CryptoEngine(const Key &key)
     : key_(key), counter_(0)
-      // iv_({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-      {
-
-      }
+// iv_({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+{}
 
 // unsafe operation of increment on iv_ is done.
 template <typename T>
@@ -110,8 +111,7 @@ typename CryptoEngine<T>::IOBuffer CryptoEngine<T>::decrypt(
   plain.resize(cipher.size());
 
   //	EVP_CIPHER_CTX *d_ctx;
-  	ret_val = EVP_CIPHER_CTX_ctrl(d_ctx, EVP_CTRL_GCM_SET_IVLEN, iv.size(),
-  NULL);
+  ret_val = EVP_CIPHER_CTX_ctrl(d_ctx, EVP_CTRL_GCM_SET_IVLEN, iv.size(), NULL);
   EVP_DecryptInit(d_ctx, EVP_aes_128_gcm(), (const unsigned char *)key_.data(),
                   (const unsigned char *)iv.data());
   EVP_DecryptUpdate(d_ctx, (unsigned char *)plain.data(), &actual_size,

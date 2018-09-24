@@ -1,5 +1,5 @@
-
 * build model-weight class
+* encrypt network config file and send it
 * build data class
 * follow train-cifar code
 ** configuration and weight file is loaded through load_network  
@@ -27,15 +27,21 @@
 **** fprintf on stderr
 **** get_network_output_layer is fine 
 **** check all these parse_sth 
-*** load_weights 
+*** load_weights
+**** fprintf, fflush
+**** file_error, fopen 
+**** fread override
+**** all these load_*_weights use file api of libc 
+**** also save_*_weights do the same! 
 *** clear then net->seen = 0
 ** should I change learning rate with respect to available threads! since there is no gpu inside SGX? 
 ** imgs var goes into args of type load_args
 ** dataconfig file is fed into read_data_cfg function 
 ** load_thread and load_data functions 
+** load_image_color check if it is used  
 ** call to train_network functionality 
 ** call to save_weights and its overrides 
 ** load_weights for predictions 
 * use template variables for DNNConfig Class
-* add cppcheck and clang-tidy support
+* try giving options manually in code! 
 * check all TODOS

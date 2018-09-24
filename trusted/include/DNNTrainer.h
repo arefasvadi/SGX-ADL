@@ -19,6 +19,8 @@ public:
                       const std::string &param_dir_path,
                       const std::string &data_dir_path);
 
+  bool loadNetworkConfig() const;
+
 private:
   sgt::CryptoEngine<uint8_t> cryptoEngine_;
   std::unique_ptr<DNNConfigIO> configIO_;

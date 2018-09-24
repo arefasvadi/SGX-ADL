@@ -15,9 +15,9 @@
 extern "C" {
 #endif
 
-void ecall_enclave_init();
+void ecall_enclave_init(void);
 
-sgx_status_t SGX_CDECL ocall_load_net_config(const unsigned char* path, size_t path_len, char* config, size_t config_len);
+sgx_status_t SGX_CDECL ocall_load_net_config(const unsigned char* path, size_t path_len, char* config, size_t config_len, unsigned int* real_len, unsigned char* config_iv, unsigned char* config_mac);
 sgx_status_t SGX_CDECL ocall_print_string(const char* str);
 
 #ifdef __cplusplus

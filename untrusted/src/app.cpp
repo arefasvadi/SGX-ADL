@@ -1,6 +1,14 @@
+#include <algorithm>
 #include <assert.h>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <sstream>
 #include <stdio.h>
 #include <string.h>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include <pwd.h>
 #include <unistd.h>
@@ -11,13 +19,13 @@
 #include "enclave_u.h"
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
-#include <algorithm>
-#include <fstream>
-#include <iostream>
-#include <vector>
 
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid = 0;
+
+sgx::untrusted::CryptoEngine<uint8_t>
+    crypto_engine(sgx::untrusted::CryptoEngine<uint8_t>::Key{
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
@@ -98,7 +106,37 @@ void ocall_print_string(const char *str) {
 }
 
 void ocall_load_net_config(const unsigned char *path, size_t path_len,
-                           char *config, size_t config_len) {}
+                           char *config, size_t config_len,
+                           unsigned int *real_len, unsigned char *config_iv,
+                           unsigned char *config_mac) {
+
+  printf("%s:%d@%s =>  ocall_load_net_config started! for file %s with size %zu\n", __FILE__,
+         __LINE__, __func__,
+         (char *)path, path_len);
+  std::ifstream f((const char *)path, std::ios::in | std::ios::binary);
+
+  if (!f.is_open()) {
+    throw std::runtime_error("Could not read network config file!");
+  }
+
+  std::vector<uint8_t> config_content{std::istreambuf_iterator<char>(f),
+                                      std::istreambuf_iterator<char>()};
+  f.close();
+
+  const auto encrypted = crypto_engine.encrypt(config_content);
+  const auto config_content_enc = std::get<0>(encrypted);
+  const auto config_content_iv = std::get<1>(encrypted);
+  const auto config_content_mac = std::get<2>(encrypted);
+
+  *real_len = config_content_enc.size();
+  memcpy(config, config_content_enc.data(), *real_len);
+  memcpy(config_iv, config_content_iv.data(), AES_GCM_IV_SIZE);
+  memcpy(config_mac, config_content_mac.data(), AES_GCM_TAG_SIZE);
+
+  printf("%s:%d@%s =>  ocall_load_net_config finished successfully for size of %zu bytes!\n", __FILE__,
+         __LINE__, __func__,
+         *real_len);
+}
 
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[]) {
@@ -114,9 +152,10 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   ret = ecall_enclave_init(global_eid);
-  if (ret != SGX_SUCCESS)
+  if (ret != SGX_SUCCESS) {
+    printf("ecall init enclave caused problem!\n");
     abort();
-
+  }
   // sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
   //     {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
   // std::vector<uint8_t> plain = {1,  2,  3,  4,  5,  6,  7,  8, 9,

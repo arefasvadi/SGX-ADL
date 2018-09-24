@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(SGX_DDL)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_BUILD_TYPE "Debug") 
 
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
@@ -59,8 +60,6 @@ else()
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
 endif()
 
-set(Trusted_C_Flags "-O3" "-g" "-m64" "-nostdinc"
-  "-fvisibility=hidden" "-fpie" "-fstack-protector")
 set(Trusted_Cpp_Flags "${Trusted_C_Flags}" "-std=c++14" "-nostdinc++")
 set(Trusted_Link_Flags "-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
 -Wl,--whole-archive -l${Trts_Library_Name} -Wl,--no-whole-archive \
@@ -130,6 +129,7 @@ set(App_Cpp_Files
   )
 add_executable(${Untrusted_Name} "${App_Cpp_Files}" $<TARGET_OBJECTS:Enclave_U>)
 target_include_directories(${Untrusted_Name} PUBLIC
+  "${CMAKE_SOURCE_DIR}/include"
   "${Untrusted_Home}"
   "${Untrusted_Home}/include"
   "${SGX_SDK}/include")
@@ -147,6 +147,7 @@ set(Enclave_Cpp_Files "${Trusted_Home}/src/enclave-app.cpp"
   )
 add_executable(${Trusted_Name} "${Enclave_Cpp_Files}" $<TARGET_OBJECTS:Enclave_T>)
 target_include_directories(${Trusted_Name} PUBLIC
+  "${CMAKE_SOURCE_DIR}/include"
   "${Trusted_Home}/"
   "${Trusted_Home}/include"
   "${SGX_SDK}/include"
