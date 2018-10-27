@@ -1,5 +1,6 @@
 #pragma once
 
+#include "darknet.h"
 #include "CryptoEngine.hpp"
 #include "DNNConfigIO.h"
 // #include "DNNDataIO.h"

@@ -44,6 +44,8 @@ public:
   virtual void emptyPlainBuffer();
   virtual bool sendToUntrusted(const FS &write_handler) = 0;
   virtual bool receiveFromUntrusted(const FR &read_handler) = 0;
+  // virtual P plainAt(int i);
+  // virtual C cipherAt(int i);
   virtual ~IO() = default;
 
 protected:
@@ -78,5 +80,15 @@ bool IO<FR, FS, C, P>::appendToPlain(const IOPlain &bytes) {
   plainBuffer_.insert(plainBuffer_.end(), bytes.begin(), bytes.end());
   return true;
 }
+// template <typename FR, typename FS, typename C, typename P>
+// P IO<FR, FS, C, P>::plainAt(int i) {
+
+//   return plainBuffer_[i];
+// }
+// template <typename FR, typename FS, typename C, typename P>
+// C IO<FR, FS, C, P>::cipherAt(int i) {
+
+//   return cipherBuffer_[i];
+// }
 }
 }

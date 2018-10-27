@@ -18,10 +18,19 @@ bool DNNTrainer::loadNetworkConfig() const {
 
   bool res = configIO_->receiveFromUntrusted(ocall_load_net_config);
   if (!res) {
-    printf("%s:%d@%s => Cannot properly move config into enclave!\n", __FILE__,
-           __LINE__, __func__);
+    my_printf("%s:%d@%s => Cannot properly move config into enclave!\n",
+              __FILE__, __LINE__, __func__);
     return false;
+  } else {
+    my_printf("%s:%d@%s => properly moved config into enclave!\n", __FILE__,
+              __LINE__, __func__);
   }
+  my_printf("%s:%d@%s => about to load the network object!\n", __FILE__,
+            __LINE__, __func__);
+
+  network *net =
+      load_network((char *)configIO_->getNetConfig().c_str(), nullptr, 0);
+
   return true;
 }
 }

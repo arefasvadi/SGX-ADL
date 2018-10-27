@@ -1,11 +1,12 @@
 #pragma once
 
 #include "IO.h"
+#include "enclave-app.h"
 #include "enclave_t.h"
 #include <functional>
 #include <string>
 
-extern void printf(const char *fmt, ...);
+extern void my_printf(const char *fmt, ...);
 namespace sgx {
 namespace trusted {
 namespace darknet {
@@ -28,10 +29,12 @@ public:
                                 &read_handler) override;
 
   // ~DNNConfigIO() override { printf("DNNConfigIO destructor is called!\n"); };
+  inline const std::string getNetConfig() const { return netConfig_; }
 
 private:
   const std::string configFilePath_;
-};
+  std::string netConfig_;
+}
 }
 }
 }

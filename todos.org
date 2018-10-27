@@ -1,3 +1,5 @@
+
+* add error and line number for abort messages for debugging!
 * build model-weight class
 * encrypt network config file and send it
 * build data class
@@ -16,14 +18,17 @@
 ** get_random_batch
 ** get_next_batch
 * fix load net config part 
+** function basecfg not needed!
 ** load_network accepts config file and weight file 
 *** parse_network_cfg
 **** read_cfg
 ***** reads a file!
+***** this function must be overriden 
 ***** look into fgetl function 
 **** modify error function 
 **** make_network 
 **** parse_net_options 
+***** must be overriden!
 **** fprintf on stderr
 **** get_network_output_layer is fine 
 **** check all these parse_sth 
@@ -45,3 +50,11 @@
 * use template variables for DNNConfig Class
 * try giving options manually in code! 
 * check all TODOS
+* darknet header API 
+** removing pthread related stuff!
+*** load_data  
+*** load_data_in_thread
+** removing file related functions
+*** fgetl
+** removing clock related functions 
+*** sec function 

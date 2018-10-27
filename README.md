@@ -1,1 +1,1 @@
-SGX-DDL
+SGX-ADL

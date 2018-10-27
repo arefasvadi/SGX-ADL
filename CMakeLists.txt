@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(SGX_DDL)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_BUILD_TYPE "Debug") 
+set(CMAKE_BUILD_TYPE "Debug")
 
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
@@ -37,26 +37,32 @@ set(Crypto_Library_Name "sgx_tcrypto")
 set(SGX_C_STANDARD_LIBRARY_NAME "sgx_tstdc")
 set(SGX_CXX_STANDARD_LIBRARY_NAME "sgx_tcxx")
 
-# include_directories("${PROJECT_SOURCE_DIR}/third_party/darknet/include")
+include_directories("${PROJECT_SOURCE_DIR}/include")
 
 set(DEFAULT_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 set(DEFAULT_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
-  set(Untrusted_C_Flags "-O0" "-g3" "-m64"
-    "-fPIC" "-Wno-attributes" "-DDEBUG" "-UNDEBUG" "-UEDEBUG")
+  set(Untrusted_C_Flags "-O0" "-g" "-m64"
+    "-fPIC" "-Wno-attributes" "-DDEBUG" "-UNDEBUG" "-DEDEBUG")
   set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++14")
-  set(Untrusted_Link_Flags "-O0 -g3 -m64 -L${SGX_LIBRARY_PATH}")
-  set(Trusted_C_Flags "-O0" "-g3" "-m64" "-nostdinc"
+  set(Untrusted_Link_Flags "-O0 -g -m64 -L${SGX_LIBRARY_PATH}")
+  set(Trusted_C_Flags "-O0" "-g" "-m64" "-nostdinc"
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
 else()
-  set(Untrusted_C_Flags "-O3" "-g0" "-m64"
+  set(Untrusted_C_Flags "-O3"
+    # "-g0"
+    "-m64"
     "-fPIC" "-Wno-attributes"
-    "-DDEBUG" "-UNDEBUG" "-UEDEBUG"
-#    "-DNDEBUG" "-UEDEBUG" "-UDEBUG"
+    # "-DDEBUG" "-UNDEBUG" "-UEDEBUG"
+   "-DNDEBUG" "-UEDEBUG" "-UDEBUG"
     )
   set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++11")
-  set(Untrusted_Link_Flags "-O3 -g0 -m64 -L${SGX_LIBRARY_PATH}")
-  set(Trusted_C_Flags "-O3" "-g0" "-m64" "-nostdinc"
+  set(Untrusted_Link_Flags "-O3"
+    # "-g0"
+    "-m64 -L${SGX_LIBRARY_PATH}")
+  set(Trusted_C_Flags "-O3"
+    # "-g0"
+    "-m64" "-nostdinc"
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
 endif()
 
@@ -68,7 +74,67 @@ set(Trusted_Link_Flags "-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfile
 -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
 -Wl,--defsym,__ImageBase=0 \
 -Wl,--version-script=${Version_Script}")
-
+############################################################
+set(DARKNET_SOURCE_FILES
+"third_party/darknet/src/gemm.c"
+"third_party/darknet/src/utils.c"
+# "third_party/darknet/src/cuda.c"
+"third_party/darknet/src/deconvolutional_layer.c"
+"third_party/darknet/src/convolutional_layer.c"
+"third_party/darknet/src/list.c"
+"third_party/darknet/src/image.c"
+"third_party/darknet/src/activations.c"
+"third_party/darknet/src/im2col.c"
+"third_party/darknet/src/col2im.c"
+"third_party/darknet/src/blas.c"
+"third_party/darknet/src/crop_layer.c"
+"third_party/darknet/src/dropout_layer.c"
+"third_party/darknet/src/maxpool_layer.c"
+"third_party/darknet/src/softmax_layer.c"
+# "third_party/darknet/src/data.c"
+"third_party/darknet/src/matrix.c"
+"third_party/darknet/src/network.c"
+"third_party/darknet/src/connected_layer.c"
+"third_party/darknet/src/cost_layer.c"
+"third_party/darknet/src/parser.c"
+"third_party/darknet/src/option_list.c"
+"third_party/darknet/src/detection_layer.c"
+"third_party/darknet/src/route_layer.c"
+"third_party/darknet/src/upsample_layer.c"
+# "third_party/darknet/src/box.c"
+"third_party/darknet/src/normalization_layer.c"
+"third_party/darknet/src/avgpool_layer.c"
+"third_party/darknet/src/layer.c"
+"third_party/darknet/src/local_layer.c"
+"third_party/darknet/src/shortcut_layer.c"
+"third_party/darknet/src/logistic_layer.c"
+"third_party/darknet/src/activation_layer.c"
+"third_party/darknet/src/rnn_layer.c"
+"third_party/darknet/src/gru_layer.c"
+"third_party/darknet/src/crnn_layer.c"
+# "third_party/darknet/src/demo.c"
+"third_party/darknet/src/batchnorm_layer.c"
+# "third_party/darknet/src/region_layer.c"
+# "third_party/darknet/src/reorg_layer.c"
+# "third_party/darknet/src/tree.c"
+"third_party/darknet/src/lstm_layer.c"
+"third_party/darknet/src/l2norm_layer.c"
+# "third_party/darknet/src/yolo_layer.c"
+)
+add_library(DARKNET_T OBJECT
+"${DARKNET_SOURCE_FILES}"
+"${Trusted_Home}/src/darknet-addons.c"
+"${Trusted_Home}/src/pcg_basic.c"
+)
+target_include_directories(DARKNET_T PUBLIC
+  "${Trusted_Home}"
+  "${Trusted_Home}/include"
+  "${SGX_SDK}/include"
+  "${SGX_SDK}/include/tlibc"
+)
+target_compile_options(DARKNET_T PUBLIC "${Trusted_C_Flags}" 
+"-DUSE_SGX"
+)
 ########################################################################################################################
 #Untrusted Code
 execute_process(COMMAND "${SGX_EDGER8R}"
@@ -141,11 +207,12 @@ target_link_libraries(${Untrusted_Name} ${Urts_Library_Name} "crypto" "pthread" 
 # file(GLOB Enclave_Cpp_Files "${Trusted_Home}/src/*.cpp"
 #   "${Trusted_Home}/THeaders/*.h" "${Trusted_Home}/*.h"
 #   )
-set(Enclave_Cpp_Files "${Trusted_Home}/src/enclave-app.cpp"
+set(Enclave_Cpp_Files
+  "${Trusted_Home}/src/enclave-app.cpp"
   "${Trusted_Home}/src/DNNConfigIO.cpp" 
   "${Trusted_Home}/src/DNNTrainer.cpp" 
   )
-add_executable(${Trusted_Name} "${Enclave_Cpp_Files}" $<TARGET_OBJECTS:Enclave_T>)
+add_executable(${Trusted_Name} "${Enclave_Cpp_Files}" $<TARGET_OBJECTS:Enclave_T> $<TARGET_OBJECTS:DARKNET_T>)
 target_include_directories(${Trusted_Name} PUBLIC
   "${CMAKE_SOURCE_DIR}/include"
   "${Trusted_Home}/"
@@ -155,13 +222,15 @@ target_include_directories(${Trusted_Name} PUBLIC
   # "${SGX_SDK}/include/stlport"
   # "${SGX_SDK}/include/stdc++"
   "${SGX_SDK}/include/libcxx")
-target_compile_options(${Trusted_Name} PUBLIC "${Trusted_Cpp_Flags}")
+target_compile_options(${Trusted_Name} PUBLIC "${Trusted_Cpp_Flags}" 
+"-DUSE_SGX"
+)
 #target_link_libraries(${Trusted_Name} "/usr/lib/x86_64-linux-gnu/libgsl.a" "/usr/lib/x86_64-linux-gnu/libgslcblas.a" "${Trusted_Link_Flags}")
 target_link_libraries(${Trusted_Name} "${Trusted_Link_Flags}")
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
-  set_target_properties(${Trusted_Name} PROPERTIES LINK_FLAGS "-O0 -g3 -m64")
+  set_target_properties(${Trusted_Name} PROPERTIES LINK_FLAGS "-O0 -g -m64")
 else()
-  set_target_properties(${Trusted_Name} PROPERTIES LINK_FLAGS "-O3 -g -m64")
+  set_target_properties(${Trusted_Name} PROPERTIES LINK_FLAGS "-O3 -m64")
 endif()
 add_custom_command(OUTPUT ${Signed_Trusted_Name}
   COMMAND ${SGX_ENCLAVE_SIGNER} "sign" "-key" "${Private_Key_File}" "-enclave" "${PROJECT_BINARY_DIR}/${Trusted_Name}" "-out" "${PROJECT_BINARY_DIR}/${Signed_Trusted_Name}" "-config" "${Trusted_Config_File}"
