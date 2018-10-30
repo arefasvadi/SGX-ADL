@@ -27,6 +27,9 @@ sgx::untrusted::CryptoEngine<uint8_t>
     crypto_engine(sgx::untrusted::CryptoEngine<uint8_t>::Key{
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
 
+training_pub_params tr_pub_params;
+std::vector<trainRecordSerialized> plain_dataset;
+
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
   const char *msg;
@@ -97,6 +100,16 @@ int initialize_enclave(void) {
   return 0;
 }
 
+/* initializing dataset params */
+void initialize_training_params_cifar(training_pub_params &param) {
+  param.label_path = "/home/aref/projects/SGX-DDL/test/config/cifar10/labels.txt";
+  param.train_paths = "/home/aref/projects/SGX-DDL/test/config/cifar10/train.list";
+  param.width = 28;
+  param.height = 28;
+  param.channels = 3;
+  param.num_classes = 10;
+}
+
 /* OCall functions */
 void ocall_print_string(const char *str) {
   /* Proxy/Bridge will check the length and null-terminate
@@ -156,6 +169,11 @@ int SGX_CDECL main(int argc, char *argv[]) {
     printf("ecall init enclave caused problem!\n");
     abort();
   }
+
+  initialize_training_params_cifar(tr_pub_params);
+  load_training_data(tr_pub_params);
+  serialize_training_data(tr_pub_params,plain_dataset);
+
   // sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
   //     {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
   // std::vector<uint8_t> plain = {1,  2,  3,  4,  5,  6,  7,  8, 9,

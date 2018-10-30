@@ -192,12 +192,21 @@ target_compile_options(Enclave_T PUBLIC "${Trusted_C_Flags}")
 # file(GLOB App_Cpp_Files "${Untrusted_Home}/src/*.cpp" "${Untrusted_Home}/UTHeaders/*.h" "${Untrusted_Home}/*.h")
 set(App_Cpp_Files
   "${Untrusted_Home}/src/app.cpp"
+  "${Untrusted_Home}/src/load-image.cpp"
+  "third_party/darknet/src/data.c"
+  "third_party/darknet/src/utils.c"
+  "third_party/darknet/src/list.c"
+  "third_party/darknet/src/image.c"
+  "third_party/darknet/src/matrix.c"
+  "third_party/darknet/src/list.c"
+  "third_party/darknet/src/blas.c"
   )
 add_executable(${Untrusted_Name} "${App_Cpp_Files}" $<TARGET_OBJECTS:Enclave_U>)
 target_include_directories(${Untrusted_Name} PUBLIC
   "${CMAKE_SOURCE_DIR}/include"
   "${Untrusted_Home}"
   "${Untrusted_Home}/include"
+  "third_party/darknet/include"
   "${SGX_SDK}/include")
 target_compile_options(${Untrusted_Name} PUBLIC "${Untrusted_Cpp_Flags}" "-msse4.2")
 set_target_properties(${Untrusted_Name} PROPERTIES LINK_FLAGS "${Untrusted_Link_Flags}")

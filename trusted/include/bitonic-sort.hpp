@@ -15,9 +15,9 @@ namespace std = ::std;
 template <typename SR> class BitonicSorter {
 public:
   explicit BitonicSorter(const std::size_t arr_len,
-                         const SR *array_ptr = nullptr,
+                         // const SR *array_ptr = nullptr,
                          const bool ascending = true)
-      : arrayLen_{arr_len}, arrayPtr_{array_ptr}, ascending_{ascending},
+      : arrayLen_{arr_len}, arrayPtr_{nullptr}, ascending_{ascending},
         thresholdNum_{(SORT_SPACE_MEGABYTE * 1048576) / sizeof(SR)} {};
 
   BitonicSorter(const BitonicSorter &) = delete;
@@ -58,6 +58,13 @@ template <typename SR>
 void BitonicSorter<SR>::bitonicMerge(std::size_t low, std::size_t n, bool dir) {
   if (n > 1) {
     int m = greatestPowerofTwoLessThan(n);
+    std::size_t required_elements = (n - m) * 2;
+
+    if (required_elements < thresholdNum_) {
+      // TODO Don't forget comments below 
+      // the whole comparison block fits inside enclave
+      // make sure variable arrayPtr is set here and is non-nullptr
+    }
 
     for (int i = low; i < low + n - m; i++) {
       obliviousCompareExchange(i, i + m, dir);
@@ -75,6 +82,7 @@ inline void BitonicSorter<SR>::obliviousCompareExchange(std::size_t i,
   uint8_t swap_space[sizeof(SR)];
   SR temp = arrayPtr_[i];
 
+  // operator> must be implemented for type SR
   if (dir == (arrayPtr_[i] > arrayPtr_[j])) {
     // swap should take place
     std::memset(swap_space, 1, sizeof(SR));

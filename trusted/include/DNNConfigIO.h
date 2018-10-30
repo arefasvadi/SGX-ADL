@@ -34,7 +34,7 @@ public:
 private:
   const std::string configFilePath_;
   std::string netConfig_;
-}
+};
 }
 }
 }
