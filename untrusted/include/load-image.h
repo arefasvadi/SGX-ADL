@@ -1,7 +1,10 @@
 #pragma once
 
+#include "CryptoEngine.hpp"
 #include "common.h"
 #include <vector>
+
+#undef USE_SGX
 
 #if defined(__cplusplus)
 extern "C" {
@@ -17,8 +20,6 @@ matrix load_labels_paths(char **paths, int n, char **labels, int k,
 #endif
 
 #include <string>
-#undef USE_SGX
-
 
 typedef struct training_pub_params {
   std::string label_path;
@@ -40,5 +41,11 @@ typedef struct training_pub_params {
 } training_pub_params;
 
 bool load_training_data(training_pub_params &par);
+
 bool serialize_training_data(training_pub_params &par,
                              std::vector<trainRecordSerialized> &out);
+
+bool encrypt_training_data(
+    sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
+    const std::vector<trainRecordSerialized> &in,
+    std::vector<trainRecordEncrypted> &out);

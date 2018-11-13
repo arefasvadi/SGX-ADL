@@ -34,7 +34,9 @@ public:
   // using IOBuffer = std::vector<uint8_t>;
 
   explicit CryptoEngine(const Key &key);
+
   std::tuple<IOBuffer, IV, MAC> encrypt(const IOBuffer &plain_text);
+
   IOBuffer decrypt(const std::tuple<IOBuffer, IV, MAC> &cipher_text) const;
 
   // making class non-copyable

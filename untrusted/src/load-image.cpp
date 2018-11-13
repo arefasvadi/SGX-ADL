@@ -1,5 +1,6 @@
 #include "load-image.h"
 #include "common.h"
+#include <CryptoEngine.hpp>
 #include <algorithm>
 #include <cstring>
 #include <iostream>
@@ -43,8 +44,33 @@ bool serialize_training_data(training_pub_params &par,
     std::memcpy(t_record.label, par.input_data.y.vals[cnt],
                 NUM_CLASSES * sizeof(float));
     // fill the data
-    std::memcpy(t_record.data , par.input_data.X.vals[cnt],
+    std::memcpy(t_record.data, par.input_data.X.vals[cnt],
                 WIDTH_X_HEIGHT_X_CHAN * sizeof(float));
     ++cnt;
-  };
+  }
+
+  return true;
+}
+
+bool encrypt_training_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
+                           const std::vector<trainRecordSerialized> &in,
+                           std::vector<trainRecordEncrypted> &out) {
+
+  out.resize(in.size());
+  int cnt = 0;
+  for (const auto &record : in) {
+    std::vector<uint8_t> buff(sizeof(record));
+    std::memcpy(&buff[0], &record, sizeof(record));
+    auto enc = crypto_engine.encrypt(buff);
+    trainRecordEncrypted enc_rec;
+    auto enc_data = std::get<0>(enc);
+    auto IV = std::get<1>(enc);
+    auto MAC = std::get<2>(enc);
+    std::memcpy(&enc_rec.encData, &enc_data[0], sizeof(trainRecordSerialized));
+    std::memcpy(enc_rec.IV, &IV[0], AES_GCM_IV_SIZE);
+    std::memcpy(enc_rec.MAC, &MAC[0], AES_GCM_TAG_SIZE);
+    out[cnt] = enc_rec;
+    ++cnt;
+  }
+  return true;
 }
