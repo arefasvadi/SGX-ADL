@@ -1,10 +1,13 @@
 #include "load-image.h"
+#include "../enclave_u.h"
 #include "common.h"
 #include <CryptoEngine.hpp>
 #include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <vector>
+
+extern sgx_enclave_id_t global_eid;
 
 bool load_training_data(training_pub_params &par) {
 
@@ -13,12 +16,13 @@ bool load_training_data(training_pub_params &par) {
   par.paths = (char **)list_to_array(par.plist);
   par.total_records = par.plist->size;
   par.input_data = {0};
-
+  par.input_data.shallow = 0;
   par.input_data.X =
       load_image_paths(par.paths, par.total_records, par.width, par.height);
+  std::cout << "Each image is are of length: " << par.input_data.X.cols << "\n";
   par.input_data.y = load_labels_paths(par.paths, par.total_records, par.labels,
                                        par.num_classes, NULL);
-
+  std::cout << "Each label is are of length: " << par.input_data.y.cols << "\n";
   // TODO remember to delete
   // paths in plist
   // free_list too
@@ -73,4 +77,70 @@ bool encrypt_training_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
     ++cnt;
   }
   return true;
+}
+
+/* initializing dataset params */
+void initialize_training_params_cifar(training_pub_params &param) {
+  param.label_path =
+      "/home/aref/projects/SGX-DDL/test/config/cifar10/labels.txt";
+  param.train_paths =
+      "/home/aref/projects/SGX-DDL/test/config/cifar10/train.list";
+  param.width = 28;
+  param.height = 28;
+  param.channels = 3;
+  param.num_classes = 10;
+}
+
+void initialize_data(training_pub_params &tr_pub_params,
+                     std::vector<trainRecordSerialized> &plain_dataset,
+                     std::vector<trainRecordEncrypted> &encrypted_dataset,
+                     sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine) {
+  initialize_training_params_cifar(tr_pub_params);
+  load_training_data(tr_pub_params);
+  serialize_training_data(tr_pub_params, plain_dataset);
+  encrypt_training_data(crypto_engine, plain_dataset, encrypted_dataset);
+  plain_dataset.clear();
+}
+
+void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {
+  constexpr int group_size = 5;
+  const int dataset_size = encrypted_dataset.size();
+  std::cout
+      << "Entered in random_id_assign in untrusted zone for dataset of size "
+      << dataset_size << " each being "  << sizeof(trainRecordEncrypted)  << " bytes!\n";
+  int count = 0;
+  while (true) {
+    if (count + group_size < dataset_size) {
+      // ecall on count, count+groupsize-1 index
+      sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+      ret = ecall_assign_random_id(global_eid,
+                                   (unsigned char *)&(encrypted_dataset[count]),
+                                   group_size * sizeof(trainRecordEncrypted));
+      // std::cout << "calling enclave..\n";
+      if (ret != SGX_SUCCESS) {
+        printf("ecall assign random_id enclave caused problem! the error is "
+               "%#010X \n",
+               ret);
+        abort();
+      }
+      count += group_size;
+
+    } else if (count == dataset_size) {
+      break;
+    } else {
+      // ecall on count, until the end of list
+      sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+      ret = ecall_assign_random_id(
+          global_eid, (unsigned char *)&(encrypted_dataset[count]),
+          (dataset_size - count) * sizeof(trainRecordEncrypted));
+      if (ret != SGX_SUCCESS) {
+        printf("ecall assign random_id enclave caused problem! the error is "
+               "%#010X   \n",
+               ret);
+        abort();
+      }
+
+      break;
+    }
+  }
 }

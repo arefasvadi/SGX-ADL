@@ -91,7 +91,7 @@ int initialize_enclave(void) {
 
   /* Call sgx_create_enclave to initialize an enclave instance */
   /* Debug Support: set 2nd parameter to 1 */
-  ret = sgx_create_enclave(ENCLAVE_FILENAME,((int)1) , &token, &updated,
+  ret = sgx_create_enclave(ENCLAVE_FILENAME, ((int)1), &token, &updated,
                            &global_eid, NULL);
   if (ret != SGX_SUCCESS) {
     print_error_message(ret);
@@ -99,24 +99,6 @@ int initialize_enclave(void) {
   }
 
   return 0;
-}
-
-/* initializing dataset params */
-void initialize_training_params_cifar(training_pub_params &param) {
-  param.label_path = "/home/aref/projects/SGX-DDL/test/config/cifar10/labels.txt";
-  param.train_paths = "/home/aref/projects/SGX-DDL/test/config/cifar10/train.list";
-  param.width = 28;
-  param.height = 28;
-  param.channels = 3;
-  param.num_classes = 10;
-}
-
-void initialize_data() {
-  initialize_training_params_cifar(tr_pub_params);
-  load_training_data(tr_pub_params);
-  serialize_training_data(tr_pub_params,plain_dataset);
-  encrypt_training_data(crypto_engine,plain_dataset,encrypted_dataset);
-  plain_dataset.clear();
 }
 
 /* OCall functions */
@@ -127,14 +109,44 @@ void ocall_print_string(const char *str) {
   printf("%s", str);
 }
 
+void ocall_get_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
+                           int j, unsigned char *tr_record_j, size_t len_j) {
+  // tr_record_i =(unsigned char*) &encrypted_dataset[i];
+  std::memcpy(tr_record_i, &(encrypted_dataset[i]),
+              sizeof(trainRecordEncrypted));
+  len_i = sizeof(trainRecordEncrypted);
+
+  std::memcpy(tr_record_j, &(encrypted_dataset[j]),
+              sizeof(trainRecordEncrypted));
+  // tr_record_j =(unsigned char*) &encrypted_dataset[j];
+  len_j = sizeof(trainRecordEncrypted);
+}
+
+void ocall_set_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
+                           int j, unsigned char *tr_record_j, size_t len_j) {
+  trainRecordEncrypted *tr_rec_i = (trainRecordEncrypted *)tr_record_i;
+  encrypted_dataset[i] = *tr_rec_i;
+  trainRecordEncrypted *tr_rec_j = (trainRecordEncrypted *)tr_record_j;
+  encrypted_dataset[j] = *tr_rec_j;
+}
+
+void ocall_get_records(size_t i, unsigned char *tr_record_i, size_t len_i) {
+  std::memcpy(tr_record_i, &(encrypted_dataset[i]), len_i);
+}
+
+void ocall_set_records(size_t i, unsigned char *tr_record_i, size_t len_i) {
+  std::memcpy(&(encrypted_dataset[i]), tr_record_i, len_i);
+
+}
+
 void ocall_load_net_config(const unsigned char *path, size_t path_len,
                            char *config, size_t config_len,
                            unsigned int *real_len, unsigned char *config_iv,
                            unsigned char *config_mac) {
 
-  printf("%s:%d@%s =>  ocall_load_net_config started! for file %s with size %zu\n", __FILE__,
-         __LINE__, __func__,
-         (char *)path, path_len);
+  printf(
+      "%s:%d@%s =>  ocall_load_net_config started! for file %s with size %zu\n",
+      __FILE__, __LINE__, __func__, (char *)path, path_len);
   std::ifstream f((const char *)path, std::ios::in | std::ios::binary);
 
   if (!f.is_open()) {
@@ -155,9 +167,9 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
   memcpy(config_iv, config_content_iv.data(), AES_GCM_IV_SIZE);
   memcpy(config_mac, config_content_mac.data(), AES_GCM_TAG_SIZE);
 
-  printf("%s:%d@%s =>  ocall_load_net_config finished successfully for size of %zu bytes!\n", __FILE__,
-         __LINE__, __func__,
-         *real_len);
+  printf("%s:%d@%s =>  ocall_load_net_config finished successfully for size of "
+         "%zu bytes!\n",
+         __FILE__, __LINE__, __func__, *real_len);
 }
 
 /* Application entry */
@@ -175,21 +187,33 @@ int SGX_CDECL main(int argc, char *argv[]) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   ret = ecall_enclave_init(global_eid);
   if (ret != SGX_SUCCESS) {
-    printf("ecall init enclave caused problem!\n");
+    printf("ecall init enclave caused problem! Error code is %#010\n", ret);
     abort();
   }
-  initialize_data(); 
+  initialize_data(tr_pub_params, plain_dataset, encrypted_dataset,
+                  crypto_engine);
 
-  // sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
-  //     {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-  // std::vector<uint8_t> plain = {1,  2,  3,  4,  5,  6,  7,  8, 9,
-  //                               10, 11, 12, 13, 14, 15, 16, 17};
-  // auto cipher_pack = crypto_engine.encrypt(plain);
-  // decltype(plain) plain2 = crypto_engine.decrypt(cipher_pack);
+  std::cout << "Size of encrypted data is: "
+            << (encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
+                   (1 << 20)
+            << "MB\n";
 
-  // if (std::equal(plain.begin(), plain.end(), plain2.begin())) {
-  //   std::cout << "enc-dec success!\n";
-  // }
+  random_id_assign(encrypted_dataset);
+  ret = ecall_initial_sort(global_eid);
+  if (ret != SGX_SUCCESS) {
+    printf("ecall initial sort enclave caused problem! Error code is %#010X\n",
+           ret);
+    abort();
+  }
+
+  std::cout << "check for sorting started\n";
+  ret = ecall_check_for_sort_correctness(global_eid);
+  if (ret != SGX_SUCCESS) {
+    printf("ecall checking sort correctness caused problem! Error code is %#010X\n",
+           ret);
+    abort();
+  }
+  std::cout << "check for sorting finished successfully\n";
 
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);

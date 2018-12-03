@@ -49,3 +49,12 @@ bool encrypt_training_data(
     sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
     const std::vector<trainRecordSerialized> &in,
     std::vector<trainRecordEncrypted> &out);
+
+void initialize_training_params_cifar(training_pub_params &param);
+
+void initialize_data(training_pub_params &tr_pub_params,
+                     std::vector<trainRecordSerialized> &plain_dataset,
+                     std::vector<trainRecordEncrypted> &encrypted_dataset,
+                     sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine);
+
+void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset);

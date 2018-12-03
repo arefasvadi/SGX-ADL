@@ -29,9 +29,14 @@ bool DNNTrainer::loadNetworkConfig() const {
             __LINE__, __func__);
 
   network *net =
-      load_network((char *)configIO_->getNetConfig().c_str(), nullptr, 0);
+      load_network((char *)configIO_->getNetConfig().c_str(), nullptr, 1);
 
   return true;
+}
+void DNNTrainer::intitialSort() {
+  BitonicSorter sorter(50000, true, cryptoEngine_);
+  // BitonicSorter sorter(10000, true, cryptoEngine_);
+  sorter.doSort();
 }
 }
 }

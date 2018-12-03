@@ -24,7 +24,8 @@ set(Private_Key_File "${Trusted_Home}/enclave_private.pem")
 set(Version_Script "${Trusted_Home}/enclave.lds")
 
 #set(SGX_SDK "/opt/intel/sgxsdk")
-set(SGX_SDK "/opt/intel/sgx-2.2/sgxsdk")
+# set(SGX_SDK "/opt/intel/sgx-2.2/sgxsdk")
+set(SGX_SDK "/opt/intel/sgx-2.3-debug/sgxsdk")
 set(SGX_MODE "HW")
 set(SGX_ARCH "x64")
 set(SGX_LIBRARY_PATH "${SGX_SDK}/lib64")
@@ -36,6 +37,7 @@ set(Service_Library_Name "sgx_tservice")
 set(Crypto_Library_Name "sgx_tcrypto")
 set(SGX_C_STANDARD_LIBRARY_NAME "sgx_tstdc")
 set(SGX_CXX_STANDARD_LIBRARY_NAME "sgx_tcxx")
+set(SGX_MALLOC_LIBRARY_NAME "sgx_tcmalloc")
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
@@ -69,6 +71,7 @@ endif()
 set(Trusted_Cpp_Flags "${Trusted_C_Flags}" "-std=c++14" "-nostdinc++")
 set(Trusted_Link_Flags "-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
 -Wl,--whole-archive -l${Trts_Library_Name} -Wl,--no-whole-archive \
+-Wl,--whole-archive -l${SGX_MALLOC_LIBRARY_NAME} -Wl,--no-whole-archive \
 -Wl,--start-group -l${SGX_C_STANDARD_LIBRARY_NAME} -l${SGX_CXX_STANDARD_LIBRARY_NAME} -l${Crypto_Library_Name} -l${Service_Library_Name} -Wl,--end-group \
 -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
@@ -217,6 +220,7 @@ target_link_libraries(${Untrusted_Name} ${Urts_Library_Name} "crypto" "pthread" 
 #   "${Trusted_Home}/THeaders/*.h" "${Trusted_Home}/*.h"
 #   )
 set(Enclave_Cpp_Files
+  "${Trusted_Home}/src/bitonic-sort.cpp" 
   "${Trusted_Home}/src/enclave-app.cpp"
   "${Trusted_Home}/src/DNNConfigIO.cpp" 
   "${Trusted_Home}/src/DNNTrainer.cpp" 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "enclave-app.h"
 #include "sgx_error.h"
 #include "sgx_tcrypto.h"
 #include <array>
@@ -9,6 +10,8 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
+// extern void my_printf(const char *fmt, ...);
 
 namespace sgx {
 namespace trusted {
@@ -63,14 +66,16 @@ CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) {
   // static_assert(iv_.size() == 12, "IV size is zero!");
   // static_assert(mac.size() == 16, "MAC size is zero!");
 
-  auto key_data = key_.data();
-  sgx_status_t success = sgx_rijndael128GCM_encrypt(
-      key_data, (const uint8_t *)plain_text.data(),
+  // auto key_data = key_.data();
+  sgx_status_t success = SGX_ERROR_UNEXPECTED;
+  success = sgx_rijndael128GCM_encrypt(
+      (uint8_t const(*)[16]) & key_, (const uint8_t *)plain_text.data(),
       plain_text.size() * sizeof(T), (uint8_t *)cipher.data(), iv.data(),
-      iv.size(), nullptr, 0, mac.data());
+      iv.size(), nullptr, 0, (uint8_t(*)[16]) & mac);
 
   if (success != SGX_SUCCESS) {
-    throw std::runtime_error("encryption failed!\n");
+    my_printf("Eecryption failed! Error code is %#010x and in decimal %d \n", success,success);
+    abort();
   }
   ++counter_;
   // TODO When IV fixed you can use std::move
@@ -83,22 +88,29 @@ typename CryptoEngine<T>::IOBuffer CryptoEngine<T>::decrypt(
                      typename CryptoEngine<T>::IV,
                      typename CryptoEngine<T>::MAC> &cipher_text) const {
   IOBuffer plain;
-  IOBuffer cipher;
-  IV iv;
-  MAC mac;
+  // IOBuffer cipher;
+  // IV iv;
+  // MAC mac;
 
-  std::tie(cipher, iv, mac) = cipher_text;
+  // std::tie(cipher, iv, mac) = cipher_text;
+  auto& cipher = std::get<0>(cipher_text);
+  auto& iv = std::get<1>(cipher_text);
+  auto& mac = std::get<2>(cipher_text);
+
   // static_assert(iv.size() == 12, "IV size is zero!");
   // static_assert(mac.size() == 16, "MAC size is zero!");
   plain.resize(cipher.size());
   // auto key_data = key_.data();
-  sgx_status_t success = sgx_rijndael128GCM_decrypt(
-      (uint8_t const(*) [16]) & key_, (const uint8_t *)cipher.data(),
+  sgx_status_t success = SGX_ERROR_UNEXPECTED;
+  success = sgx_rijndael128GCM_decrypt(
+                                       (uint8_t const(*)[16])  key_.data(), (const uint8_t *)cipher.data(),
       cipher.size(), (uint8_t *)plain.data(), iv.data(), iv.size(), nullptr, 0,
-      (uint8_t const(*) [16])&mac);
+                                       (uint8_t const(*)[16]) mac.data());
   if (success != SGX_SUCCESS) {
-    throw std::runtime_error("decryption failed!\n");
+    my_printf("Decryption failed! Error code is %#010x and in decimal %d \n", success,success);
+    abort();
   }
+  // my_printf("After decryption\n");
   return plain;
 }
 }

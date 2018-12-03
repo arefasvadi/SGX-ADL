@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+// #include <stdint.h>
 
 #define AES_GCM_KEY_SIZE 16
 #define AES_GCM_TAG_SIZE 16
@@ -32,11 +32,11 @@
 typedef struct trainRecordSerialized {
   float data [WIDTH_X_HEIGHT_X_CHAN];
   float label [NUM_CLASSES];
-  uint32_t shuffleID;
+  unsigned int shuffleID;
 } trainRecordSerialized;
 
 typedef struct trainRecordEncrypted {
   trainRecordSerialized encData;
-  uint8_t IV[AES_GCM_IV_SIZE];
-  uint8_t MAC[AES_GCM_TAG_SIZE]; 
+  unsigned char IV[AES_GCM_IV_SIZE];
+  unsigned char MAC[AES_GCM_TAG_SIZE]; 
 } trainRecordEncrypted;

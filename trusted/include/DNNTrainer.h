@@ -1,8 +1,9 @@
 #pragma once
 
-#include "darknet.h"
 #include "CryptoEngine.hpp"
 #include "DNNConfigIO.h"
+#include "bitonic-sort.h"
+#include "darknet.h"
 // #include "DNNDataIO.h"
 // #include "DNNParamIO.h"
 #include <memory>
@@ -21,6 +22,10 @@ public:
                       const std::string &data_dir_path);
 
   bool loadNetworkConfig() const;
+  inline sgt::CryptoEngine<uint8_t> &getCryptoEngine() {
+    return cryptoEngine_;
+  };
+  void intitialSort();
 
 private:
   sgt::CryptoEngine<uint8_t> cryptoEngine_;
