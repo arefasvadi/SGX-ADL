@@ -94,7 +94,7 @@ set(DARKNET_SOURCE_FILES
 "third_party/darknet/src/dropout_layer.c"
 "third_party/darknet/src/maxpool_layer.c"
 "third_party/darknet/src/softmax_layer.c"
-# "third_party/darknet/src/data.c"
+"third_party/darknet/src/data.c"
 "third_party/darknet/src/matrix.c"
 "third_party/darknet/src/network.c"
 "third_party/darknet/src/connected_layer.c"

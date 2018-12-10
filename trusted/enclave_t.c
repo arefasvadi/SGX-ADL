@@ -143,31 +143,40 @@ static sgx_status_t SGX_CDECL sgx_ecall_check_for_sort_correctness(void* pms)
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_ecall_start_training(void* pms)
+{
+	sgx_status_t status = SGX_SUCCESS;
+	if (pms != NULL) return SGX_ERROR_INVALID_PARAMETER;
+	ecall_start_training();
+	return status;
+}
+
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[4];
+	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[5];
 } g_ecall_table = {
-	4,
+	5,
 	{
 		{(void*)(uintptr_t)sgx_ecall_enclave_init, 0},
 		{(void*)(uintptr_t)sgx_ecall_assign_random_id, 0},
 		{(void*)(uintptr_t)sgx_ecall_initial_sort, 0},
 		{(void*)(uintptr_t)sgx_ecall_check_for_sort_correctness, 0},
+		{(void*)(uintptr_t)sgx_ecall_start_training, 0},
 	}
 };
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[6][4];
+	uint8_t entry_table[6][5];
 } g_dyn_entry_table = {
 	6,
 	{
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
 	}
 };
 

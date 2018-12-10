@@ -13,6 +13,18 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
+#ifndef IMG_WIDTH
+#define IMG_WIDTH 28
+#endif
+
+#ifndef IMG_HEIGHT
+#define IMG_HEIGHT 28
+#endif
+
+#ifndef IMG_CHAN
+#define IMG_CHAN 3
+#endif
+
 #ifndef WIDTH_X_HEIGHT_X_CHAN
 #define  WIDTH_X_HEIGHT_X_CHAN 2352 
 #endif
@@ -22,7 +34,7 @@
 #endif
 
 #ifndef TOTAL_IMG_TEST_RECORDS
-#define TOTAL_IMG_TEST_RECORDS 50000 
+#define TOTAL_IMG_TEST_RECORDS 10000 
 #endif
 
 #ifndef NUM_CLASSES

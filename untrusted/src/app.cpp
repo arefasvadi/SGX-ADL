@@ -199,21 +199,30 @@ int SGX_CDECL main(int argc, char *argv[]) {
             << "MB\n";
 
   random_id_assign(encrypted_dataset);
-  ret = ecall_initial_sort(global_eid);
-  if (ret != SGX_SUCCESS) {
-    printf("ecall initial sort enclave caused problem! Error code is %#010X\n",
-           ret);
-    abort();
-  }
+  // ret = ecall_initial_sort(global_eid);
+  // if (ret != SGX_SUCCESS) {
+  //   printf("ecall initial sort enclave caused problem! Error code is %#010X\n",
+  //          ret);
+  //   abort();
+  // }
 
-  std::cout << "check for sorting started\n";
-  ret = ecall_check_for_sort_correctness(global_eid);
+  // std::cout << "check for sorting started\n";
+  // ret = ecall_check_for_sort_correctness(global_eid);
+  // if (ret != SGX_SUCCESS) {
+  //   printf("ecall checking sort correctness caused problem! Error code is %#010X\n",
+  //          ret);
+  //   abort();
+  // }
+  // std::cout << "check for sorting finished successfully\n";
+
+  std::cout << "starting the training...\n";
+  ret = ecall_start_training(global_eid);
   if (ret != SGX_SUCCESS) {
-    printf("ecall checking sort correctness caused problem! Error code is %#010X\n",
+    printf("ecall start training caused problem! Error code is %#010X\n",
            ret);
     abort();
   }
-  std::cout << "check for sorting finished successfully\n";
+  std::cout << "finished the training\n";
 
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);

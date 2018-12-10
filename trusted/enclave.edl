@@ -6,6 +6,7 @@ enclave {
               public void ecall_assign_random_id([in,out, size=len] unsigned char* tr_records, size_t len); 
               public void ecall_initial_sort(); 
               public void ecall_check_for_sort_correctness();
+              public void ecall_start_training();
     };
     untrusted {
               void ocall_load_net_config(

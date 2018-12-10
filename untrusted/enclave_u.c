@@ -143,3 +143,10 @@ sgx_status_t ecall_check_for_sort_correctness(sgx_enclave_id_t eid)
 	return status;
 }
 
+sgx_status_t ecall_start_training(sgx_enclave_id_t eid)
+{
+	sgx_status_t status;
+	status = sgx_ecall(eid, 4, &ocall_table_enclave, NULL);
+	return status;
+}
+

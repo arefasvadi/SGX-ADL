@@ -45,6 +45,7 @@ sgx_status_t ecall_enclave_init(sgx_enclave_id_t eid);
 sgx_status_t ecall_assign_random_id(sgx_enclave_id_t eid, unsigned char* tr_records, size_t len);
 sgx_status_t ecall_initial_sort(sgx_enclave_id_t eid);
 sgx_status_t ecall_check_for_sort_correctness(sgx_enclave_id_t eid);
+sgx_status_t ecall_start_training(sgx_enclave_id_t eid);
 
 #ifdef __cplusplus
 }

@@ -52,19 +52,6 @@ void ecall_enclave_init() {
   }
 
   set_random_seed(seed1, seed2);
-
-  bool res = trainer.loadNetworkConfig();
-  my_printf("%s:%d@%s =>  enclave_init finished loading network config!\n",
-         __FILE__, __LINE__, __func__);
-  if (!res) {
-    my_printf("%s:%d@%s =>  trainer.loadNetworkConfig returned false\n",
-    __FILE__,
-           __LINE__, __func__);
-  } else {
-    my_printf("%s:%d@%s =>  trainer.loadNetworkConfig returned true\n",
-    __FILE__,
-           __LINE__, __func__);
-  }
 }
 
 void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
@@ -140,7 +127,8 @@ void ecall_check_for_sort_correctness() {
     auto decrypted = crypto_engine.decrypt(enc_tuple);
     trainRecordSerialized *record = (trainRecordSerialized *)&(decrypted[0]);
     if (record->shuffleID < shuffle_id) {
-      my_printf("Unexpected shuffle value for current record and previous one: %u vs %u\n");
+      my_printf("Unexpected shuffle value for current record and previous one: "
+                "%u vs %u\n");
       abort();
     }
     shuffle_id = record->shuffleID;
@@ -150,4 +138,19 @@ void ecall_check_for_sort_correctness() {
 void ecall_initial_sort() {
   my_printf("Starting the initial_sort\n");
   trainer.intitialSort();
+}
+
+void ecall_start_training() {
+  bool res = trainer.loadNetworkConfig();
+  my_printf("%s:%d@%s =>  enclave_init finished loading network config!\n",
+            __FILE__, __LINE__, __func__);
+  if (!res) {
+    my_printf("%s:%d@%s =>  trainer.loadNetworkConfig returned false\n",
+              __FILE__, __LINE__, __func__);
+  } else {
+    my_printf("%s:%d@%s =>  trainer.loadNetworkConfig returned true\n",
+              __FILE__, __LINE__, __func__);
+  }
+
+  trainer.train();
 }
