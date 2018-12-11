@@ -40,6 +40,10 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_get_records, (size_t i, unsigned char* 
 #define OCALL_SET_RECORDS_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_set_records, (size_t i, unsigned char* tr_record_i, size_t len_i));
 #endif
+#ifndef OCALL_SET_TIMING_DEFINED__
+#define OCALL_SET_TIMING_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_set_timing, (const char* time_id, size_t len, int is_it_first_call));
+#endif
 
 sgx_status_t ecall_enclave_init(sgx_enclave_id_t eid);
 sgx_status_t ecall_assign_random_id(sgx_enclave_id_t eid, unsigned char* tr_records, size_t len);

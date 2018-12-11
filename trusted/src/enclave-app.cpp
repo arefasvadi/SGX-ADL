@@ -141,7 +141,21 @@ void ecall_initial_sort() {
 }
 
 void ecall_start_training() {
+  sgx_status_t ret  = SGX_ERROR_UNEXPECTED;
+  char* time_id = "network_config_time";
+  
+  ret = ocall_set_timing(time_id,strlen(time_id)+1,1);
+  if (ret != SGX_SUCCESS) {
+    printf("ocall for timing caused problem! Error code is %#010\n", ret);
+    abort();
+  }
   bool res = trainer.loadNetworkConfig();
+  ret = ocall_set_timing(time_id,strlen(time_id)+1,0);
+  if (ret != SGX_SUCCESS) {
+    printf("ocall for timing caused problem! Error code is %#010\n", ret);
+    abort();
+  }
+
   my_printf("%s:%d@%s =>  enclave_init finished loading network config!\n",
             __FILE__, __LINE__, __func__);
   if (!res) {

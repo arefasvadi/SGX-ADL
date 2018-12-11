@@ -27,6 +27,7 @@ sgx_status_t SGX_CDECL ocall_get_record_sort(int i, unsigned char* tr_record_i, 
 sgx_status_t SGX_CDECL ocall_set_record_sort(int i, unsigned char* tr_record_i, size_t len_i, int j, unsigned char* tr_record_j, size_t len_j);
 sgx_status_t SGX_CDECL ocall_get_records(size_t i, unsigned char* tr_record_i, size_t len_i);
 sgx_status_t SGX_CDECL ocall_set_records(size_t i, unsigned char* tr_record_i, size_t len_i);
+sgx_status_t SGX_CDECL ocall_set_timing(const char* time_id, size_t len, int is_it_first_call);
 
 #ifdef __cplusplus
 }

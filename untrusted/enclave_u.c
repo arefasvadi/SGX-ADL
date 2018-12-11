@@ -50,6 +50,12 @@ typedef struct ms_ocall_set_records_t {
 	size_t ms_len_i;
 } ms_ocall_set_records_t;
 
+typedef struct ms_ocall_set_timing_t {
+	const char* ms_time_id;
+	size_t ms_len;
+	int ms_is_it_first_call;
+} ms_ocall_set_timing_t;
+
 static sgx_status_t SGX_CDECL enclave_ocall_load_net_config(void* pms)
 {
 	ms_ocall_load_net_config_t* ms = SGX_CAST(ms_ocall_load_net_config_t*, pms);
@@ -98,11 +104,19 @@ static sgx_status_t SGX_CDECL enclave_ocall_set_records(void* pms)
 	return SGX_SUCCESS;
 }
 
+static sgx_status_t SGX_CDECL enclave_ocall_set_timing(void* pms)
+{
+	ms_ocall_set_timing_t* ms = SGX_CAST(ms_ocall_set_timing_t*, pms);
+	ocall_set_timing(ms->ms_time_id, ms->ms_len, ms->ms_is_it_first_call);
+
+	return SGX_SUCCESS;
+}
+
 static const struct {
 	size_t nr_ocall;
-	void * table[6];
+	void * table[7];
 } ocall_table_enclave = {
-	6,
+	7,
 	{
 		(void*)enclave_ocall_load_net_config,
 		(void*)enclave_ocall_print_string,
@@ -110,6 +124,7 @@ static const struct {
 		(void*)enclave_ocall_set_record_sort,
 		(void*)enclave_ocall_get_records,
 		(void*)enclave_ocall_set_records,
+		(void*)enclave_ocall_set_timing,
 	}
 };
 sgx_status_t ecall_enclave_init(sgx_enclave_id_t eid)

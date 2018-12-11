@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <assert.h>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -7,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <tuple>
+#include <unordered_map>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -20,6 +23,10 @@
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
 
+using timeTracker =
+    std::pair<std::chrono::time_point<std::chrono::high_resolution_clock>,
+              std::chrono::time_point<std::chrono::high_resolution_clock>>;
+
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid = 0;
 
@@ -30,6 +37,9 @@ sgx::untrusted::CryptoEngine<uint8_t>
 training_pub_params tr_pub_params;
 std::vector<trainRecordSerialized> plain_dataset;
 std::vector<trainRecordEncrypted> encrypted_dataset;
+
+// std::unordered_map<std::string, timeTracker> grand_timer;
+std::map<std::string, timeTracker> grand_timer;
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
@@ -136,7 +146,24 @@ void ocall_get_records(size_t i, unsigned char *tr_record_i, size_t len_i) {
 
 void ocall_set_records(size_t i, unsigned char *tr_record_i, size_t len_i) {
   std::memcpy(&(encrypted_dataset[i]), tr_record_i, len_i);
+}
 
+void ocall_set_timing(const char *time_id, size_t len, int is_it_first_call) {
+  timeTracker temp;
+  if (is_it_first_call == 0) { // it's not first call
+    temp =grand_timer[std::string(time_id)];
+    // grand_timer[std::string(time_id)].second =
+    temp.second = std::chrono::high_resolution_clock::now();
+    grand_timer[std::string(time_id)] = temp;
+  } else if (is_it_first_call == 1) { // it is  first call
+    temp.first = std::chrono::high_resolution_clock::now();
+    temp.second = std::chrono::high_resolution_clock::now(); 
+    grand_timer[std::string(time_id)] = temp;
+  }
+  else {
+    std::cerr << "Wrong path for time setting!!!!\n";
+    std::exit(1);
+  }
 }
 
 void ocall_load_net_config(const unsigned char *path, size_t path_len,
@@ -172,6 +199,15 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
          __FILE__, __LINE__, __func__, *real_len);
 }
 
+void print_timers() {
+
+  for (const auto &s : grand_timer) {
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+        s.second.second - s.second.first);
+    std::cout << "++ Item " << s.first << " took about " << elapsed.count()/1000000.0
+              << " seconds\n";
+  }
+}
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[]) {
   (void)(argc);
@@ -201,7 +237,8 @@ int SGX_CDECL main(int argc, char *argv[]) {
   random_id_assign(encrypted_dataset);
   // ret = ecall_initial_sort(global_eid);
   // if (ret != SGX_SUCCESS) {
-  //   printf("ecall initial sort enclave caused problem! Error code is %#010X\n",
+  //   printf("ecall initial sort enclave caused problem! Error code is
+  //   %#010X\n",
   //          ret);
   //   abort();
   // }
@@ -209,7 +246,8 @@ int SGX_CDECL main(int argc, char *argv[]) {
   // std::cout << "check for sorting started\n";
   // ret = ecall_check_for_sort_correctness(global_eid);
   // if (ret != SGX_SUCCESS) {
-  //   printf("ecall checking sort correctness caused problem! Error code is %#010X\n",
+  //   printf("ecall checking sort correctness caused problem! Error code is
+  //   %#010X\n",
   //          ret);
   //   abort();
   // }
@@ -218,13 +256,14 @@ int SGX_CDECL main(int argc, char *argv[]) {
   std::cout << "starting the training...\n";
   ret = ecall_start_training(global_eid);
   if (ret != SGX_SUCCESS) {
-    printf("ecall start training caused problem! Error code is %#010X\n",
-           ret);
+    printf("ecall start training caused problem! Error code is %#010X\n", ret);
     abort();
   }
   std::cout << "finished the training\n";
 
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);
+
+  print_timers();
   return 0;
 }

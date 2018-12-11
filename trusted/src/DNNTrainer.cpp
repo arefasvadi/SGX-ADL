@@ -100,20 +100,63 @@ void DNNTrainer::train() {
   float avg_loss = -1, loss = -1;
 
   while (get_current_batch(net_) < net_->max_batches) {
+
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    auto batch_num = std::to_string(get_current_batch(net_));
+    std::string time_id_batch = "batch_time_" + batch_num;
+    std::string time_id_prepare_batch = "prepare_batch_time_" + batch_num;
+    std::string time_id_train_batch = "train_batch_time_" + batch_num;
+
+    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 1);
+    if (ret != SGX_SUCCESS) {
+      printf("ocall for timing caused problem! Error code is %#010\n", ret);
+      abort();
+    }
+    ret = ocall_set_timing(time_id_prepare_batch.c_str(),
+                           time_id_prepare_batch.size() + 1, 1);
+    if (ret != SGX_SUCCESS) {
+      printf("ocall for timing caused problem! Error code is %#010\n", ret);
+      abort();
+    }
     auto prepared = prepareBatch(start);
     if (!prepared) {
       intitialSort();
       start = 0;
       prepared = prepareBatch(start);
     }
+    ret = ocall_set_timing(time_id_prepare_batch.c_str(),
+                           time_id_prepare_batch.size() + 1, 0);
+    if (ret != SGX_SUCCESS) {
+      printf("ocall for timing caused problem! Error code is %#010\n", ret);
+      abort();
+    }
     // my_printf("starting iteration for batch number %d\n",
     // get_current_batch(net_));
+    ret = ocall_set_timing(time_id_train_batch.c_str(),
+                           time_id_train_batch.size() + 1, 1);
+    if (ret != SGX_SUCCESS) {
+      printf("ocall for timing caused problem! Error code is %#010\n", ret);
+      abort();
+    }
     loss = train_network(net_, trainData_);
     // my_printf("* reported loss is: %f\n ",loss);
+    ret = ocall_set_timing(time_id_train_batch.c_str(), time_id_train_batch.size() + 1, 0);
+    if (ret != SGX_SUCCESS) {
+      printf("ocall for timing caused problem! Error code is %#010\n", ret);
+      abort();
+    }
+
     if (avg_loss == -1)
       avg_loss = loss;
 
     avg_loss = avg_loss * .9 + loss * .1;
+
+    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 0);
+    if (ret != SGX_SUCCESS) {
+      printf("ocall for timing caused problem! Error code is %#010\n", ret);
+      abort();
+    }
+
     my_printf("%ld: %f, %f avg, %f rate, %ld images\n", get_current_batch(net_),
               loss, avg_loss, get_current_rate(net_), *net_->seen);
 

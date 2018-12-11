@@ -25,5 +25,6 @@ enclave {
                                          int j, [in, size=len_j] unsigned char* tr_record_j, size_t len_j);
               void ocall_get_records(size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i); 
               void ocall_set_records(size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i);
+              void ocall_set_timing([in, size=len] const char* time_id, size_t len , int is_it_first_call);
             };
 };

@@ -72,6 +72,12 @@ typedef struct ms_ocall_set_records_t {
 	size_t ms_len_i;
 } ms_ocall_set_records_t;
 
+typedef struct ms_ocall_set_timing_t {
+	const char* ms_time_id;
+	size_t ms_len;
+	int ms_is_it_first_call;
+} ms_ocall_set_timing_t;
+
 static sgx_status_t SGX_CDECL sgx_ecall_enclave_init(void* pms)
 {
 	sgx_status_t status = SGX_SUCCESS;
@@ -167,10 +173,11 @@ SGX_EXTERNC const struct {
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[6][5];
+	uint8_t entry_table[7][5];
 } g_dyn_entry_table = {
-	6,
+	7,
 	{
+		{0, 0, 0, 0, 0, },
 		{0, 0, 0, 0, 0, },
 		{0, 0, 0, 0, 0, },
 		{0, 0, 0, 0, 0, },
@@ -571,6 +578,51 @@ sgx_status_t SGX_CDECL ocall_set_records(size_t i, unsigned char* tr_record_i, s
 	
 	ms->ms_len_i = len_i;
 	status = sgx_ocall(5, ms);
+
+	if (status == SGX_SUCCESS) {
+	}
+	sgx_ocfree();
+	return status;
+}
+
+sgx_status_t SGX_CDECL ocall_set_timing(const char* time_id, size_t len, int is_it_first_call)
+{
+	sgx_status_t status = SGX_SUCCESS;
+	size_t _len_time_id = len;
+
+	ms_ocall_set_timing_t* ms = NULL;
+	size_t ocalloc_size = sizeof(ms_ocall_set_timing_t);
+	void *__tmp = NULL;
+
+
+	CHECK_ENCLAVE_POINTER(time_id, _len_time_id);
+
+	ocalloc_size += (time_id != NULL) ? _len_time_id : 0;
+
+	__tmp = sgx_ocalloc(ocalloc_size);
+	if (__tmp == NULL) {
+		sgx_ocfree();
+		return SGX_ERROR_UNEXPECTED;
+	}
+	ms = (ms_ocall_set_timing_t*)__tmp;
+	__tmp = (void *)((size_t)__tmp + sizeof(ms_ocall_set_timing_t));
+	ocalloc_size -= sizeof(ms_ocall_set_timing_t);
+
+	if (time_id != NULL) {
+		ms->ms_time_id = (const char*)__tmp;
+		if (memcpy_s(__tmp, ocalloc_size, time_id, _len_time_id)) {
+			sgx_ocfree();
+			return SGX_ERROR_UNEXPECTED;
+		}
+		__tmp = (void *)((size_t)__tmp + _len_time_id);
+		ocalloc_size -= _len_time_id;
+	} else {
+		ms->ms_time_id = NULL;
+	}
+	
+	ms->ms_len = len;
+	ms->ms_is_it_first_call = is_it_first_call;
+	status = sgx_ocall(6, ms);
 
 	if (status == SGX_SUCCESS) {
 	}
