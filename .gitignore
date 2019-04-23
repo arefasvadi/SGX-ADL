@@ -31,3 +31,10 @@
 # Debug files
 *.dSYM/
 /python/X.h5
+
+# SGX ADL
+.vscode/ipch
+build/
+.ccls-cache/
+python/backdoor_data_poisoning/poisoned_datasets/
+python/backdoor_data_poisoning/graphics/

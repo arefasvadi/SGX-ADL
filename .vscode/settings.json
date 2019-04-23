@@ -1,0 +1,12 @@
+{
+    "cmake.autoRestartBuild": true,
+    "cmake.preferredGenerators": [
+        "Unix Makefiles",
+        "Ninja"
+    ],
+    "cmake.parallelJobs": 7,
+    "python.linting.pylintEnabled": true,
+    "python.pythonPath": "/usr/bin/python",
+    "python.linting.enabled": false,
+    //"cmake.copyCompileCommands": "${workspaceRoot}"
+}

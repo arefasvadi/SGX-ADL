@@ -25,7 +25,7 @@ set(Private_Key_File "${Trusted_Home}/enclave_private.pem")
 set(Version_Script "${Trusted_Home}/enclave.lds")
 
 #set(SGX_SDK "/opt/intel/sgxsdk")
-set(SGX_SDK "/opt/intel/sgx-2.2/sgxsdk")
+set(SGX_SDK "/opt/intel/sdk-2.3/sgxsdk")
 # set(SGX_SDK "/opt/intel/sgx-2.3-debug/sgxsdk")
 set(SGX_MODE "HW")
 set(SGX_ARCH "x64")
