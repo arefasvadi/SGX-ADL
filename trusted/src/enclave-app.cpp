@@ -3,6 +3,7 @@
 #include "DNNTrainer.h"
 #include "darknet-addons.h"
 #include "enclave_t.h"
+#include <BlockEngine.hpp>
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
@@ -14,10 +15,11 @@
  * printf:
  *   Invokes OCALL to display the enclave buffer to the terminal.
  */
-namespace sgt = ::sgx::trusted;
+
+/* namespace sgt = ::sgx::trusted;
 sgt::darknet::DNNTrainer
-    trainer("/home/aref/projects/SGX-DDL/test/config/cifar10/cifar_small.cfg",
-            "", "");
+    trainer("/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",
+            "", ""); */
 
 int gpu_index = -1;
 
@@ -30,8 +32,68 @@ void my_printf(const char *fmt, ...) {
   ocall_print_string(buf);
 }
 
+void ecall_singal_convolution(int size1, int size2) {
+  my_printf("ecall_signal_con gets called %d, %d\n", size1, size2);
+  double sum = 0;
+  if (1) {
+    auto vec1 =
+        ::sgx::trusted::BlockedBuffer<double, 1>::MakeBlockedBuffer({size1});
+    auto vec2 =
+        ::sgx::trusted::BlockedBuffer<double, 1>::MakeBlockedBuffer({size2});
+
+    for (int i = 0; i < size1; ++i) {
+      vec1->SetItemAt({i}, 1.0);
+    }
+    for (int i = 0; i < size2; ++i) {
+      vec2->SetItemAt({i}, 1.0);
+    }
+
+    int const n = size1 + size2 - 1;
+    auto out = ::sgx::trusted::BlockedBuffer<double, 1>::MakeBlockedBuffer(
+        std::vector<int64_t>{n});
+    for (auto i(0); i < n; ++i) {
+      // my_printf("outer loop %d\n", i);
+      int const jmn = (i >= size2 - 1) ? i - (size2 - 1) : 0;
+      int const jmx = (i < size1 - 1) ? i : size1 - 1;
+      for (auto j(jmn); j <= jmx; ++j) {
+        out->SetItemAt({i}, out->GetItemAt({i}) + (vec1->GetItemAt({j}) *
+                                                   vec2->GetItemAt({i - j})));
+      }
+    }
+    
+    for (int i = 0; i < n; ++i) {
+      sum += out->GetItemAt({i});
+    }
+  } else if (0) {
+    auto vec1 = std::vector<double>(size1);
+    auto vec2 = std::vector<double>(size2);
+
+    for (int i = 0; i < size1; ++i) {
+      vec1[i] = 1.0;
+    }
+    for (int i = 0; i < size2; ++i) {
+      vec2[i] = 1.0;
+    }
+
+    int const n = size1 + size2 - 1;
+    auto out = std::vector<double>(n, 0.0);
+    for (auto i(0); i < n; ++i) {
+      // my_printf("outer loop %d\n", i);
+      int const jmn = (i >= size2 - 1) ? i - (size2 - 1) : 0;
+      int const jmx = (i < size1 - 1) ? i : size1 - 1;
+      for (auto j(jmn); j <= jmx; ++j) {
+        out[i] += vec1[j] * vec2[i - j];
+      }
+    }
+    for (int i = 0; i < n; ++i) {
+      sum += out[i];
+    }
+  }
+  my_printf("total sum is %d\n", sum);
+}
+
 void ecall_enclave_init() {
-  my_printf("enclave_init is called!\n");
+  /* my_printf("enclave_init is called!\n");
   // sgt::darknet::DNNTrainer trainer(
   //     "/home/aref/projects/SGX-DDL/test/config/cifar10/cifar_small.cfg", "",
   //     "");
@@ -51,12 +113,12 @@ void ecall_enclave_init() {
     abort();
   }
 
-  set_random_seed(seed1, seed2);
+  set_random_seed(seed1, seed2); */
 }
 
 void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
   // my_printf("called with length %d\n", len);
-  trainRecordEncrypted *ptr_records = (trainRecordEncrypted *)tr_records;
+  /* trainRecordEncrypted *ptr_records = (trainRecordEncrypted *)tr_records;
   size_t size = len / sizeof(trainRecordEncrypted);
   auto &crypto_engine = trainer.getCryptoEngine();
 
@@ -94,12 +156,12 @@ void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
     // auto enc_tuplek = std::make_tuple(encDatak, IVk, MACk);
     // auto decryptedk = crypto_engine.decrypt(enc_tuplek);
     // my_printf("waiting for illegal!\n");
-  }
+  }*/
 }
 
 void ecall_check_for_sort_correctness() {
 
-  auto &crypto_engine = trainer.getCryptoEngine();
+  /* auto &crypto_engine = trainer.getCryptoEngine();
   uint32_t total_data = 50000;
   uint32_t shuffle_id = 0;
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
@@ -132,18 +194,18 @@ void ecall_check_for_sort_correctness() {
       abort();
     }
     shuffle_id = record->shuffleID;
-  }
+  } */
 }
 
 void ecall_initial_sort() {
-  my_printf("Starting the initial_sort\n");
-  trainer.intitialSort();
+  /* my_printf("Starting the initial_sort\n");
+  trainer.intitialSort(); */
 }
 
 void ecall_start_training() {
-  sgx_status_t ret  = SGX_ERROR_UNEXPECTED;
+  /* sgx_status_t ret  = SGX_ERROR_UNEXPECTED;
   char* time_id = "network_config_time";
-  
+
   ret = ocall_set_timing(time_id,strlen(time_id)+1,1);
   if (ret != SGX_SUCCESS) {
     printf("ocall for timing caused problem! Error code is %#010\n", ret);
@@ -166,5 +228,5 @@ void ecall_start_training() {
               __FILE__, __LINE__, __func__);
   }
 
-  trainer.train();
+  trainer.train(); */
 }

@@ -82,9 +82,9 @@ bool encrypt_training_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
 /* initializing dataset params */
 void initialize_training_params_cifar(training_pub_params &param) {
   param.label_path =
-      "/home/aref/projects/SGX-DDL/test/config/cifar10/labels.txt";
+      "/home/aref/projects/SGX-ADL/test/config/cifar10/labels.txt";
   param.train_paths =
-      "/home/aref/projects/SGX-DDL/test/config/cifar10/train.list";
+      "/home/aref/projects/SGX-ADL/test/config/cifar10/train.list";
   param.width = 28;
   param.height = 28;
   param.channels = 3;

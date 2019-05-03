@@ -8,5 +8,9 @@
     "python.linting.pylintEnabled": true,
     "python.pythonPath": "/usr/bin/python",
     "python.linting.enabled": false,
+    "files.associations": {
+        "map": "cpp",
+        "array": "cpp"
+    },
     //"cmake.copyCompileCommands": "${workspaceRoot}"
 }

@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "cppdbg",
+        "request": "launch",
+        "name": "SGX ADL",
+        "program": "${workspaceRoot}/build/sgxdnnapp",
+        "args": [],
+        "cwd": "${workspaceRoot}/build",
+        "MIMode": "gdb",
+        "miDebuggerPath": "/opt/intel/sdk-2.5/sgxsdk/bin/sgx-gdb",
+        "stopAtEntry": true,
+        "setupCommands":[{"text":"enable sgx_emmt", "description":"enable sgx memory calc","ignoreFailures": false},]
+      },
+    ]
+  }

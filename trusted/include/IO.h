@@ -90,5 +90,5 @@ bool IO<FR, FS, C, P>::appendToPlain(const IOPlain &bytes) {
 
 //   return cipherBuffer_[i];
 // }
-}
-}
+} // namespace trusted
+} // namespace sgx

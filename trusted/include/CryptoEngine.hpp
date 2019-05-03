@@ -74,7 +74,8 @@ CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) {
       iv.size(), nullptr, 0, (uint8_t(*)[16]) & mac);
 
   if (success != SGX_SUCCESS) {
-    my_printf("Eecryption failed! Error code is %#010x and in decimal %d \n", success,success);
+    my_printf("Eecryption failed! Error code is %#010x and in decimal %d \n",
+              success, success);
     abort();
   }
   ++counter_;
@@ -93,9 +94,9 @@ typename CryptoEngine<T>::IOBuffer CryptoEngine<T>::decrypt(
   // MAC mac;
 
   // std::tie(cipher, iv, mac) = cipher_text;
-  auto& cipher = std::get<0>(cipher_text);
-  auto& iv = std::get<1>(cipher_text);
-  auto& mac = std::get<2>(cipher_text);
+  auto &cipher = std::get<0>(cipher_text);
+  auto &iv = std::get<1>(cipher_text);
+  auto &mac = std::get<2>(cipher_text);
 
   // static_assert(iv.size() == 12, "IV size is zero!");
   // static_assert(mac.size() == 16, "MAC size is zero!");
@@ -103,15 +104,16 @@ typename CryptoEngine<T>::IOBuffer CryptoEngine<T>::decrypt(
   // auto key_data = key_.data();
   sgx_status_t success = SGX_ERROR_UNEXPECTED;
   success = sgx_rijndael128GCM_decrypt(
-                                       (uint8_t const(*)[16])  key_.data(), (const uint8_t *)cipher.data(),
+      (uint8_t const(*)[16])key_.data(), (const uint8_t *)cipher.data(),
       cipher.size(), (uint8_t *)plain.data(), iv.data(), iv.size(), nullptr, 0,
-                                       (uint8_t const(*)[16]) mac.data());
+      (uint8_t const(*)[16])mac.data());
   if (success != SGX_SUCCESS) {
-    my_printf("Decryption failed! Error code is %#010x and in decimal %d \n", success,success);
+    my_printf("Decryption failed! Error code is %#010x and in decimal %d \n",
+              success, success);
     abort();
   }
   // my_printf("After decryption\n");
   return plain;
 }
-}
-}
+} // namespace trusted
+} // namespace sgx

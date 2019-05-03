@@ -51,6 +51,7 @@
 * try giving options manually in code! 
 * check all TODOS
 * darknet header API 
+* Make trainer a singleton class
 ** removing pthread related stuff!
 *** load_data  
 *** load_data_in_thread
@@ -58,3 +59,7 @@
 *** fgetl
 ** removing clock related functions 
 *** sec function 
+* bad design for cache -- make static variables part of object and implement referenced singletion instead
+* first test blocking on simple test withoout encryption
+* make sure encryption/cmacs are implemented
+* better logging mechanisms

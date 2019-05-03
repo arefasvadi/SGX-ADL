@@ -1,12 +1,15 @@
 enclave {
 
     //include "../include/common.h"
+    // from "TrustedLibrary/Libcxx.edl" import *;
+    from "sgx_tstdc.edl" import *;
     trusted {
               public void ecall_enclave_init(void); 
               public void ecall_assign_random_id([in,out, size=len] unsigned char* tr_records, size_t len); 
               public void ecall_initial_sort(); 
               public void ecall_check_for_sort_correctness();
               public void ecall_start_training();
+              public void ecall_singal_convolution(int size1,int size2);
     };
     untrusted {
               void ocall_load_net_config(
@@ -25,6 +28,8 @@ enclave {
                                          int j, [in, size=len_j] unsigned char* tr_record_j, size_t len_j);
               void ocall_get_records(size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i); 
               void ocall_set_records(size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i);
-              void ocall_set_timing([in, size=len] const char* time_id, size_t len , int is_it_first_call);
+              void ocall_set_timing([in, size=len] const char* time_id, size_t len , int is_it_first_call,int is_it_last_call);
+              void ocall_write_block(int64_t block_id,size_t index, [in,size=len] unsigned char* buff,size_t len);
+              void ocall_read_block(int64_t block_id,size_t index, [out,size=len] unsigned char* buff,size_t len);
             };
 };

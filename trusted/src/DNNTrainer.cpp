@@ -107,13 +107,13 @@ void DNNTrainer::train() {
     std::string time_id_prepare_batch = "prepare_batch_time_" + batch_num;
     std::string time_id_train_batch = "train_batch_time_" + batch_num;
 
-    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 1);
+    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 1,0);
     if (ret != SGX_SUCCESS) {
       printf("ocall for timing caused problem! Error code is %#010\n", ret);
       abort();
     }
     ret = ocall_set_timing(time_id_prepare_batch.c_str(),
-                           time_id_prepare_batch.size() + 1, 1);
+                           time_id_prepare_batch.size() + 1, 1,0);
     if (ret != SGX_SUCCESS) {
       printf("ocall for timing caused problem! Error code is %#010\n", ret);
       abort();
@@ -125,7 +125,7 @@ void DNNTrainer::train() {
       prepared = prepareBatch(start);
     }
     ret = ocall_set_timing(time_id_prepare_batch.c_str(),
-                           time_id_prepare_batch.size() + 1, 0);
+                           time_id_prepare_batch.size() + 1, 0,1);
     if (ret != SGX_SUCCESS) {
       printf("ocall for timing caused problem! Error code is %#010\n", ret);
       abort();
@@ -133,14 +133,14 @@ void DNNTrainer::train() {
     // my_printf("starting iteration for batch number %d\n",
     // get_current_batch(net_));
     ret = ocall_set_timing(time_id_train_batch.c_str(),
-                           time_id_train_batch.size() + 1, 1);
+                           time_id_train_batch.size() + 1, 1,0);
     if (ret != SGX_SUCCESS) {
       printf("ocall for timing caused problem! Error code is %#010\n", ret);
       abort();
     }
     loss = train_network(net_, trainData_);
     // my_printf("* reported loss is: %f\n ",loss);
-    ret = ocall_set_timing(time_id_train_batch.c_str(), time_id_train_batch.size() + 1, 0);
+    ret = ocall_set_timing(time_id_train_batch.c_str(), time_id_train_batch.size() + 1, 0,1);
     if (ret != SGX_SUCCESS) {
       printf("ocall for timing caused problem! Error code is %#010\n", ret);
       abort();
@@ -151,7 +151,7 @@ void DNNTrainer::train() {
 
     avg_loss = avg_loss * .9 + loss * .1;
 
-    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 0);
+    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 0,1);
     if (ret != SGX_SUCCESS) {
       printf("ocall for timing caused problem! Error code is %#010\n", ret);
       abort();

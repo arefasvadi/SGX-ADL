@@ -3,13 +3,13 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <stdio.h>
 #include <string.h>
 #include <tuple>
 #include <unordered_map>
-#include <map>
 #include <utility>
 #include <vector>
 
@@ -40,6 +40,7 @@ std::vector<trainRecordEncrypted> encrypted_dataset;
 
 // std::unordered_map<std::string, timeTracker> grand_timer;
 std::map<std::string, timeTracker> grand_timer;
+std::map<std::string, double> duration_map;
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
@@ -148,22 +149,45 @@ void ocall_set_records(size_t i, unsigned char *tr_record_i, size_t len_i) {
   std::memcpy(&(encrypted_dataset[i]), tr_record_i, len_i);
 }
 
-void ocall_set_timing(const char *time_id, size_t len, int is_it_first_call) {
+void ocall_set_timing(const char *time_id, size_t len, int is_it_first_call,
+                      int is_it_last_call) {
   timeTracker temp;
-  if (is_it_first_call == 0) { // it's not first call
-    temp =grand_timer[std::string(time_id)];
-    // grand_timer[std::string(time_id)].second =
+  if (grand_timer.find(std::string(time_id)) != grand_timer.end()) {
+    if (is_it_first_call == 1) {
+      temp.first = std::chrono::high_resolution_clock::now();
+      temp.second = std::chrono::high_resolution_clock::now();
+      grand_timer[std::string(time_id)] = temp;
+    } else {
+      temp = grand_timer[std::string(time_id)];
+      temp.second = std::chrono::high_resolution_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                         temp.second - temp.first)
+                         .count();
+      duration_map[std::string(time_id)] += (double)elapsed;
+      temp.first = std::chrono::high_resolution_clock::now();
+      grand_timer[std::string(time_id)] = temp;
+    }
+  } else {
+    temp.first = std::chrono::high_resolution_clock::now();
     temp.second = std::chrono::high_resolution_clock::now();
     grand_timer[std::string(time_id)] = temp;
-  } else if (is_it_first_call == 1) { // it is  first call
-    temp.first = std::chrono::high_resolution_clock::now();
-    temp.second = std::chrono::high_resolution_clock::now(); 
-    grand_timer[std::string(time_id)] = temp;
+    duration_map[std::string(time_id)] = 0.0;
   }
-  else {
-    std::cerr << "Wrong path for time setting!!!!\n";
-    std::exit(1);
-  }
+}
+
+std::unordered_map<int64_t, std::vector<unsigned char>> all_blocks;
+
+void ocall_write_block(int64_t block_id, size_t index, unsigned char *buff,
+                       size_t len) {
+  std::vector<unsigned char> temp(len, 0);
+  std::memcpy(&temp[0], buff, len);
+  all_blocks[block_id] = std::move(temp);
+}
+
+void ocall_read_block(int64_t block_id, size_t index, unsigned char *buff,
+                      size_t len) {
+  std::vector<unsigned char> temp(all_blocks[block_id]);
+  std::memcpy(buff, &temp[0], len);
 }
 
 void ocall_load_net_config(const unsigned char *path, size_t path_len,
@@ -171,9 +195,9 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
                            unsigned int *real_len, unsigned char *config_iv,
                            unsigned char *config_mac) {
 
-  printf(
-      "%s:%d@%s =>  ocall_load_net_config started! for file %s with size %zu\n",
-      __FILE__, __LINE__, __func__, (char *)path, path_len);
+  printf("%s:%d@%s =>  ocall_load_net_config started! for file %s with size "
+         "%zu\n",
+         __FILE__, __LINE__, __func__, (char *)path, path_len);
   std::ifstream f((const char *)path, std::ios::in | std::ios::binary);
 
   if (!f.is_open()) {
@@ -201,11 +225,9 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
 
 void print_timers() {
 
-  for (const auto &s : grand_timer) {
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-        s.second.second - s.second.first);
-    std::cout << "++ Item " << s.first << " took about " << elapsed.count()/1000000.0
-              << " seconds\n";
+  for (const auto &s : duration_map) {
+    std::cout << "++ Item " << s.first << " took about "
+              << s.second / 1000000.0 << " seconds\n";
   }
 }
 /* Application entry */
@@ -226,15 +248,24 @@ int SGX_CDECL main(int argc, char *argv[]) {
     printf("ecall init enclave caused problem! Error code is %#010\n", ret);
     abort();
   }
-  initialize_data(tr_pub_params, plain_dataset, encrypted_dataset,
-                  crypto_engine);
 
-  std::cout << "Size of encrypted data is: "
+  printf("here!!\n");
+  ret = ecall_singal_convolution(global_eid, 20000000 / 100000, 1000);
+  if (ret != SGX_SUCCESS) {
+    printf("ecall for signal conv caused problem! Error code is %#010\n", ret);
+    abort();
+  }
+
+  /* initialize_data(tr_pub_params, plain_dataset, encrypted_dataset,
+                  crypto_engine); */
+
+  /* std::cout << "Size of encrypted data is: "
             << (encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
                    (1 << 20)
-            << "MB\n";
+            << "MB\n"; */
 
-  random_id_assign(encrypted_dataset);
+  // random_id_assign(encrypted_dataset);
+
   // ret = ecall_initial_sort(global_eid);
   // if (ret != SGX_SUCCESS) {
   //   printf("ecall initial sort enclave caused problem! Error code is
@@ -253,13 +284,13 @@ int SGX_CDECL main(int argc, char *argv[]) {
   // }
   // std::cout << "check for sorting finished successfully\n";
 
-  std::cout << "starting the training...\n";
+  /* std::cout << "starting the training...\n";
   ret = ecall_start_training(global_eid);
   if (ret != SGX_SUCCESS) {
-    printf("ecall start training caused problem! Error code is %#010X\n", ret);
-    abort();
+    printf("ecall start training caused problem! Error code is %#010X\n",
+  ret); abort();
   }
-  std::cout << "finished the training\n";
+  std::cout << "finished the training\n"; */
 
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);

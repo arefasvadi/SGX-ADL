@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 project(SGX_DDL)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 14)
-# set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
+#set(CMAKE_BUILD_TYPE "Release")
 
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
@@ -25,7 +25,7 @@ set(Private_Key_File "${Trusted_Home}/enclave_private.pem")
 set(Version_Script "${Trusted_Home}/enclave.lds")
 
 #set(SGX_SDK "/opt/intel/sgxsdk")
-set(SGX_SDK "/opt/intel/sdk-2.3/sgxsdk")
+set(SGX_SDK "/opt/intel/sdk-2.5/sgxsdk")
 # set(SGX_SDK "/opt/intel/sgx-2.3-debug/sgxsdk")
 set(SGX_MODE "HW")
 set(SGX_ARCH "x64")
@@ -59,7 +59,7 @@ else()
     # "-DDEBUG" "-UNDEBUG" "-UEDEBUG"
    "-DNDEBUG" "-UEDEBUG" "-UDEBUG"
     )
-  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++11")
+  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++14")
   set(Untrusted_Link_Flags "-O3"
     # "-g0"
     "-m64 -L${SGX_LIBRARY_PATH}")
@@ -144,8 +144,8 @@ target_compile_options(DARKNET_T PUBLIC "${Trusted_C_Flags}"
 execute_process(COMMAND "${SGX_EDGER8R}"
   "--untrusted"
   "${Trusted_Edl}"
-  #        "--search-path"
-  #        "${SGX_SDK}/include"
+  "--search-path"
+  "${SGX_SDK}/include"
   WORKING_DIRECTORY "${Untrusted_Home}"
   RESULT_VARIABLE SGX_EDGER8R_RES
   ERROR_VARIABLE SGX_EDGER8R_ERROR_UNTRUSTED
@@ -167,8 +167,8 @@ target_compile_options(Enclave_U PUBLIC "${Untrusted_C_Flags}")
 execute_process(COMMAND "${SGX_EDGER8R}"
   "--trusted"
   "${Trusted_Edl}"
-  #        "--search-path"
-  #        "${SGX_SDK}/include"
+  "--search-path"
+  "${SGX_SDK}/include"
   WORKING_DIRECTORY "${Trusted_Home}"
   RESULT_VARIABLE SGX_EDGER8R_RES
   ERROR_VARIABLE SGX_EDGER8R_ERROR_TRUSTED)
@@ -187,7 +187,7 @@ target_include_directories(Enclave_T PUBLIC
   "${SGX_SDK}/include/tlibc"
   # "${SGX_SDK}/include/stlport" # maybe need to be uncommented!
   # "${SGX_SDK}/include/stdc++"
-  # "${SGX_SDK}/include/libcxx"
+   "${SGX_SDK}/include/libcxx"
   )
 target_compile_options(Enclave_T PUBLIC "${Trusted_C_Flags}")
 
@@ -233,9 +233,10 @@ target_include_directories(${Trusted_Name} PUBLIC
   "${Trusted_Home}/include"
   "${SGX_SDK}/include"
   "${SGX_SDK}/include/tlibc"
-  # "${SGX_SDK}/include/stlport"
-  # "${SGX_SDK}/include/stdc++"
-  "${SGX_SDK}/include/libcxx")
+   #"${SGX_SDK}/include/stlport"
+   #"${SGX_SDK}/include/stdc++"
+  "${SGX_SDK}/include/libcxx"
+  )
 target_compile_options(${Trusted_Name} PUBLIC "${Trusted_Cpp_Flags}" 
 "-DUSE_SGX"
 )
