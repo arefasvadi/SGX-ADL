@@ -18,12 +18,6 @@ namespace sgx {
 namespace trusted {
 namespace std = ::std;
 
-enum SecStrategy {
-  PLAIN,
-  INTEGRITY,
-  CONFIDENTIALITY_INTEGRITY,
-};
-
 class IBlockable {
 public:
   /*
@@ -98,42 +92,52 @@ template <typename T, int Axis> class BlockedBuffer;
 
 template <typename T, int Axis> class Block : public IBlockable {
 public:
-  Block();
-  static std::shared_ptr<Block<T,Axis>> GetInstance();
+  Block(size_t num_items);
+  static std::shared_ptr<Block<T, Axis>> GetInstance(size_t num_items);
   using IBlockable::GetNextBlockID;
 
-  inline T GetItemAt(size_t index);
+  inline T *GetItemAt(size_t index, size_t *valid_len);
+  inline T *const GetItemAt(size_t index);
   // non-inclusive index_end;
   // std::vector<T *> GetItemsInRange(size_t index_start, size_t index_end);
 
-  inline void SetItemAt(size_t index, T val);
+  // inline void SetItemAt(size_t index, T val);
   /* void setItemsInRange(size_t index_start,
                        size_t index_end,
                        std::vector<T*>& range_vals); */
 
   std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE> &
   GetAllBlockContents();
-  
+
   void SetAllBlockContents(
-      std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE>
+      const std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE>
           &new_block);
 
   ~Block() = default;
 
 private:
   // std::array<T,MAX_PER_BLOCK_BUFFER_SIZE> val_;
+  size_t numItems;
   std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE> vals_;
 };
 
-template <typename T,int Axis> Block<T,Axis>::Block() : IBlockable(), vals_() {}
+template <typename T, int Axis>
+Block<T, Axis>::Block(size_t num_items)
+    : IBlockable(), numItems(num_items), vals_() {}
 
 template <typename T, int Axis>
-std::shared_ptr<Block<T, Axis>> Block<T, Axis>::GetInstance() {
-  return std::make_shared<Block<T, Axis>>();
+std::shared_ptr<Block<T, Axis>> Block<T, Axis>::GetInstance(size_t num_items) {
+  return std::make_shared<Block<T, Axis>>(num_items);
 }
 
-template <typename T, int Axis> T Block<T, Axis>::GetItemAt(size_t index) {
-  return vals_[index];
+template <typename T, int Axis>
+T *Block<T, Axis>::GetItemAt(size_t index, size_t *valid_len) {
+  *valid_len = numItems - index;
+  return &vals_[index];
+}
+template <typename T, int Axis>
+T *const Block<T, Axis>::GetItemAt(size_t index) {
+  return &vals_[index];
 }
 
 /* template <typename T>
@@ -145,10 +149,10 @@ std::vector<T *> Block<T>::GetItemsInRange(size_t index_start,
   }
 } */
 
-template <typename T, int Axis>
+/* template <typename T, int Axis>
 void Block<T, Axis>::SetItemAt(size_t index, T val) {
   vals_[index] = val;
-}
+} */
 
 /* template <typename T>
 void Block<T>::setItemsInRange(size_t index_start,
@@ -168,7 +172,7 @@ Block<T, Axis>::GetAllBlockContents() {
 
 template <typename T, int Axis>
 void Block<T, Axis>::SetAllBlockContents(
-    std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE>
+    const std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE>
         &new_block) {
   vals_ = new_block;
 }
@@ -179,15 +183,17 @@ public:
   explicit BlockedBuffer(const std::vector<int64_t> &dim_size);
   ~BlockedBuffer() = default;
 
-  T GetItemAt(const std::array<int64_t, Axis> &index);
+  T *GetItemAt(const std::array<int64_t, Axis> &index, size_t *valid_len,
+               bool write);
+  T *const GetItemAt(const std::array<int64_t, Axis> &index, bool write);
   // T& ReadItemAt(int64_t index);
-  void SetItemAt(const std::array<int64_t, Axis> &index, T val);
+  // void SetItemAt(const std::array<int64_t, Axis> &index, T val);
   void GenerateBlocks();
 
   static std::shared_ptr<BlockedBuffer<T, Axis>>
   MakeBlockedBuffer(const std::vector<int64_t> &dim_size);
 
-  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 64 * ONE_KB;
+  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 16 * ONE_KB;
   static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE =
       MAX_PER_BLOCK_BUFFER_SIZE_BYTES / sizeof(T);
 
@@ -198,12 +204,13 @@ private:
   void WriteBlockToUntrusted(const int64_t block_id,
                              const std::shared_ptr<IBlockable> &block);
 
-  T GetItemAtBlock(int64_t block_id, int64_t index);
+  T *GetItemAtBlock(int64_t block_id, int64_t index, size_t *valid_len);
+  T *const GetItemAtBlock(int64_t block_id, int64_t index);
   // T& ReadItemAtBlock(int64_t block_id, int64_t index);
-  void SetItemAtBlock(int64_t block_id, int64_t index, T val);
+  // void SetItemAtBlock(int64_t block_id, int64_t index, T val);
 
   std::shared_ptr<BlockHeader>
-  calculateBlockHeader(std::array<T,MAX_PER_BLOCK_BUFFER_SIZE> &block_content);
+  calculateBlockHeader(std::array<T, MAX_PER_BLOCK_BUFFER_SIZE> &block_content);
 
   std::vector<int64_t> dimSize;
   // std::vector<int64_t> dimOrder;
@@ -215,9 +222,10 @@ private:
   SecStrategy secStrategy_;
   int64_t totalElements_;
   int64_t expectedBlocks_;
-  int64_t lastBlockUnused_;
+  int64_t lastBlockUsed_;
 
-  
+  Cache<int64_t, IBlockable>::EvictionHandlerType evictHdl_;
+  Cache<int64_t, IBlockable>::ReadHandlerType readHdl_;
 };
 
 template <typename T, int Axis>
@@ -226,7 +234,11 @@ BlockedBuffer<T, Axis>::BlockedBuffer(const std::vector<int64_t> &dim_size)
                              BLOCKING_TOTAL_ITEMS_IN_CACHE)),
       headers_(), orderedBlocks_(), changedBlocks_(),
       secStrategy_(SecStrategy::PLAIN), totalElements_(), expectedBlocks_(),
-      lastBlockUnused_(0) {
+      lastBlockUsed_(0),
+      evictHdl_(std::bind(&BlockedBuffer<T, Axis>::WriteBlockToUntrusted, this,
+                          std::placeholders::_1, std::placeholders::_2)),
+      readHdl_(std::bind(&BlockedBuffer<T, Axis>::ReadBlockFromUntrusted, this,
+                         std::placeholders::_1)) {
   if (dimSize.size() != Axis) {
     throw std::invalid_argument(
         "dimension sizes does not correspond to specifed Axis");
@@ -250,17 +262,23 @@ template <typename T, int Axis> void BlockedBuffer<T, Axis>::GenerateBlocks() {
 
   expectedBlocks_ =
       totalElements_ / BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE;
-  int64_t last_block_used =
+  lastBlockUsed_ =
       totalElements_ % BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE;
-  if (last_block_used != 0) {
+  if (lastBlockUsed_ != 0) {
     expectedBlocks_++;
-    lastBlockUnused_ =
-        BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE - last_block_used;
   }
 
   for (int i = 0; i < expectedBlocks_; ++i) {
-    auto block = Block<T,Axis>::GetInstance();
-    auto block_id = Block<T,Axis>::GetNextBlockID();
+    // decltype(&Block<T, Axis>::GetInstance) block;
+    std::shared_ptr<Block<T, Axis>> block;
+    if (i == expectedBlocks_ - 1 && lastBlockUsed_ != 0) {
+      block = Block<T, Axis>::GetInstance(lastBlockUsed_);
+    } else {
+      block = Block<T, Axis>::GetInstance(
+          BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE);
+    }
+
+    auto block_id = Block<T, Axis>::GetNextBlockID();
     // generate header for block
     if (secStrategy_ != SecStrategy::PLAIN) {
       auto header = calculateBlockHeader(block->GetAllBlockContents());
@@ -272,24 +290,22 @@ template <typename T, int Axis> void BlockedBuffer<T, Axis>::GenerateBlocks() {
     orderedBlocks_.push_back(block_id);
     // put the block in cache
     std::shared_ptr<IBlockable> blockable = block;
-    blockCache_.Put(block_id, blockable,
-                    std::bind(&BlockedBuffer<T, Axis>::WriteBlockToUntrusted,
-                              this, std::placeholders::_1,
-                              std::placeholders::_2),
-                    std::bind(&BlockedBuffer<T, Axis>::ReadBlockFromUntrusted,
-                              this, std::placeholders::_1));
+    blockCache_.Put(block_id, blockable, evictHdl_);
   }
 }
 
 template <typename T, int Axis>
-std::shared_ptr<BlockHeader>
-BlockedBuffer<T, Axis>::calculateBlockHeader(std::array<T,MAX_PER_BLOCK_BUFFER_SIZE> &block_content) {
+std::shared_ptr<BlockHeader> BlockedBuffer<T, Axis>::calculateBlockHeader(
+    std::array<T, MAX_PER_BLOCK_BUFFER_SIZE> &block_content) {
   return nullptr;
 }
 
 template <typename T, int Axis>
 void BlockedBuffer<T, Axis>::WriteBlockToUntrusted(
     const int64_t block_id, const std::shared_ptr<IBlockable> &block) {
+  /* if (block_id == 1) {
+    auto temp = block_id;
+  } */
   // we need to write it back if it has been changed!
   if (changedBlocks_.find(block_id) == changedBlocks_.end()) {
     return;
@@ -300,13 +316,14 @@ void BlockedBuffer<T, Axis>::WriteBlockToUntrusted(
   // std::dynamic_pointer_cast<Block<T>>(block);
 
   // here we are sure of the type!
-  std::shared_ptr<Block<T,Axis>> casted_block =
-      std::static_pointer_cast<Block<T,Axis>>(block);
+  std::shared_ptr<Block<T, Axis>> casted_block =
+      std::static_pointer_cast<Block<T, Axis>>(block);
   auto &val_ = casted_block->GetAllBlockContents();
+  // auto a = val_.size();
   // we need to encrypt
 
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
-  res = ocall_write_block(block_id, 0, (unsigned char *)&val_[0],
+  res = ocall_write_block(block_id, 0, (unsigned char *)&(val_[0]),
                           val_.size() * sizeof(val_[0]));
   if (res != SGX_SUCCESS) {
     my_printf("ocall write block caused problem! the error is "
@@ -327,8 +344,17 @@ BlockedBuffer<T, Axis>::ReadBlockFromUntrusted(const int64_t block_id) {
   // need to verify header
 
   // create a new block object
-
-  auto block = Block<T,Axis>::GetInstance();
+  // decltype(&Block<T, Axis>::GetInstance) block;
+  /* if (block_id == 1) {
+    auto temp = block_id;
+  } */
+  std::shared_ptr<Block<T, Axis>> block;
+  if (block_id == orderedBlocks_[expectedBlocks_ - 1] && lastBlockUsed_ != 0) {
+    block = Block<T, Axis>::GetInstance(lastBlockUsed_);
+  } else {
+    block = Block<T, Axis>::GetInstance(
+        BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE);
+  }
   auto &val_ = block->GetAllBlockContents();
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
   res = ocall_read_block(block_id, 0, (unsigned char *)&val_[0],
@@ -341,15 +367,19 @@ BlockedBuffer<T, Axis>::ReadBlockFromUntrusted(const int64_t block_id) {
   }
 
   // removing it from changed blocks -- just in case if
-  changedBlocks_.erase(block_id);
+  // removed next line cause it causes problem
+  // changedBlocks_.erase(block_id);
 
   std::shared_ptr<IBlockable> casted_block = block;
   return casted_block;
 }
 
 template <typename T, int Axis>
-T BlockedBuffer<T, Axis>::GetItemAt(const std::array<int64_t, Axis> &index) {
+T *const
+BlockedBuffer<T, Axis>::GetItemAt(const std::array<int64_t, Axis> &index,
+                                  bool write) {
   // https://stackoverflow.com/a/20994371/1906041
+
   int64_t flattened_index = 0;
   int64_t mul = 1;
 
@@ -358,13 +388,48 @@ T BlockedBuffer<T, Axis>::GetItemAt(const std::array<int64_t, Axis> &index) {
     mul *= dimSize[i];
   }
 
-  return GetItemAtBlock(
+  auto block_id =
       orderedBlocks_[flattened_index /
-                     BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE],
-      flattened_index % BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE);
+                     BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE];
+  if (write) {
+    changedBlocks_.insert(block_id);
+  }
+  return GetItemAtBlock(block_id,
+                        flattened_index %
+                            BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE);
 }
 
 template <typename T, int Axis>
+T *BlockedBuffer<T, Axis>::GetItemAt(const std::array<int64_t, Axis> &index,
+                                     size_t *valid_len, bool write) {
+  // https://stackoverflow.com/a/20994371/1906041
+
+  int64_t flattened_index = 0;
+  int64_t mul = 1;
+
+  for (std::size_t i = 0; i != Axis; ++i) {
+    flattened_index += index[i] * mul;
+    mul *= dimSize[i];
+  }
+
+  auto block_id =
+      orderedBlocks_[flattened_index /
+                     BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE];
+
+  /* if (block_id == 1) {
+    auto temp = block_id;
+  } */
+
+  if (write) {
+    changedBlocks_.insert(block_id);
+  }
+  return GetItemAtBlock(block_id,
+                        flattened_index %
+                            BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE,
+                        valid_len);
+}
+
+/* template <typename T, int Axis>
 void BlockedBuffer<T, Axis>::SetItemAt(const std::array<int64_t, Axis> &index,
                                        T val) {
   int64_t flattened_index = 0;
@@ -378,40 +443,39 @@ void BlockedBuffer<T, Axis>::SetItemAt(const std::array<int64_t, Axis> &index,
       orderedBlocks_[flattened_index /
                      BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE],
       flattened_index % BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE, val);
-}
+} */
 
 template <typename T, int Axis>
-T BlockedBuffer<T, Axis>::GetItemAtBlock(int64_t block_id, int64_t index) {
-  auto &block = blockCache_.Get(
-      block_id,
-      std::bind(&BlockedBuffer<T, Axis>::WriteBlockToUntrusted, this,
-                std::placeholders::_1, std::placeholders::_2),
-      std::bind(&BlockedBuffer<T, Axis>::ReadBlockFromUntrusted, this,
-                std::placeholders::_1));
-  std::shared_ptr<Block<T,Axis>> casted_block =
-      std::static_pointer_cast<Block<T,Axis>>(block);
+T *const BlockedBuffer<T, Axis>::GetItemAtBlock(int64_t block_id,
+                                                int64_t index) {
+  auto &block = blockCache_.Get(block_id, evictHdl_, readHdl_);
+  std::shared_ptr<Block<T, Axis>> casted_block =
+      std::static_pointer_cast<Block<T, Axis>>(block);
   return casted_block->GetItemAt(index);
 }
 
 template <typename T, int Axis>
+T *BlockedBuffer<T, Axis>::GetItemAtBlock(int64_t block_id, int64_t index,
+                                          size_t *valid_len) {
+  auto &block = blockCache_.Get(block_id, evictHdl_, readHdl_);
+  std::shared_ptr<Block<T, Axis>> casted_block =
+      std::static_pointer_cast<Block<T, Axis>>(block);
+  return casted_block->GetItemAt(index, valid_len);
+}
+/* template <typename T, int Axis>
 void BlockedBuffer<T, Axis>::SetItemAtBlock(int64_t block_id, int64_t index,
                                             T val) {
-  auto &block = blockCache_.Get(
-      block_id,
-      std::bind(&BlockedBuffer<T, Axis>::WriteBlockToUntrusted, this,
-                std::placeholders::_1, std::placeholders::_2),
-      std::bind(&BlockedBuffer<T, Axis>::ReadBlockFromUntrusted, this,
-                std::placeholders::_1));
+  auto &block = blockCache_.Get(block_id, evictHdl_, readHdl_);
 
-  std::shared_ptr<Block<T,Axis>> casted_block =
-      std::static_pointer_cast<Block<T,Axis>>(block);
+  std::shared_ptr<Block<T, Axis>> casted_block =
+      std::static_pointer_cast<Block<T, Axis>>(block);
   casted_block->SetItemAt(index, val);
   changedBlocks_.insert(block_id);
-}
+} */
 
 template class BlockedBuffer<float, 1>;
-template class BlockedBuffer<float, 2>;
-template class BlockedBuffer<double, 1>;
-template class BlockedBuffer<double, 2>;
+// template class BlockedBuffer<float, 2>;
+// template class BlockedBuffer<double, 1>;
+// template class BlockedBuffer<double, 2>;
 }; // namespace trusted
 }; // namespace sgx

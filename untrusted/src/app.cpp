@@ -180,14 +180,14 @@ std::unordered_map<int64_t, std::vector<unsigned char>> all_blocks;
 void ocall_write_block(int64_t block_id, size_t index, unsigned char *buff,
                        size_t len) {
   std::vector<unsigned char> temp(len, 0);
-  std::memcpy(&temp[0], buff, len);
+  std::memcpy(&temp[index], buff, len);
   all_blocks[block_id] = std::move(temp);
 }
 
 void ocall_read_block(int64_t block_id, size_t index, unsigned char *buff,
                       size_t len) {
-  std::vector<unsigned char> temp(all_blocks[block_id]);
-  std::memcpy(buff, &temp[0], len);
+  // std::vector<unsigned char> temp(all_blocks[block_id]);
+  std::memcpy(buff, &(all_blocks[block_id][index]), len);
 }
 
 void ocall_load_net_config(const unsigned char *path, size_t path_len,
@@ -250,7 +250,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
   }
 
   printf("here!!\n");
-  ret = ecall_singal_convolution(global_eid, 20000000 / 100000, 1000);
+  ret = ecall_singal_convolution(global_eid, 20000000, 10000);
   if (ret != SGX_SUCCESS) {
     printf("ecall for signal conv caused problem! Error code is %#010\n", ret);
     abort();

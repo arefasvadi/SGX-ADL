@@ -63,3 +63,9 @@ typedef struct trainRecordEncrypted {
   unsigned char IV[AES_GCM_IV_SIZE];
   unsigned char MAC[AES_GCM_TAG_SIZE];
 } trainRecordEncrypted;
+
+enum SecStrategy {
+  PLAIN,
+  INTEGRITY,
+  CONFIDENTIALITY_INTEGRITY,
+};

@@ -47,7 +47,7 @@ set(DEFAULT_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
   set(Untrusted_C_Flags "-O0" "-g" "-m64"
     "-fPIC" "-Wno-attributes" "-DDEBUG" "-UNDEBUG" "-DEDEBUG")
-  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++14")
+  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++1z")
   set(Untrusted_Link_Flags "-O0 -g -m64 -L${SGX_LIBRARY_PATH}")
   set(Trusted_C_Flags "-O0" "-g" "-m64" "-nostdinc"
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
@@ -59,7 +59,7 @@ else()
     # "-DDEBUG" "-UNDEBUG" "-UEDEBUG"
    "-DNDEBUG" "-UEDEBUG" "-UDEBUG"
     )
-  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++14")
+  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++1z")
   set(Untrusted_Link_Flags "-O3"
     # "-g0"
     "-m64 -L${SGX_LIBRARY_PATH}")
@@ -69,7 +69,7 @@ else()
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
 endif()
 
-set(Trusted_Cpp_Flags "${Trusted_C_Flags}" "-std=c++14" "-nostdinc++")
+set(Trusted_Cpp_Flags "${Trusted_C_Flags}" "-std=c++1z" "-nostdinc++")
 set(Trusted_Link_Flags "-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
 -Wl,--whole-archive -l${Trts_Library_Name} -Wl,--no-whole-archive \
 -Wl,--whole-archive -l${SGX_MALLOC_LIBRARY_NAME} -Wl,--no-whole-archive \

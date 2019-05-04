@@ -36,35 +36,91 @@ void ecall_singal_convolution(int size1, int size2) {
   my_printf("ecall_signal_con gets called %d, %d\n", size1, size2);
   double sum = 0;
   if (1) {
+    int const n = size1 + size2 - 1;
+    auto out = ::sgx::trusted::BlockedBuffer<double, 1>::MakeBlockedBuffer(
+        std::vector<int64_t>{n});
     auto vec1 =
         ::sgx::trusted::BlockedBuffer<double, 1>::MakeBlockedBuffer({size1});
     auto vec2 =
         ::sgx::trusted::BlockedBuffer<double, 1>::MakeBlockedBuffer({size2});
 
-    for (int i = 0; i < size1; ++i) {
-      vec1->SetItemAt({i}, 1.0);
-    }
+    size_t i_val_len = 0;
+    double *i_val_ptr = nullptr;
     for (int i = 0; i < size2; ++i) {
-      vec2->SetItemAt({i}, 1.0);
+      if (i_val_len == 0) {
+        i_val_ptr = vec2->GetItemAt({i}, &i_val_len, true);
+      }
+      *i_val_ptr = 1.0;
+      i_val_ptr++;
+      i_val_len--;
     }
 
-    int const n = size1 + size2 - 1;
-    auto out = ::sgx::trusted::BlockedBuffer<double, 1>::MakeBlockedBuffer(
-        std::vector<int64_t>{n});
+    i_val_len = 0;
+    i_val_ptr = nullptr;
+
+    for (int i = 0; i < n; ++i) {
+      if (i_val_len == 0) {
+        i_val_ptr = out->GetItemAt({i}, &i_val_len, true);
+      }
+      *i_val_ptr = 0.0;
+      i_val_ptr++;
+      i_val_len--;
+    }
+
+    size_t vec1_val_len = 0;
+    double *vec1_val_ptr = nullptr;
+    size_t vec2_val_len = 0;
+    double *vec2_val_ptr = nullptr;
+    size_t out_val_len = 0;
+    double *out_val_ptr = nullptr;
+
+    i_val_len = 0;
+    i_val_ptr = nullptr;
+    for (int i = 0; i < size1; ++i) {
+      if (i_val_len == 0) {
+        i_val_ptr = vec1->GetItemAt({i}, &i_val_len, true);
+      }
+      *i_val_ptr = 1.0;
+      i_val_ptr++;
+      i_val_len--;
+    }
+
     for (auto i(0); i < n; ++i) {
       // my_printf("outer loop %d\n", i);
+      if (out_val_len == 0) {
+        out_val_ptr = out->GetItemAt({i}, &out_val_len, true);
+      }
       int const jmn = (i >= size2 - 1) ? i - (size2 - 1) : 0;
       int const jmx = (i < size1 - 1) ? i : size1 - 1;
       for (auto j(jmn); j <= jmx; ++j) {
-        out->SetItemAt({i}, out->GetItemAt({i}) + (vec1->GetItemAt({j}) *
-                                                   vec2->GetItemAt({i - j})));
+        if (vec1_val_len == 0) {
+          vec1_val_ptr = vec1->GetItemAt({j}, &vec1_val_len, false);
+        }
+        if (vec2_val_len == 0) {
+          vec2_val_ptr = vec2->GetItemAt({i - j}, &vec2_val_len, false);
+        }
+        (*out_val_ptr) += (*vec1_val_ptr) * (*vec2_val_ptr);
+
+        vec1_val_ptr++;
+        vec1_val_len--;
+        vec2_val_ptr++;
+        vec2_val_len--;
       }
+      out_val_ptr++;
+      out_val_len--;
     }
-    
+
+    out_val_ptr = nullptr;
+    out_val_len = 0;
     for (int i = 0; i < n; ++i) {
-      sum += out->GetItemAt({i});
+      if (out_val_len == 0) {
+        out_val_ptr = out->GetItemAt({i}, &out_val_len, false);
+      }
+      sum += *out_val_ptr;
+      out_val_ptr++;
+      out_val_len--;
     }
-  } else if (0) {
+  } else {
     auto vec1 = std::vector<double>(size1);
     auto vec2 = std::vector<double>(size2);
 
@@ -89,7 +145,7 @@ void ecall_singal_convolution(int size1, int size2) {
       sum += out[i];
     }
   }
-  my_printf("total sum is %d\n", sum);
+  my_printf("total sum is %f\n", sum);
 }
 
 void ecall_enclave_init() {

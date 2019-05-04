@@ -36,6 +36,7 @@
 .idea/
 .vscode/ipch
 build/
+profiling/
 cmake-build-debug/
 .ccls-cache/
 python/backdoor_data_poisoning/poisoned_datasets/
