@@ -79,6 +79,7 @@ sgx_status_t ecall_initial_sort(sgx_enclave_id_t eid);
 sgx_status_t ecall_check_for_sort_correctness(sgx_enclave_id_t eid);
 sgx_status_t ecall_start_training(sgx_enclave_id_t eid);
 sgx_status_t ecall_singal_convolution(sgx_enclave_id_t eid, int size1, int size2);
+sgx_status_t ecall_matrix_mult(sgx_enclave_id_t eid, int row1, int col1, int row2, int col2);
 
 #ifdef __cplusplus
 }

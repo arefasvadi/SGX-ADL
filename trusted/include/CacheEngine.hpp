@@ -35,7 +35,7 @@ public:
   // makes room to accomodate n items of type V*;
   virtual void EvictN(int64_t n) = 0;
 
-  virtual void Delete(const K &key) = 0;
+  virtual void Delete(const K &key, bool &success) = 0;
 
   virtual ~ICacheable(){};
 
@@ -66,7 +66,7 @@ public:
       const ReadHandlerType &read_hdl) override;
   void Evict() override;
   void EvictN(int64_t n) override;
-  void Delete(const K &key) override;
+  void Delete(const K &key, bool &success) override;
   std::size_t GetTotalElements();
   static Cache<K, V> &GetInstance(std::size_t total_elements);
 
@@ -94,9 +94,9 @@ Cache<K, V>::Cache(std ::size_t total_elements)
     : ICacheable<K, V>(), totalAllowedElements_(total_elements), cache_(),
       /*blockLastTimer_(),*/ timer_(), /*handlers_(),*/ lastAccess_(0) {}
 
-/* template <typename K, typename V> Cache<K, V>::~Cache() { 
+/* template <typename K, typename V> Cache<K, V>::~Cache() {
   // causes segmentation fault!
-  Evict(); 
+  Evict();
 } */
 
 template <typename K, typename V> std::size_t Cache<K, V>::GetTotalElements() {
@@ -143,10 +143,14 @@ const std::shared_ptr<V> &Cache<K, V>::Get(const K &key,
   // ocall_set_timing(timee,strlen(timee)+1, 0,0);
 }
 
-template <typename K, typename V> void Cache<K, V>::Delete(const K &key) {
+template <typename K, typename V> void Cache<K, V>::Delete(const K &key, bool &success) {
   // my_printf("Delete was invoked\n");
   const auto &key_it = cache_.find(key);
   // calls the wrie to untrusted!
+  if (std::get<0>(key_it->second)->isLocked()){
+    success = false;
+    return;
+  }
   std::get<1>(key_it->second)(key, std::get<0>(key_it->second));
   cache_.erase(key_it);
   // blockLastTimer_.erase(key);
@@ -160,8 +164,13 @@ template <typename K, typename V> void Cache<K, V>::EvictN(int64_t n) {
   while (--n >= 0) {
     const auto &it = timer_.cbegin();
     if (it != timer_.cend()) {
-      Delete(it->second);
-      timer_.erase(it);
+      bool success = true;
+      Delete(it->second,success);
+      if (success)
+        timer_.erase(it);
+      else {
+        ++n;
+      }
     }
   }
 }

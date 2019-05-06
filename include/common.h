@@ -20,6 +20,11 @@
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
+#define LOG_LEVEL_DEBUG 1000
+#define LOG_LEVEL_INFO 1001
+#define LOG_LEVEL_ERROR 1002
+#define LOG_LEVEL_NO_LOG 999
+
 #ifndef IMG_WIDTH
 #define IMG_WIDTH 28
 #endif

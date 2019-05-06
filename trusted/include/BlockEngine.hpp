@@ -1,16 +1,15 @@
 #pragma once
 
 #include "CacheEngine.hpp"
-#include <unordered_map>
-#include <utility>
-#include <vector>
-//#include <variant>
 #include "enclave_t.h"
 #include "sgx_error.h"
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "common.h"
 
@@ -27,16 +26,19 @@ public:
   virtual std::vector<std::vector<int64_t>> ContigousAt(std::vector<int64_t>
   &start_index, std::vector<int64_t> &end_index) = 0;
   */
+  IBlockable(bool locked);
   virtual ~IBlockable(){};
   static int64_t GetNextBlockID();
+  inline bool isLocked() { return locked_; }
+  inline void setLocked(bool locked) { locked_ = locked; }
 
 protected:
   static int64_t NextBlockIDStart;
+  bool locked_;
 };
+IBlockable::IBlockable(bool locked) : locked_(locked) {}
 int64_t IBlockable::NextBlockIDStart = 0;
 inline int64_t IBlockable::GetNextBlockID() {
-  // int64_t ID = IBlockable::NextBlockIDStart;
-  // IBlockable::NextBlockIDStart += 5000000;
   return ++IBlockable::NextBlockIDStart;
 }
 
@@ -44,7 +46,6 @@ inline int64_t IBlockable::GetNextBlockID() {
 
 // always instantiate this class on heap
 // user of the object must take care of deallocation and deleting of objects
-// template<int Axis>
 
 class BlockHeader {
 public:
@@ -92,19 +93,13 @@ template <typename T, int Axis> class BlockedBuffer;
 
 template <typename T, int Axis> class Block : public IBlockable {
 public:
-  Block(size_t num_items);
-  static std::shared_ptr<Block<T, Axis>> GetInstance(size_t num_items);
+  Block(size_t num_items, bool locked);
+  static std::shared_ptr<Block<T, Axis>> GetInstance(size_t num_items,
+                                                     bool locked);
   using IBlockable::GetNextBlockID;
 
   inline T *GetItemAt(size_t index, size_t *valid_len);
   inline T *const GetItemAt(size_t index);
-  // non-inclusive index_end;
-  // std::vector<T *> GetItemsInRange(size_t index_start, size_t index_end);
-
-  // inline void SetItemAt(size_t index, T val);
-  /* void setItemsInRange(size_t index_start,
-                       size_t index_end,
-                       std::vector<T*>& range_vals); */
 
   std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE> &
   GetAllBlockContents();
@@ -122,12 +117,13 @@ private:
 };
 
 template <typename T, int Axis>
-Block<T, Axis>::Block(size_t num_items)
-    : IBlockable(), numItems(num_items), vals_() {}
+Block<T, Axis>::Block(size_t num_items, bool locked)
+    : IBlockable(locked), numItems(num_items), vals_() {}
 
 template <typename T, int Axis>
-std::shared_ptr<Block<T, Axis>> Block<T, Axis>::GetInstance(size_t num_items) {
-  return std::make_shared<Block<T, Axis>>(num_items);
+std::shared_ptr<Block<T, Axis>> Block<T, Axis>::GetInstance(size_t num_items,
+                                                            bool locked) {
+  return std::make_shared<Block<T, Axis>>(num_items, locked);
 }
 
 template <typename T, int Axis>
@@ -139,30 +135,6 @@ template <typename T, int Axis>
 T *const Block<T, Axis>::GetItemAt(size_t index) {
   return &vals_[index];
 }
-
-/* template <typename T>
-std::vector<T *> Block<T>::GetItemsInRange(size_t index_start,
-                                           size_t index_end) {
-  std::vector<T *> range_vals;
-  for (int i = index_start; i < index_end; ++i) {
-    range_vals.push_back(&vals_[i]);
-  }
-} */
-
-/* template <typename T, int Axis>
-void Block<T, Axis>::SetItemAt(size_t index, T val) {
-  vals_[index] = val;
-} */
-
-/* template <typename T>
-void Block<T>::setItemsInRange(size_t index_start,
-                               size_t index_end,
-                               std::vector<T*>& range_vals) {
-  int c = 0;
-  for (int i = index_start; i < index_end; ++i) {
-    vals_[i] = *(range_vals[c++]);
-  }
-} */
 
 template <typename T, int Axis>
 std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE> &
@@ -179,21 +151,31 @@ void Block<T, Axis>::SetAllBlockContents(
 
 template <typename T, int Axis> class BlockedBuffer {
 public:
+  using BlockValidRangeType = struct {
+    int64_t block_begin_ind = -1;
+    int64_t block_end_ind = -1;
+    int64_t block_requested_ind = -1;
+  };
+
   // unfortunately make shared cannot have access to private constructors!
   explicit BlockedBuffer(const std::vector<int64_t> &dim_size);
   ~BlockedBuffer() = default;
 
-  T *GetItemAt(const std::array<int64_t, Axis> &index, size_t *valid_len,
+  T *GetItemAt(const int64_t &index, BlockValidRangeType &valid_range,
                bool write);
   T *const GetItemAt(const std::array<int64_t, Axis> &index, bool write);
-  // T& ReadItemAt(int64_t index);
-  // void SetItemAt(const std::array<int64_t, Axis> &index, T val);
   void GenerateBlocks();
+  void unlockBlock(const int64_t &index);
 
   static std::shared_ptr<BlockedBuffer<T, Axis>>
   MakeBlockedBuffer(const std::vector<int64_t> &dim_size);
 
-  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 16 * ONE_KB;
+  static BlockValidRangeType GetEmptyValidRangeData();
+
+  inline int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
+  inline std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
+
+  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 64 * ONE_KB;
   static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE =
       MAX_PER_BLOCK_BUFFER_SIZE_BYTES / sizeof(T);
 
@@ -206,8 +188,6 @@ private:
 
   T *GetItemAtBlock(int64_t block_id, int64_t index, size_t *valid_len);
   T *const GetItemAtBlock(int64_t block_id, int64_t index);
-  // T& ReadItemAtBlock(int64_t block_id, int64_t index);
-  // void SetItemAtBlock(int64_t block_id, int64_t index, T val);
 
   std::shared_ptr<BlockHeader>
   calculateBlockHeader(std::array<T, MAX_PER_BLOCK_BUFFER_SIZE> &block_content);
@@ -219,6 +199,7 @@ private:
   std::vector<int64_t> orderedBlocks_;
   // TODO Later check maybe a vector of bool could be more efficient
   std::unordered_set<int64_t> changedBlocks_;
+
   SecStrategy secStrategy_;
   int64_t totalElements_;
   int64_t expectedBlocks_;
@@ -253,6 +234,12 @@ BlockedBuffer<T, Axis>::MakeBlockedBuffer(
   return std::make_shared<BlockedBuffer<T, Axis>>(dim_size);
 }
 
+template <typename T, int Axis>
+typename BlockedBuffer<T, Axis>::BlockValidRangeType
+BlockedBuffer<T, Axis>::GetEmptyValidRangeData() {
+  return BlockValidRangeType();
+}
+
 template <typename T, int Axis> void BlockedBuffer<T, Axis>::GenerateBlocks() {
   totalElements_ = 1;
   int d1, d2;
@@ -272,10 +259,10 @@ template <typename T, int Axis> void BlockedBuffer<T, Axis>::GenerateBlocks() {
     // decltype(&Block<T, Axis>::GetInstance) block;
     std::shared_ptr<Block<T, Axis>> block;
     if (i == expectedBlocks_ - 1 && lastBlockUsed_ != 0) {
-      block = Block<T, Axis>::GetInstance(lastBlockUsed_);
+      block = Block<T, Axis>::GetInstance(lastBlockUsed_, false);
     } else {
       block = Block<T, Axis>::GetInstance(
-          BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE);
+          BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE, false);
     }
 
     auto block_id = Block<T, Axis>::GetNextBlockID();
@@ -303,18 +290,12 @@ std::shared_ptr<BlockHeader> BlockedBuffer<T, Axis>::calculateBlockHeader(
 template <typename T, int Axis>
 void BlockedBuffer<T, Axis>::WriteBlockToUntrusted(
     const int64_t block_id, const std::shared_ptr<IBlockable> &block) {
-  /* if (block_id == 1) {
-    auto temp = block_id;
-  } */
   // we need to write it back if it has been changed!
   if (changedBlocks_.find(block_id) == changedBlocks_.end()) {
     return;
   }
 
   // https://stackoverflow.com/questions/43682207/how-do-i-dynamic-upcast-and-downcast-with-smart-pointers
-  // std::shared_ptr<Block<T>> casted =
-  // std::dynamic_pointer_cast<Block<T>>(block);
-
   // here we are sure of the type!
   std::shared_ptr<Block<T, Axis>> casted_block =
       std::static_pointer_cast<Block<T, Axis>>(block);
@@ -345,15 +326,12 @@ BlockedBuffer<T, Axis>::ReadBlockFromUntrusted(const int64_t block_id) {
 
   // create a new block object
   // decltype(&Block<T, Axis>::GetInstance) block;
-  /* if (block_id == 1) {
-    auto temp = block_id;
-  } */
   std::shared_ptr<Block<T, Axis>> block;
   if (block_id == orderedBlocks_[expectedBlocks_ - 1] && lastBlockUsed_ != 0) {
-    block = Block<T, Axis>::GetInstance(lastBlockUsed_);
+    block = Block<T, Axis>::GetInstance(lastBlockUsed_, false);
   } else {
     block = Block<T, Axis>::GetInstance(
-        BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE);
+        BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE, false);
   }
   auto &val_ = block->GetAllBlockContents();
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
@@ -366,10 +344,6 @@ BlockedBuffer<T, Axis>::ReadBlockFromUntrusted(const int64_t block_id) {
     abort();
   }
 
-  // removing it from changed blocks -- just in case if
-  // removed next line cause it causes problem
-  // changedBlocks_.erase(block_id);
-
   std::shared_ptr<IBlockable> casted_block = block;
   return casted_block;
 }
@@ -378,15 +352,8 @@ template <typename T, int Axis>
 T *const
 BlockedBuffer<T, Axis>::GetItemAt(const std::array<int64_t, Axis> &index,
                                   bool write) {
-  // https://stackoverflow.com/a/20994371/1906041
 
-  int64_t flattened_index = 0;
-  int64_t mul = 1;
-
-  for (std::size_t i = 0; i != Axis; ++i) {
-    flattened_index += index[i] * mul;
-    mul *= dimSize[i];
-  }
+  int64_t flattened_index = nDIndexToFlattend(index);
 
   auto block_id =
       orderedBlocks_[flattened_index /
@@ -400,55 +367,32 @@ BlockedBuffer<T, Axis>::GetItemAt(const std::array<int64_t, Axis> &index,
 }
 
 template <typename T, int Axis>
-T *BlockedBuffer<T, Axis>::GetItemAt(const std::array<int64_t, Axis> &index,
-                                     size_t *valid_len, bool write) {
+T *BlockedBuffer<T, Axis>::GetItemAt(const int64_t &index,
+                                     BlockValidRangeType &valid_range,
+                                     bool write) {
   // https://stackoverflow.com/a/20994371/1906041
 
-  int64_t flattened_index = 0;
-  int64_t mul = 1;
-
-  for (std::size_t i = 0; i != Axis; ++i) {
-    flattened_index += index[i] * mul;
-    mul *= dimSize[i];
-  }
-
-  auto block_id =
-      orderedBlocks_[flattened_index /
-                     BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE];
-
-  /* if (block_id == 1) {
-    auto temp = block_id;
-  } */
+  auto block_number = index / BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE;
+  auto block_id = orderedBlocks_[block_number];
+  auto index_in_block =
+      index % BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE;
 
   if (write) {
     changedBlocks_.insert(block_id);
   }
-  return GetItemAtBlock(block_id,
-                        flattened_index %
-                            BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE,
-                        valid_len);
+  size_t valid_len = 0;
+  T *item = GetItemAtBlock(block_id, index_in_block, &valid_len);
+  valid_range.block_begin_ind = index - index_in_block;
+  valid_range.block_end_ind = index + valid_len - 1;
+  valid_range.block_requested_ind = index;
+  return item;
 }
-
-/* template <typename T, int Axis>
-void BlockedBuffer<T, Axis>::SetItemAt(const std::array<int64_t, Axis> &index,
-                                       T val) {
-  int64_t flattened_index = 0;
-  int64_t mul = 1;
-
-  for (std::size_t i = 0; i != Axis; ++i) {
-    flattened_index += index[i] * mul;
-    mul *= dimSize[i];
-  }
-  return SetItemAtBlock(
-      orderedBlocks_[flattened_index /
-                     BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE],
-      flattened_index % BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE, val);
-} */
 
 template <typename T, int Axis>
 T *const BlockedBuffer<T, Axis>::GetItemAtBlock(int64_t block_id,
                                                 int64_t index) {
   auto &block = blockCache_.Get(block_id, evictHdl_, readHdl_);
+  block->setLocked(true);
   std::shared_ptr<Block<T, Axis>> casted_block =
       std::static_pointer_cast<Block<T, Axis>>(block);
   return casted_block->GetItemAt(index);
@@ -458,20 +402,45 @@ template <typename T, int Axis>
 T *BlockedBuffer<T, Axis>::GetItemAtBlock(int64_t block_id, int64_t index,
                                           size_t *valid_len) {
   auto &block = blockCache_.Get(block_id, evictHdl_, readHdl_);
+  block->setLocked(true);
   std::shared_ptr<Block<T, Axis>> casted_block =
       std::static_pointer_cast<Block<T, Axis>>(block);
   return casted_block->GetItemAt(index, valid_len);
 }
-/* template <typename T, int Axis>
-void BlockedBuffer<T, Axis>::SetItemAtBlock(int64_t block_id, int64_t index,
-                                            T val) {
+template <typename T, int Axis>
+void BlockedBuffer<T, Axis>::unlockBlock(const int64_t &index) {
+  auto block_id =
+      orderedBlocks_[index / BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE];
   auto &block = blockCache_.Get(block_id, evictHdl_, readHdl_);
+  block->setLocked(false);
+}
 
-  std::shared_ptr<Block<T, Axis>> casted_block =
-      std::static_pointer_cast<Block<T, Axis>>(block);
-  casted_block->SetItemAt(index, val);
-  changedBlocks_.insert(block_id);
-} */
+template <typename T, int Axis>
+int64_t BlockedBuffer<T, Axis>::nDIndexToFlattend(
+    const std::array<int64_t, Axis> &index) {
+  // https://stackoverflow.com/a/20994371/1906041
+
+  int64_t flattened_index = 0;
+  int64_t mul = 1;
+  for (int64_t i = Axis - 1; i >= 0; --i) {
+    flattened_index += index[i] * mul;
+    mul *= dimSize[i];
+  }
+  return flattened_index;
+}
+
+template <typename T, int Axis>
+std::array<int64_t, Axis>
+BlockedBuffer<T, Axis>::flattenedIndextoND(int64_t index) {
+  std::array<int64_t, Axis> indexes;
+  size_t mul = totalElements_;
+  for (int64_t i = 0; i < Axis; ++i) {
+    mul /= dimSize[i];
+    indexes[i] = index / mul;
+    index -= indexes[i] * mul;
+  }
+  return indexes;
+}
 
 template class BlockedBuffer<float, 1>;
 // template class BlockedBuffer<float, 2>;

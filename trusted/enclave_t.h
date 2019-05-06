@@ -21,6 +21,7 @@ void ecall_initial_sort(void);
 void ecall_check_for_sort_correctness(void);
 void ecall_start_training(void);
 void ecall_singal_convolution(int size1, int size2);
+void ecall_matrix_mult(int row1, int col1, int row2, int col2);
 
 sgx_status_t SGX_CDECL ocall_load_net_config(const unsigned char* path, size_t path_len, char* config, size_t config_len, unsigned int* real_len, unsigned char* config_iv, unsigned char* config_mac);
 sgx_status_t SGX_CDECL ocall_print_string(const char* str);

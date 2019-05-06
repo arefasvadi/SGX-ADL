@@ -37,6 +37,13 @@ typedef struct ms_ecall_singal_convolution_t {
 	int ms_size2;
 } ms_ecall_singal_convolution_t;
 
+typedef struct ms_ecall_matrix_mult_t {
+	int ms_row1;
+	int ms_col1;
+	int ms_row2;
+	int ms_col2;
+} ms_ecall_matrix_mult_t;
+
 typedef struct ms_ocall_load_net_config_t {
 	const unsigned char* ms_path;
 	size_t ms_path_len;
@@ -233,11 +240,29 @@ static sgx_status_t SGX_CDECL sgx_ecall_singal_convolution(void* pms)
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_ecall_matrix_mult(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_ecall_matrix_mult_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_ecall_matrix_mult_t* ms = SGX_CAST(ms_ecall_matrix_mult_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+
+
+
+	ecall_matrix_mult(ms->ms_row1, ms->ms_col1, ms->ms_row2, ms->ms_col2);
+
+
+	return status;
+}
+
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[6];
+	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[7];
 } g_ecall_table = {
-	6,
+	7,
 	{
 		{(void*)(uintptr_t)sgx_ecall_enclave_init, 0},
 		{(void*)(uintptr_t)sgx_ecall_assign_random_id, 0},
@@ -245,29 +270,30 @@ SGX_EXTERNC const struct {
 		{(void*)(uintptr_t)sgx_ecall_check_for_sort_correctness, 0},
 		{(void*)(uintptr_t)sgx_ecall_start_training, 0},
 		{(void*)(uintptr_t)sgx_ecall_singal_convolution, 0},
+		{(void*)(uintptr_t)sgx_ecall_matrix_mult, 0},
 	}
 };
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[14][6];
+	uint8_t entry_table[14][7];
 } g_dyn_entry_table = {
 	14,
 	{
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
-		{0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, 0, 0, },
 	}
 };
 

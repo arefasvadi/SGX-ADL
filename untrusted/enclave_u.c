@@ -11,6 +11,13 @@ typedef struct ms_ecall_singal_convolution_t {
 	int ms_size2;
 } ms_ecall_singal_convolution_t;
 
+typedef struct ms_ecall_matrix_mult_t {
+	int ms_row1;
+	int ms_col1;
+	int ms_row2;
+	int ms_col2;
+} ms_ecall_matrix_mult_t;
+
 typedef struct ms_ocall_load_net_config_t {
 	const unsigned char* ms_path;
 	size_t ms_path_len;
@@ -283,6 +290,18 @@ sgx_status_t ecall_singal_convolution(sgx_enclave_id_t eid, int size1, int size2
 	ms.ms_size1 = size1;
 	ms.ms_size2 = size2;
 	status = sgx_ecall(eid, 5, &ocall_table_enclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_matrix_mult(sgx_enclave_id_t eid, int row1, int col1, int row2, int col2)
+{
+	sgx_status_t status;
+	ms_ecall_matrix_mult_t ms;
+	ms.ms_row1 = row1;
+	ms.ms_col1 = col1;
+	ms.ms_row2 = row2;
+	ms.ms_col2 = col2;
+	status = sgx_ecall(eid, 6, &ocall_table_enclave, &ms);
 	return status;
 }
 

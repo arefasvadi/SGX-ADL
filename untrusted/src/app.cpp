@@ -249,10 +249,15 @@ int SGX_CDECL main(int argc, char *argv[]) {
     abort();
   }
 
-  printf("here!!\n");
-  ret = ecall_singal_convolution(global_eid, 20000000, 10000);
+  /* ret = ecall_singal_convolution(global_eid, 20000000, 10000);
   if (ret != SGX_SUCCESS) {
     printf("ecall for signal conv caused problem! Error code is %#010\n", ret);
+    abort();
+  } */
+
+  ret = ecall_matrix_mult(global_eid,1000,1000,1000,1000);
+  if (ret != SGX_SUCCESS) {
+    printf("ecall for matrix multiplication caused problem! Error code is %#010\n", ret);
     abort();
   }
 
