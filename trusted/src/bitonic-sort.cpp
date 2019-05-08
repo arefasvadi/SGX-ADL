@@ -9,7 +9,7 @@ bool BitonicSorter::doSort() {
   bitonicSort(0, arrayLen_, ascending_);
 
   // Evict the remaining valid cache
-  my_printf("Sorting finsihed. Now, last eviction starts!\n");
+  printf("Sorting finsihed. Now, last eviction starts!\n");
   std::vector<uint8_t> decrypted(sizeof(trainRecordSerialized));
   std::vector<uint8_t> encrypted(sizeof(trainRecordEncrypted));
   trainRecordEncrypted *enc_r = (trainRecordEncrypted *)&(encrypted[0]);
@@ -30,7 +30,7 @@ bool BitonicSorter::doSort() {
     res = ocall_set_records(iter_curr->first, &encrypted[0],
                             sizeof(trainRecordEncrypted));
     if (res != SGX_SUCCESS) {
-      my_printf("ocall set records caused problem! the error is "
+      printf("ocall set records caused problem! the error is "
                 "%#010X \n",
                 res);
       abort();
@@ -91,7 +91,7 @@ void BitonicSorter::obliviousCompareExchange(std::size_t i, std::size_t j,
   // if (res !=
   //     SGX_SUCCESS /* || (len_i == len_j && len_i =
   //     sizeof(trainRecordEncrypted)) */) {
-  //   my_printf("ocall get record sort caused problem! the error is "
+  //   printf("ocall get record sort caused problem! the error is "
   //             "%#010X \n",
   //             res);
   //   abort();
@@ -108,7 +108,7 @@ void BitonicSorter::obliviousCompareExchange(std::size_t i, std::size_t j,
   // std::memcpy(&MAC_i[0], (enc_r_i->MAC), AES_GCM_TAG_SIZE);
 
   // auto enc_tuple_i = std::make_tuple(enc_data_i, IV_i, MAC_i);
-  // // my_printf("oblivious compared called for %d times\n",++num_calls);
+  // // printf("oblivious compared called for %d times\n",++num_calls);
   // auto decrypted_i = cryptoEngine_.decrypt(enc_tuple_i);
   // trainRecordSerialized *record_i = (trainRecordSerialized *)&decrypted_i[0];
 
@@ -217,7 +217,7 @@ void BitonicSorter::obliviousCompareExchange(std::size_t i, std::size_t j,
   //                           j, &enc_payload_j[0],
   //                           sizeof(trainRecordEncrypted));
   // if (res != SGX_SUCCESS) {
-  //   my_printf("ocall set record sort caused problem! the error is "
+  //   printf("ocall set record sort caused problem! the error is "
   //             "%#010X \n",
   //             res);
   //   abort();
@@ -278,7 +278,7 @@ void BitonicSorter::addToCache(
                             sizeof(trainRecordEncrypted));
     if (res !=
         SGX_SUCCESS /* || (len_i == len_j && len_i = sizeof(trainRecordEncrypted)) */) {
-      my_printf("ocall get records caused problem! the error is "
+      printf("ocall get records caused problem! the error is "
                 "%#010X \n",
                 res);
       abort();
@@ -289,7 +289,7 @@ void BitonicSorter::addToCache(
     std::memcpy(&MAC[0], (enc_r->MAC), AES_GCM_TAG_SIZE);
 
     auto enc_tuple = std::make_tuple(enc_data, IV, MAC);
-    // my_printf("oblivious compared called for %d times\n",++num_calls);
+    // printf("oblivious compared called for %d times\n",++num_calls);
     auto decrypted = cryptoEngine_.decrypt(enc_tuple);
     trainRecordSerialized *record = (trainRecordSerialized *)&(decrypted[0]);
     // LRUCache_[not_in_cache_neighbours[ind]] = *record;
@@ -330,7 +330,7 @@ void BitonicSorter::removeFromCache(
     res = ocall_set_records(array_index, &encrypted[0],
                             sizeof(trainRecordEncrypted));
     if (res != SGX_SUCCESS) {
-      my_printf("ocall set records caused problem! the error is "
+      printf("ocall set records caused problem! the error is "
                 "%#010X \n",
                 res);
       abort();

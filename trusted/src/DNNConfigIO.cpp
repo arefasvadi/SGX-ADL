@@ -1,4 +1,5 @@
 #include "DNNConfigIO.h"
+#include "util.h"
 
 namespace sgx {
 namespace trusted {
@@ -20,16 +21,11 @@ bool DNNConfigIO::receiveFromUntrusted(
   CryptoEngine<uint8_t>::MAC config_mac;
 
   // TODO: replace unsafe conversions down below!
-  my_printf(
-      "%s:%d@%s =>  the path from receive untrusted is %s with size %zu\n",
-      __FILE__, __LINE__, __func__, configFilePath_.c_str(),
-      configFilePath_.size());
   ret = read_handler((const unsigned char *)configFilePath_.c_str(),
                      configFilePath_.size(), (char *)&cipher[0], len, &real_len,
                      config_iv.data(), config_mac.data());
   if (ret != SGX_SUCCESS) {
-    my_printf("%s:%d@%s =>  return status was not successful!\n", __FILE__,
-              __LINE__, __func__);
+    LOG_ERROR("return status was not successful!\n");
     return false;
   }
   cipher.resize(real_len);
@@ -43,11 +39,6 @@ bool DNNConfigIO::receiveFromUntrusted(
   appendToPlain(decrypted);
 
   netConfig_ = std::string(decrypted.begin(),decrypted.end());
-  my_printf("%s:%d@%s =>  Network config size was %d bytes!\n", __FILE__,
-            __LINE__, __func__, real_len);
-  // my_printf("%s:%d@%s => Network file content is:\n%s", __FILE__, __LINE__,
-  //        __func__, &decrypted[0]);
-
   return true;
 }
 }

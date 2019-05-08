@@ -23,6 +23,7 @@ enclave {
                      [out, size = 16] unsigned char* config_mac);
 
               void ocall_print_string([in, string] const char *str);
+              void ocall_print_log([in, string] const char *str);
               void ocall_get_record_sort(int i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i,
                                          int j, [out, size=len_j] unsigned char* tr_record_j, size_t len_j); 
               void ocall_set_record_sort(int i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i,

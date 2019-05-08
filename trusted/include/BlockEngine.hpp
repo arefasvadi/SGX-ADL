@@ -1,6 +1,9 @@
+
 #pragma once
 
 #include "CacheEngine.hpp"
+#include "BlockHeader.h"
+#include "IBlockable.h"
 #include "enclave_t.h"
 #include "sgx_error.h"
 #include <functional>
@@ -16,78 +19,6 @@
 namespace sgx {
 namespace trusted {
 namespace std = ::std;
-
-class IBlockable {
-public:
-  /*
-  // first item is block ID, the rest are indices for each Axis
-  virtual std::vector<int64_t> At(std::vector<int64_t> &index) = 0;
-  // end_index is non-inclusive
-  virtual std::vector<std::vector<int64_t>> ContigousAt(std::vector<int64_t>
-  &start_index, std::vector<int64_t> &end_index) = 0;
-  */
-  IBlockable(bool locked);
-  virtual ~IBlockable(){};
-  static int64_t GetNextBlockID();
-  inline bool isLocked() { return locked_; }
-  inline void setLocked(bool locked) { locked_ = locked; }
-
-protected:
-  static int64_t NextBlockIDStart;
-  bool locked_;
-};
-IBlockable::IBlockable(bool locked) : locked_(locked) {}
-int64_t IBlockable::NextBlockIDStart = 0;
-inline int64_t IBlockable::GetNextBlockID() {
-  return ++IBlockable::NextBlockIDStart;
-}
-
-// class BlockHeaderNullType {};
-
-// always instantiate this class on heap
-// user of the object must take care of deallocation and deleting of objects
-
-class BlockHeader {
-public:
-  /* using HeaderType =
-     std::variant<BlockHeaderNullType,std::array<uint8_t,AES_GCM_TAG_SIZE+AES_GCM_IV_SIZE>,
-      std::array<uint8_t,AES_CMAC_TAG_SIZE>>; */
-  using HeaderType = std::vector<uint8_t>;
-  // static std::shared_ptr<BlockHeader<Axis>> MakeBlockHeader();
-
-  BlockHeader(SecStrategy sec_strategy);
-  ~BlockHeader() = default;
-  static std::shared_ptr<BlockHeader> MakeBlockHeader(SecStrategy sec_strategy);
-  HeaderType &GetHeader();
-  void SetHeader(HeaderType &header);
-
-private:
-  size_t headerLen_;
-  // std::pair<std::array<int64_t,Axis>,std::array<int64_t,Axis>> bounds_;
-  HeaderType header_;
-};
-
-BlockHeader::BlockHeader(SecStrategy sec_strategy) {
-  if (sec_strategy == SecStrategy::INTEGRITY) {
-    header_ = std::vector<uint8_t>(AES_CMAC_TAG_SIZE, 0);
-  } else if (sec_strategy == SecStrategy::CONFIDENTIALITY_INTEGRITY) {
-    header_ = std::vector<uint8_t>(AES_GCM_TAG_SIZE + AES_GCM_IV_SIZE, 0);
-  } else {
-    header_ = std::vector<uint8_t>(0);
-  }
-  headerLen_ = header_.size();
-}
-
-std::shared_ptr<BlockHeader>
-BlockHeader::MakeBlockHeader(SecStrategy sec_strategy) {
-  return std::make_shared<BlockHeader>(sec_strategy);
-}
-
-BlockHeader::HeaderType &BlockHeader::GetHeader() { return header_; }
-
-void BlockHeader::SetHeader(BlockHeader::HeaderType &header) {
-  header_ = header;
-}
 
 template <typename T, int Axis> class BlockedBuffer;
 
@@ -307,9 +238,9 @@ void BlockedBuffer<T, Axis>::WriteBlockToUntrusted(
   res = ocall_write_block(block_id, 0, (unsigned char *)&(val_[0]),
                           val_.size() * sizeof(val_[0]));
   if (res != SGX_SUCCESS) {
-    my_printf("ocall write block caused problem! the error is "
-              "%#010X \n",
-              res);
+    printf("ocall write block caused problem! the error is "
+           "%#010X \n",
+           res);
     abort();
   }
 
@@ -338,9 +269,9 @@ BlockedBuffer<T, Axis>::ReadBlockFromUntrusted(const int64_t block_id) {
   res = ocall_read_block(block_id, 0, (unsigned char *)&val_[0],
                          val_.size() * sizeof(val_[0]));
   if (res != SGX_SUCCESS) {
-    my_printf("ocall read block caused problem! the error is "
-              "%#010X \n",
-              res);
+    printf("ocall read block caused problem! the error is "
+           "%#010X \n",
+           res);
     abort();
   }
 
@@ -442,7 +373,7 @@ BlockedBuffer<T, Axis>::flattenedIndextoND(int64_t index) {
   return indexes;
 }
 
-template class BlockedBuffer<float, 1>;
+// template class BlockedBuffer<float, 1>;
 // template class BlockedBuffer<float, 2>;
 // template class BlockedBuffer<double, 1>;
 // template class BlockedBuffer<double, 2>;

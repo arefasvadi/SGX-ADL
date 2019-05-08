@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-// extern void my_printf(const char *fmt, ...);
+// extern void printf(const char *fmt, ...);
 
 namespace sgx {
 namespace trusted {
@@ -74,7 +74,7 @@ CryptoEngine<T>::encrypt(const CryptoEngine<T>::IOBuffer &plain_text) {
       iv.size(), nullptr, 0, (uint8_t(*)[16]) & mac);
 
   if (success != SGX_SUCCESS) {
-    my_printf("Eecryption failed! Error code is %#010x and in decimal %d \n",
+    printf("Eecryption failed! Error code is %#010x and in decimal %d \n",
               success, success);
     abort();
   }
@@ -108,11 +108,11 @@ typename CryptoEngine<T>::IOBuffer CryptoEngine<T>::decrypt(
       cipher.size(), (uint8_t *)plain.data(), iv.data(), iv.size(), nullptr, 0,
       (uint8_t const(*)[16])mac.data());
   if (success != SGX_SUCCESS) {
-    my_printf("Decryption failed! Error code is %#010x and in decimal %d \n",
+    printf("Decryption failed! Error code is %#010x and in decimal %d \n",
               success, success);
     abort();
   }
-  // my_printf("After decryption\n");
+  // printf("After decryption\n");
   return plain;
 }
 } // namespace trusted

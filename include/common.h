@@ -1,6 +1,9 @@
 #pragma once
 // #include <stdint.h>
 
+// later remove this to CMAKE
+#define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
+
 #define AES_GCM_KEY_SIZE 16
 #define AES_GCM_TAG_SIZE 16
 #define AES_GCM_IV_SIZE 12
@@ -18,12 +21,83 @@
 #define ANSI_COLOR_BLUE "\x1b[34m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN "\x1b[36m"
+#define ANSI_COLOR_WHITE "\x1b[37m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-#define LOG_LEVEL_DEBUG 1000
-#define LOG_LEVEL_INFO 1001
-#define LOG_LEVEL_ERROR 1002
-#define LOG_LEVEL_NO_LOG 999
+#define LOG_TYPE_TRACE 1001
+#define LOG_TYPE_DEBUG 1002
+#define LOG_TYPE_INFO 1003
+#define LOG_TYPE_WARN 1004
+#define LOG_TYPE_ERROR 1005
+#define LOG_TYPE_OUT 1006
+
+#define LOG_LEVEL_NO_LOG 2000
+#define LOG_LEVEL_ERROR 2001
+#define LOG_LEVEL_WARNING_BEYOND 2002
+#define LOG_LEVEL_INFO_BEYOND 2003
+#define LOG_LEVEL_DEBUG_BEYOND 2004
+#define LOG_LEVEL_ALL 2005 // Including Traces
+
+#ifndef LOG_LEVEL
+#define LOG_LEVEL LOG_LEVEL_NO_LOG
+#endif
+
+#define LOG_OUT(...) main_logger(LOG_TYPE_OUT, __FILE__, __LINE__, __VA_ARGS__);
+#if LOG_LEVEL == LOG_LEVEL_ALL
+#define LOG_TRACE(...)                                                         \
+  main_logger(LOG_TYPE_TRACE, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_DEBUG(...)                                                         \
+  main_logger(LOG_TYPE_DEBUG, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_INFO(...)                                                          \
+  main_logger(LOG_TYPE_INFO, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_WARN(...)                                                          \
+  main_logger(LOG_TYPE_WARN, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_ERROR(...)                                                         \
+  main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
+
+#elif LOG_LEVEL == LOG_LEVEL_DEBUG_BEYOND
+#define LOG_TRACE(...)
+#define LOG_DEBUG(...)                                                         \
+  main_logger(LOG_TYPE_DEBUG, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_INFO(...)                                                          \
+  main_logger(LOG_TYPE_INFO, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_WARN(...)                                                          \
+  main_logger(LOG_TYPE_WARN, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_ERROR(...)                                                         \
+  main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
+
+#elif LOG_LEVEL == LOG_LEVEL_INFO_BEYOND
+#define LOG_TRACE(...)
+#define LOG_DEBUG(...)
+#define LOG_INFO(...)                                                          \
+  main_logger(LOG_TYPE_INFO, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_WARN(...)                                                          \
+  main_logger(LOG_TYPE_WARN, __FILE__, __LINE__, __VA_ARGS__);
+#define LOG_ERROR(...)                                                         \
+  main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
+
+#elif LOG_LEVEL == LOG_LEVEL_ERROR
+#define LOG_TRACE(...)
+#define LOG_DEBUG(...)
+#define LOG_INFO(...)
+#define LOG_WARN(...)
+#define LOG_ERROR(...)                                                         \
+  main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
+
+#elif LOG_LEVEL == LOG_LEVEL_NO_LOG
+#define LOG_TRACE(...)
+#define LOG_DEBUG(...)
+#define LOG_INFO(...)
+#define LOG_WARN(...)
+#define LOG_ERROR(...)
+
+#endif
+
+#define CHECK_SGX_SUCCESS(RET, MSG)                                            \
+  if ((RET) != (SGX_SUCCESS)) {                                                \
+    LOG_ERROR(MSG)                                                             \
+    abort();                                                                   \
+  }
 
 #ifndef IMG_WIDTH
 #define IMG_WIDTH 28

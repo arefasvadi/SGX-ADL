@@ -144,7 +144,7 @@ const std::shared_ptr<V> &Cache<K, V>::Get(const K &key,
 }
 
 template <typename K, typename V> void Cache<K, V>::Delete(const K &key, bool &success) {
-  // my_printf("Delete was invoked\n");
+  // printf("Delete was invoked\n");
   const auto &key_it = cache_.find(key);
   // calls the wrie to untrusted!
   if (std::get<0>(key_it->second)->isLocked()){

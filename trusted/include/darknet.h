@@ -1,8 +1,9 @@
 #pragma once
 
+#include "common.h"
 #include <assert.h>
 #include <stdlib.h>
-#include "common.h"
+#include "util.h"
 
 #define USE_SGX
 
@@ -29,7 +30,7 @@ int rand();
 // void srand(unsigned seed);
 
 void custom_error(char *s);
-  extern void my_printf(const char* fmt, ...);
+extern void printf(const char *fmt, ...);
 
 #if defined(__cplusplus)
 }
@@ -41,12 +42,10 @@ void custom_error(char *s);
       custom_error(__VA_ARGS__);                                               \
   } while (0);
 
-
 #define fprintf(...)
-#define printf(...)
+//#define printf(...)
 #define print_statistics(...)
-#define srand(x) set_random_seed(x,1)
-
+#define srand(x) set_random_seed(x, 1)
 
 // #define box_iou(...)
 // #define float_to_box(...)

@@ -91,6 +91,136 @@ void print_error_message(sgx_status_t ret) {
   if (idx == ttl)
     printf("Error: Unexpected error occurred.\n");
 }
+void print_log(const char *str) {
+  time_t now = time(0);
+  struct tm *ltm = localtime(&now);
+  fprintf(stderr, "%s", asctime(ltm));
+  fprintf(stderr, "%s\n", str);
+}
+
+void main_logger(int level, const char *file, int line, const char *format,
+                 ...) {
+  char buf[BUFSIZ] = {'\0'};
+  char *buf_ptr = buf;
+  va_list ap;
+  size_t size = 0;
+  switch (level) {
+  case LOG_TYPE_TRACE:
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_CYAN "-------------------------" ANSI_COLOR_RESET
+                                    "\n");
+    buf_ptr = buf_ptr + size;
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_CYAN "[TRACE] -- %s:%d" ANSI_COLOR_RESET "\n",
+                    file, line);
+    buf_ptr = buf_ptr + size;
+
+    va_start(ap, format);
+    size = vsnprintf(buf_ptr, 4096, format, ap);
+    buf_ptr = buf_ptr + size;
+    va_end(ap);
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_CYAN "-------------------------" ANSI_COLOR_RESET
+                                    "\n");
+    print_log(buf);
+    break;
+  case LOG_TYPE_DEBUG:
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_MAGENTA
+                    "-------------------------" ANSI_COLOR_RESET "\n");
+    buf_ptr = buf_ptr + size;
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_MAGENTA "[DEBUG] -- %s:%d" ANSI_COLOR_RESET "\n",
+                    file, line);
+    buf_ptr = buf_ptr + size;
+    va_start(ap, format);
+    size = vsnprintf(buf_ptr, 4096, format, ap);
+    buf_ptr = buf_ptr + size;
+    va_end(ap);
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_MAGENTA
+                    "-------------------------" ANSI_COLOR_RESET "\n");
+    print_log(buf);
+    break;
+
+  case LOG_TYPE_INFO:
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_BLUE "-------------------------" ANSI_COLOR_RESET
+                                    "\n");
+    buf_ptr = buf_ptr + size;
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_BLUE "[INFO] -- %s:%d" ANSI_COLOR_RESET "\n",
+                    file, line);
+    buf_ptr = buf_ptr + size;
+    va_start(ap, format);
+    size = vsnprintf(buf_ptr, 4096, format, ap);
+    buf_ptr = buf_ptr + size;
+    va_end(ap);
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_BLUE "-------------------------" ANSI_COLOR_RESET
+                                    "\n");
+    print_log(buf);
+    break;
+
+  case LOG_TYPE_WARN:
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_YELLOW
+                    "-------------------------" ANSI_COLOR_RESET "\n");
+    buf_ptr = buf_ptr + size;
+    size =
+        snprintf(buf_ptr, 4096,
+                 ANSI_COLOR_YELLOW "[WARNING] -- %s:%d" ANSI_COLOR_RESET "\n",
+                 file, line);
+    buf_ptr = buf_ptr + size;
+    va_start(ap, format);
+    size = vsnprintf(buf_ptr, 4096, format, ap);
+    buf_ptr = buf_ptr + size;
+    va_end(ap);
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_YELLOW
+                    "-------------------------" ANSI_COLOR_RESET "\n");
+    print_log(buf);
+    break;
+  case LOG_TYPE_ERROR:
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_RED "-------------------------" ANSI_COLOR_RESET
+                                   "\n");
+    buf_ptr = buf_ptr + size;
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_RED "[ERROR] -- %s:%d" ANSI_COLOR_RESET "\n",
+                    file, line);
+    buf_ptr = buf_ptr + size;
+    va_start(ap, format);
+    size = vsnprintf(buf_ptr, 4096, format, ap);
+    buf_ptr = buf_ptr + size;
+    va_end(ap);
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_RED "-------------------------" ANSI_COLOR_RESET
+                                   "\n");
+    print_log(buf);
+    break;
+  case LOG_TYPE_OUT:
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_GREEN
+                    "-------------------------" ANSI_COLOR_RESET "\n");
+    buf_ptr = buf_ptr + size;
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_GREEN "[OUT] -- %s:%d" ANSI_COLOR_RESET "\n",
+                    file, line);
+    buf_ptr = buf_ptr + size;
+    va_start(ap, format);
+    size = vsnprintf(buf_ptr, 4096, format, ap);
+    buf_ptr = buf_ptr + size;
+    va_end(ap);
+    size = snprintf(buf_ptr, 4096,
+                    ANSI_COLOR_GREEN
+                    "-------------------------" ANSI_COLOR_RESET "\n");
+    print_log(buf);
+    break;
+  default:
+    break;
+  }
+}
 
 /* Initialize the enclave:
  *   Call sgx_create_enclave to initialize an enclave instance
@@ -119,6 +249,8 @@ void ocall_print_string(const char *str) {
    */
   printf("%s", str);
 }
+
+void ocall_print_log(const char *str) { print_log(str); }
 
 void ocall_get_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
                            int j, unsigned char *tr_record_j, size_t len_j) {
@@ -194,10 +326,8 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
                            char *config, size_t config_len,
                            unsigned int *real_len, unsigned char *config_iv,
                            unsigned char *config_mac) {
-
-  printf("%s:%d@%s =>  ocall_load_net_config started! for file %s with size "
-         "%zu\n",
-         __FILE__, __LINE__, __func__, (char *)path, path_len);
+  LOG_TRACE("ocall_load_net_config started! for file %s with size %zu\n",
+            (char *)path, path_len);
   std::ifstream f((const char *)path, std::ios::in | std::ios::binary);
 
   if (!f.is_open()) {
@@ -218,16 +348,16 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
   memcpy(config_iv, config_content_iv.data(), AES_GCM_IV_SIZE);
   memcpy(config_mac, config_content_mac.data(), AES_GCM_TAG_SIZE);
 
-  printf("%s:%d@%s =>  ocall_load_net_config finished successfully for size of "
-         "%zu bytes!\n",
-         __FILE__, __LINE__, __func__, *real_len);
+  LOG_TRACE("ocall_load_net_config finished successfully for size of "
+            "%zu bytes!\n",
+            *real_len);
 }
 
 void print_timers() {
 
   for (const auto &s : duration_map) {
-    std::cout << "++ Item " << s.first << " took about "
-              << s.second / 1000000.0 << " seconds\n";
+    std::cout << "++ Item " << s.first << " took about " << s.second / 1000000.0
+              << " seconds\n";
   }
 }
 /* Application entry */
@@ -237,7 +367,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
   /* Initialize the enclave */
   if (initialize_enclave() < 0) {
-    printf("Something went wrong. Enter a character before exit ...\n");
+    LOG_ERROR("Something went wrong. Enter a character before exit ...\n");
     getchar();
     return -1;
   }
@@ -245,7 +375,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   ret = ecall_enclave_init(global_eid);
   if (ret != SGX_SUCCESS) {
-    printf("ecall init enclave caused problem! Error code is %#010\n", ret);
+    LOG_ERROR("ecall init enclave caused problem! Error code is %#010\n", ret);
     abort();
   }
 
@@ -255,48 +385,47 @@ int SGX_CDECL main(int argc, char *argv[]) {
     abort();
   } */
 
-  ret = ecall_matrix_mult(global_eid,1000,1000,1000,1000);
+  /* ret = ecall_matrix_mult(global_eid,1000,1000,1000,1000);
   if (ret != SGX_SUCCESS) {
-    printf("ecall for matrix multiplication caused problem! Error code is %#010\n", ret);
+    printf("ecall for matrix multiplication caused problem! Error code is
+  %#010\n", ret); abort();
+  } */
+
+  initialize_data(tr_pub_params, plain_dataset, encrypted_dataset,
+                  crypto_engine);
+
+  LOG_INFO("Size of encrypted data is: %fMB\n",
+           (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
+               (1 << 20));
+
+  random_id_assign(encrypted_dataset);
+
+  ret = ecall_initial_sort(global_eid);
+  if (ret != SGX_SUCCESS) {
+    LOG_ERROR(
+        "ecall initial sort enclave caused problem! Error code is %#010X\n ",
+        ret);
     abort();
   }
 
-  /* initialize_data(tr_pub_params, plain_dataset, encrypted_dataset,
-                  crypto_engine); */
+  LOG_DEBUG("check for sorting started\n");
+  ret = ecall_check_for_sort_correctness(global_eid);
+  if (ret != SGX_SUCCESS) {
+    LOG_ERROR("ecall checking sort correctness caused problem! Error code is "
+              "%#010X\n ",
+              ret);
+    abort();
+  }
+  LOG_DEBUG("check for sorting finished successfully\n");
 
-  /* std::cout << "Size of encrypted data is: "
-            << (encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
-                   (1 << 20)
-            << "MB\n"; */
-
-  // random_id_assign(encrypted_dataset);
-
-  // ret = ecall_initial_sort(global_eid);
-  // if (ret != SGX_SUCCESS) {
-  //   printf("ecall initial sort enclave caused problem! Error code is
-  //   %#010X\n",
-  //          ret);
-  //   abort();
-  // }
-
-  // std::cout << "check for sorting started\n";
-  // ret = ecall_check_for_sort_correctness(global_eid);
-  // if (ret != SGX_SUCCESS) {
-  //   printf("ecall checking sort correctness caused problem! Error code is
-  //   %#010X\n",
-  //          ret);
-  //   abort();
-  // }
-  // std::cout << "check for sorting finished successfully\n";
-
-  /* std::cout << "starting the training...\n";
+  LOG_DEBUG("starting the training...\n");
   ret = ecall_start_training(global_eid);
   if (ret != SGX_SUCCESS) {
-    printf("ecall start training caused problem! Error code is %#010X\n",
-  ret); abort();
+    LOG_ERROR("ecall start training caused problem! Error code is %#010X\n",
+              ret);
+    abort();
   }
-  std::cout << "finished the training\n"; */
-
+  LOG_DEBUG("finished the training\n");
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);
 

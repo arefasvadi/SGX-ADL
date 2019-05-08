@@ -26,6 +26,9 @@
 
 extern sgx_enclave_id_t global_eid; /* global enclave id */
 
+void main_logger(int level, const char *file, int line, const char *format,
+                 ...);
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

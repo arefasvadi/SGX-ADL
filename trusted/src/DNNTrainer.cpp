@@ -1,8 +1,6 @@
 #include "DNNTrainer.h"
 #include <string>
 
-// extern void printf(const char *fmt, ...);
-
 namespace sgx {
 namespace trusted {
 namespace darknet {
@@ -19,21 +17,14 @@ DNNTrainer::DNNTrainer(const std::string &config_file_path,
 }
 
 bool DNNTrainer::loadNetworkConfig() {
-
+  LOG_TRACE("entered load network config\n")
   bool res = configIO_->receiveFromUntrusted(ocall_load_net_config);
   if (!res) {
-    my_printf("%s:%d@%s => Cannot properly move config into enclave!\n",
-              __FILE__, __LINE__, __func__);
+    LOG_ERROR("Cannot properly move config into enclave!\n")
     return false;
-  } else {
-    my_printf("%s:%d@%s => properly moved config into enclave!\n", __FILE__,
-              __LINE__, __func__);
   }
-  my_printf("%s:%d@%s => about to load the network object!\n", __FILE__,
-            __LINE__, __func__);
-
   net_ = load_network((char *)configIO_->getNetConfig().c_str(), nullptr, 1);
-
+  LOG_TRACE("exitted load network config\n")
   return true;
 }
 void DNNTrainer::intitialSort() {
@@ -63,9 +54,9 @@ bool DNNTrainer::prepareBatch(int start) {
                               sizeof(trainRecordEncrypted));
       if (res !=
           SGX_SUCCESS /* || (len_i == len_j && len_i = sizeof(trainRecordEncrypted)) */) {
-        my_printf("ocall get records caused problem! the error is "
-                  "%#010X \n",
-                  res);
+        LOG_ERROR("ocall get records caused problem! the error is "
+               "%#010X \n",
+               res);
         abort();
       }
       trainRecordEncrypted *enc_r = (trainRecordEncrypted *)&(enc_payload[0]);
@@ -75,7 +66,7 @@ bool DNNTrainer::prepareBatch(int start) {
       std::memcpy(&MAC[0], (enc_r->MAC), AES_GCM_TAG_SIZE);
 
       auto enc_tuple = std::make_tuple(enc_data, IV, MAC);
-      // my_printf("oblivious compared called for %d times\n",++num_calls);
+      // printf("oblivious compared called for %d times\n",++num_calls);
       auto decrypted = cryptoEngine_.decrypt(enc_tuple);
       trainRecordSerialized *record = (trainRecordSerialized *)&(decrypted[0]);
 
@@ -95,74 +86,34 @@ bool DNNTrainer::prepareBatch(int start) {
 }
 
 void DNNTrainer::train() {
-
   int start = 0;
   float avg_loss = -1, loss = -1;
 
   while (get_current_batch(net_) < net_->max_batches) {
-
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    auto batch_num = std::to_string(get_current_batch(net_));
-    std::string time_id_batch = "batch_time_" + batch_num;
-    std::string time_id_prepare_batch = "prepare_batch_time_" + batch_num;
-    std::string time_id_train_batch = "train_batch_time_" + batch_num;
-
-    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 1,0);
-    if (ret != SGX_SUCCESS) {
-      printf("ocall for timing caused problem! Error code is %#010\n", ret);
-      abort();
-    }
-    ret = ocall_set_timing(time_id_prepare_batch.c_str(),
-                           time_id_prepare_batch.size() + 1, 1,0);
-    if (ret != SGX_SUCCESS) {
-      printf("ocall for timing caused problem! Error code is %#010\n", ret);
-      abort();
-    }
     auto prepared = prepareBatch(start);
     if (!prepared) {
       intitialSort();
       start = 0;
       prepared = prepareBatch(start);
     }
-    ret = ocall_set_timing(time_id_prepare_batch.c_str(),
-                           time_id_prepare_batch.size() + 1, 0,1);
-    if (ret != SGX_SUCCESS) {
-      printf("ocall for timing caused problem! Error code is %#010\n", ret);
-      abort();
-    }
-    // my_printf("starting iteration for batch number %d\n",
+    // printf("starting iteration for batch number %d\n",
     // get_current_batch(net_));
-    ret = ocall_set_timing(time_id_train_batch.c_str(),
-                           time_id_train_batch.size() + 1, 1,0);
-    if (ret != SGX_SUCCESS) {
-      printf("ocall for timing caused problem! Error code is %#010\n", ret);
-      abort();
-    }
     loss = train_network(net_, trainData_);
-    // my_printf("* reported loss is: %f\n ",loss);
-    ret = ocall_set_timing(time_id_train_batch.c_str(), time_id_train_batch.size() + 1, 0,1);
-    if (ret != SGX_SUCCESS) {
-      printf("ocall for timing caused problem! Error code is %#010\n", ret);
-      abort();
-    }
+    // printf("* reported loss is: %f\n ",loss);
 
-    if (avg_loss == -1)
+    if (avg_loss == -1) {
       avg_loss = loss;
+    }
 
     avg_loss = avg_loss * .9 + loss * .1;
-
-    ret = ocall_set_timing(time_id_batch.c_str(), time_id_batch.size() + 1, 0,1);
-    if (ret != SGX_SUCCESS) {
-      printf("ocall for timing caused problem! Error code is %#010\n", ret);
-      abort();
-    }
-
-    my_printf("%ld: %f, %f avg, %f rate, %ld images\n", get_current_batch(net_),
-              loss, avg_loss, get_current_rate(net_), *net_->seen);
-
+    LOG_INFO("iteration %ld: loss = %f, avg loss = %f avg, learning rate = %f "
+             "rate, images processed = %ld images\n",
+             get_current_batch(net_), loss, avg_loss,
+             (double)get_current_rate(net_), *net_->seen);
     free_data(trainData_);
   }
 }
-}
-}
-}
+} // namespace darknet
+} // namespace trusted
+} // namespace sgx

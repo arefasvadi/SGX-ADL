@@ -24,6 +24,10 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_load_net_config, (const unsigned char* 
 #define OCALL_PRINT_STRING_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_string, (const char* str));
 #endif
+#ifndef OCALL_PRINT_LOG_DEFINED__
+#define OCALL_PRINT_LOG_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_log, (const char* str));
+#endif
 #ifndef OCALL_GET_RECORD_SORT_DEFINED__
 #define OCALL_GET_RECORD_SORT_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_get_record_sort, (int i, unsigned char* tr_record_i, size_t len_i, int j, unsigned char* tr_record_j, size_t len_j));

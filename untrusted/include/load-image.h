@@ -5,15 +5,13 @@
 #include <vector>
 
 #undef USE_SGX
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #include "../../third_party/darknet/include/darknet.h"
 matrix load_image_paths(char **paths, int n, int w, int h);
 matrix load_labels_paths(char **paths, int n, char **labels, int k,
                          tree *hierarchy);
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__cplusplus)
 }

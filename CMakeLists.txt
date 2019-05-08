@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 project(SGX_DDL)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 14)
-#set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
+#set(CMAKE_BUILD_TYPE "Release")
 
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
@@ -125,6 +125,7 @@ set(DARKNET_SOURCE_FILES
 "third_party/darknet/src/l2norm_layer.c"
 # "third_party/darknet/src/yolo_layer.c"
 )
+SET_SOURCE_FILES_PROPERTIES(${DARKNET_SOURCE_FILES} PROPERTIES LANGUAGE CXX )
 add_library(DARKNET_T OBJECT
 "${DARKNET_SOURCE_FILES}"
 "${Trusted_Home}/src/darknet-addons.c"
@@ -135,8 +136,12 @@ target_include_directories(DARKNET_T PUBLIC
   "${Trusted_Home}/include"
   "${SGX_SDK}/include"
   "${SGX_SDK}/include/tlibc"
+  #"${SGX_SDK}/include/stdc++"
+  "${SGX_SDK}/include/libcxx"
 )
-target_compile_options(DARKNET_T PUBLIC "${Trusted_C_Flags}" 
+target_compile_options(DARKNET_T PUBLIC 
+"${Trusted_Cpp_Flags}"
+#"${Trusted_C_Flags}" 
 "-DUSE_SGX"
 )
 ########################################################################################################################
@@ -225,6 +230,10 @@ set(Enclave_Cpp_Files
   "${Trusted_Home}/src/enclave-app.cpp"
   "${Trusted_Home}/src/DNNConfigIO.cpp" 
   "${Trusted_Home}/src/DNNTrainer.cpp" 
+  "${Trusted_Home}/src/BlockHeader.cpp" 
+  "${Trusted_Home}/src/IBlockable.cpp" 
+  "${Trusted_Home}/src/util.cpp" 
+  "${Trusted_Home}/src/tests.cpp" 
   )
 add_executable(${Trusted_Name} "${Enclave_Cpp_Files}" $<TARGET_OBJECTS:Enclave_T> $<TARGET_OBJECTS:DARKNET_T>)
 target_include_directories(${Trusted_Name} PUBLIC

@@ -1,5 +1,6 @@
 #include "load-image.h"
 #include "../enclave_u.h"
+#include "app.h"
 #include "common.h"
 #include <CryptoEngine.hpp>
 #include <algorithm>
@@ -19,10 +20,10 @@ bool load_training_data(training_pub_params &par) {
   par.input_data.shallow = 0;
   par.input_data.X =
       load_image_paths(par.paths, par.total_records, par.width, par.height);
-  std::cout << "Each image is are of length: " << par.input_data.X.cols << "\n";
+  LOG_INFO("Each image is are of length: %d\n", par.input_data.X.cols);
   par.input_data.y = load_labels_paths(par.paths, par.total_records, par.labels,
                                        par.num_classes, NULL);
-  std::cout << "Each label is are of length: " << par.input_data.y.cols << "\n";
+  LOG_INFO("Each label is are of length: %d\n", par.input_data.y.cols);
   // TODO remember to delete
   // paths in plist
   // free_list too
@@ -35,7 +36,7 @@ bool serialize_training_data(training_pub_params &par,
                              std::vector<trainRecordSerialized> &out) {
   if (par.height * par.width * par.channels != WIDTH_X_HEIGHT_X_CHAN ||
       par.num_classes != NUM_CLASSES) {
-    std::cout << "Problems with image size or labels size!!\n";
+    LOG_ERROR("Problems with image size or labels size!!\n");
     std::exit(1);
     // return false;
   }
@@ -103,11 +104,12 @@ void initialize_data(training_pub_params &tr_pub_params,
 }
 
 void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {
+  LOG_TRACE("entered in random id assign\n");
   constexpr int group_size = 5;
   const int dataset_size = encrypted_dataset.size();
-  std::cout
-      << "Entered in random_id_assign in untrusted zone for dataset of size "
-      << dataset_size << " each being "  << sizeof(trainRecordEncrypted)  << " bytes!\n";
+  LOG_INFO("Entered in random_id_assign in untrusted zone for dataset of size "
+           "%d each being %d bytes\n",
+           dataset_size, sizeof(trainRecordEncrypted));
   int count = 0;
   while (true) {
     if (count + group_size < dataset_size) {
@@ -118,9 +120,9 @@ void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {
                                    group_size * sizeof(trainRecordEncrypted));
       // std::cout << "calling enclave..\n";
       if (ret != SGX_SUCCESS) {
-        printf("ecall assign random_id enclave caused problem! the error is "
-               "%#010X \n",
-               ret);
+        LOG_ERROR("ecall assign random_id enclave caused problem! the error is "
+                  "%#010X \n",
+                  ret);
         abort();
       }
       count += group_size;
@@ -134,13 +136,14 @@ void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {
           global_eid, (unsigned char *)&(encrypted_dataset[count]),
           (dataset_size - count) * sizeof(trainRecordEncrypted));
       if (ret != SGX_SUCCESS) {
-        printf("ecall assign random_id enclave caused problem! the error is "
-               "%#010X   \n",
-               ret);
+        LOG_ERROR("ecall assign random_id enclave caused problem! the error is "
+                  "%#010X   \n",
+                  ret);
         abort();
       }
 
       break;
     }
   }
+  LOG_TRACE("finished in random id assign\n");
 }
