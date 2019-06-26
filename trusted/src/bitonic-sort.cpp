@@ -1,5 +1,6 @@
 #include "bitonic-sort.h"
 #include "algorithm"
+#include "util.h"
 
 namespace sgx {
 namespace trusted {
@@ -16,6 +17,7 @@ bool BitonicSorter::doSort() {
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
 
   for (auto iter_curr = LRUCache_.begin(); iter_curr != LRUCache_.end(); iter_curr++) {
+    
     std::memcpy(&decrypted[0], &(iter_curr->second),
                 sizeof(trainRecordSerialized));
     auto enc_tuple = cryptoEngine_.encrypt(decrypted);
@@ -27,17 +29,14 @@ bool BitonicSorter::doSort() {
     const auto &temp_MAC = std::get<2>(enc_tuple);
     std::memcpy((enc_r->MAC), &temp_MAC[0], AES_GCM_KEY_SIZE);
 
-    res = ocall_set_records(iter_curr->first, &encrypted[0],
+    res = ocall_set_records_encrypted(1,iter_curr->first, &encrypted[0],
                             sizeof(trainRecordEncrypted));
-    if (res != SGX_SUCCESS) {
-      printf("ocall set records caused problem! the error is "
-                "%#010X \n",
-                res);
-      abort();
-    }
+    CHECK_SGX_SUCCESS(res, "ocall set records caused problem!\n");
   }
+  printf("Sorting eviction finsihed. Now, clearing cache!\n");
   LRUCache_.clear();
   LRUCounts_.clear();
+  return true;
 }
 
 // template <typename SR>
@@ -274,7 +273,7 @@ void BitonicSorter::addToCache(
   // for (int ind = 0; ind < not_in_cache_neighbours.size(); ++ind) {
   for (int ind = 0; ind < list_size; ++ind) {
     sgx_status_t res = SGX_ERROR_UNEXPECTED;
-    res = ocall_get_records(not_in_cache_neighbours[ind], &enc_payload[0],
+    res = ocall_get_records_encrypted(1,not_in_cache_neighbours[ind], &enc_payload[0],
                             sizeof(trainRecordEncrypted));
     if (res !=
         SGX_SUCCESS /* || (len_i == len_j && len_i = sizeof(trainRecordEncrypted)) */) {
@@ -327,7 +326,7 @@ void BitonicSorter::removeFromCache(
     const auto &temp_MAC = std::get<2>(enc_tuple);
     std::memcpy((enc_r->MAC), &temp_MAC[0], AES_GCM_KEY_SIZE);
 
-    res = ocall_set_records(array_index, &encrypted[0],
+    res = ocall_set_records_encrypted(1,array_index, &encrypted[0],
                             sizeof(trainRecordEncrypted));
     if (res != SGX_SUCCESS) {
       printf("ocall set records caused problem! the error is "

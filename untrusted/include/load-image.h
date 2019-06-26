@@ -19,7 +19,7 @@ extern "C" {
 
 #include <string>
 
-typedef struct training_pub_params {
+typedef struct data_params {
   std::string label_path;
   // std::vector<std::string> labels;
   std::string train_paths;
@@ -36,23 +36,26 @@ typedef struct training_pub_params {
   char **paths;
   char **labels;
 
-} training_pub_params;
+} data_params;
 
-bool load_training_data(training_pub_params &par);
+bool load_train_test_data(data_params &par);
 
-bool serialize_training_data(training_pub_params &par,
-                             std::vector<trainRecordSerialized> &out);
+bool serialize_train_test_data(data_params &par,
+                               std::vector<trainRecordSerialized> &out);
 
-bool encrypt_training_data(
+bool encrypt_train_test_data(
     sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
     const std::vector<trainRecordSerialized> &in,
     std::vector<trainRecordEncrypted> &out);
 
-void initialize_training_params_cifar(training_pub_params &param);
+void initialize_train_params_cifar(data_params &param);
+void initialize_test_params_cifar(data_params &param);
 
-void initialize_data(training_pub_params &tr_pub_params,
+void initialize_data(data_params &tr_pub_params, data_params &test_pub_params,
                      std::vector<trainRecordSerialized> &plain_dataset,
                      std::vector<trainRecordEncrypted> &encrypted_dataset,
+                     std::vector<trainRecordSerialized> &test_plain_dataset,
+                     std::vector<trainRecordEncrypted> &test_encrypted_dataset,
                      sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine);
 
 void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset);

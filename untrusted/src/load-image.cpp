@@ -10,7 +10,7 @@
 
 extern sgx_enclave_id_t global_eid;
 
-bool load_training_data(training_pub_params &par) {
+bool load_train_test_data(data_params &par) {
 
   par.labels = get_labels((char *)par.label_path.c_str());
   par.plist = get_paths((char *)par.train_paths.c_str());
@@ -20,7 +20,7 @@ bool load_training_data(training_pub_params &par) {
   par.input_data.shallow = 0;
   par.input_data.X =
       load_image_paths(par.paths, par.total_records, par.width, par.height);
-  LOG_INFO("Each image is are of length: %d\n", par.input_data.X.cols);
+  LOG_INFO("Total images %d Each image is are of length: %d\n", par.total_records, par.input_data.X.cols);
   par.input_data.y = load_labels_paths(par.paths, par.total_records, par.labels,
                                        par.num_classes, NULL);
   LOG_INFO("Each label is are of length: %d\n", par.input_data.y.cols);
@@ -32,7 +32,7 @@ bool load_training_data(training_pub_params &par) {
   return true;
 }
 
-bool serialize_training_data(training_pub_params &par,
+bool serialize_train_test_data(data_params &par,
                              std::vector<trainRecordSerialized> &out) {
   if (par.height * par.width * par.channels != WIDTH_X_HEIGHT_X_CHAN ||
       par.num_classes != NUM_CLASSES) {
@@ -57,7 +57,7 @@ bool serialize_training_data(training_pub_params &par,
   return true;
 }
 
-bool encrypt_training_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
+bool encrypt_train_test_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
                            const std::vector<trainRecordSerialized> &in,
                            std::vector<trainRecordEncrypted> &out) {
 
@@ -81,7 +81,7 @@ bool encrypt_training_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
 }
 
 /* initializing dataset params */
-void initialize_training_params_cifar(training_pub_params &param) {
+void initialize_train_params_cifar(data_params &param) {
   param.label_path =
       "/home/aref/projects/SGX-ADL/test/config/cifar10/labels.txt";
   param.train_paths =
@@ -92,15 +92,34 @@ void initialize_training_params_cifar(training_pub_params &param) {
   param.num_classes = 10;
 }
 
-void initialize_data(training_pub_params &tr_pub_params,
+void initialize_test_params_cifar(data_params &param) {
+  param.label_path =
+      "/home/aref/projects/SGX-ADL/test/config/cifar10/labels.txt";
+  param.train_paths =
+      "/home/aref/projects/SGX-ADL/test/config/cifar10/test.list";
+  param.width = 28;
+  param.height = 28;
+  param.channels = 3;
+  param.num_classes = 10;
+}
+
+void initialize_data(data_params &tr_pub_params,
+                     data_params &test_pub_params,
                      std::vector<trainRecordSerialized> &plain_dataset,
                      std::vector<trainRecordEncrypted> &encrypted_dataset,
+                     std::vector<trainRecordSerialized> &test_plain_dataset,
+                     std::vector<trainRecordEncrypted> &test_encrypted_dataset,
                      sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine) {
-  initialize_training_params_cifar(tr_pub_params);
-  load_training_data(tr_pub_params);
-  serialize_training_data(tr_pub_params, plain_dataset);
-  encrypt_training_data(crypto_engine, plain_dataset, encrypted_dataset);
-  plain_dataset.clear();
+  initialize_train_params_cifar(tr_pub_params);
+  load_train_test_data(tr_pub_params);
+  serialize_train_test_data(tr_pub_params, plain_dataset);
+  encrypt_train_test_data(crypto_engine, plain_dataset, encrypted_dataset);
+
+  initialize_test_params_cifar(test_pub_params);
+  load_train_test_data(test_pub_params);
+  serialize_train_test_data(test_pub_params, test_plain_dataset);
+  encrypt_train_test_data(crypto_engine, test_plain_dataset, test_encrypted_dataset);
+  //plain_dataset.clear();
 }
 
 void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {

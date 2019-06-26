@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+
 void main_logger(int level, const char *file, int line, const char *format,
                  ...) {
   char buf[BUFSIZ] = {'\0'};

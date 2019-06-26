@@ -20,6 +20,10 @@ extern "C" {
 #define OCALL_LOAD_NET_CONFIG_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_load_net_config, (const unsigned char* path, size_t path_len, char* config, size_t config_len, unsigned int* real_len, unsigned char* config_iv, unsigned char* config_mac));
 #endif
+#ifndef OCALL_GET_PTEXT_IMG_DEFINED__
+#define OCALL_GET_PTEXT_IMG_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_get_ptext_img, (int loc, unsigned char* buff, size_t len));
+#endif
 #ifndef OCALL_PRINT_STRING_DEFINED__
 #define OCALL_PRINT_STRING_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_print_string, (const char* str));
@@ -36,13 +40,21 @@ void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_get_record_sort, (int i, unsigned char*
 #define OCALL_SET_RECORD_SORT_DEFINED__
 void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_set_record_sort, (int i, unsigned char* tr_record_i, size_t len_i, int j, unsigned char* tr_record_j, size_t len_j));
 #endif
-#ifndef OCALL_GET_RECORDS_DEFINED__
-#define OCALL_GET_RECORDS_DEFINED__
-void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_get_records, (size_t i, unsigned char* tr_record_i, size_t len_i));
+#ifndef OCALL_GET_RECORDS_ENCRYPTED_DEFINED__
+#define OCALL_GET_RECORDS_ENCRYPTED_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_get_records_encrypted, (int train_or_test, size_t i, unsigned char* tr_record_i, size_t len_i));
 #endif
-#ifndef OCALL_SET_RECORDS_DEFINED__
-#define OCALL_SET_RECORDS_DEFINED__
-void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_set_records, (size_t i, unsigned char* tr_record_i, size_t len_i));
+#ifndef OCALL_SET_RECORDS_ENCRYPTED_DEFINED__
+#define OCALL_SET_RECORDS_ENCRYPTED_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_set_records_encrypted, (int train_or_test, size_t i, unsigned char* tr_record_i, size_t len_i));
+#endif
+#ifndef OCALL_GET_RECORDS_PLAIN_DEFINED__
+#define OCALL_GET_RECORDS_PLAIN_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_get_records_plain, (int train_or_test, size_t i, unsigned char* tr_record_i, size_t len_i));
+#endif
+#ifndef OCALL_SET_RECORDS_PLAIN_DEFINED__
+#define OCALL_SET_RECORDS_PLAIN_DEFINED__
+void SGX_UBRIDGE(SGX_NOCONVENTION, ocall_set_records_plain, (int train_or_test, size_t i, unsigned char* tr_record_i, size_t len_i));
 #endif
 #ifndef OCALL_SET_TIMING_DEFINED__
 #define OCALL_SET_TIMING_DEFINED__
@@ -84,6 +96,8 @@ sgx_status_t ecall_check_for_sort_correctness(sgx_enclave_id_t eid);
 sgx_status_t ecall_start_training(sgx_enclave_id_t eid);
 sgx_status_t ecall_singal_convolution(sgx_enclave_id_t eid, int size1, int size2);
 sgx_status_t ecall_matrix_mult(sgx_enclave_id_t eid, int row1, int col1, int row2, int col2);
+sgx_status_t ecall_init_ptext_imgds_blocking2D(sgx_enclave_id_t eid, int single_size_x_bytes, int single_size_y_bytes, int total_items);
+sgx_status_t ecall_init_ptext_imgds_blocking1D(sgx_enclave_id_t eid, int single_size_x_bytes, int single_size_y_bytes, int total_items);
 
 #ifdef __cplusplus
 }

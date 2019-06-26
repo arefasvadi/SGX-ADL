@@ -253,7 +253,7 @@ class NetSimple(object):
   def get_scope_vars_range(self, scope=None):
     vars_range = dict()
     with tf.Session(graph = self.main_graph) as sess:
-      sess.run(tf.global_variables_initializer())
+      #sess.run(tf.global_variables_initializer())
       #if False:
       if scope is not None or scope != '':
         trainable_vars = tf.trainable_variables(scope=scope)
@@ -307,6 +307,7 @@ class NetSimple(object):
           # Initializing the variables
           #init = tf.global_variables_initializer()
           pred = self.conv_net(x, weights, biases)
+          soft_max_pred = tf.nn.softmax(pred)
           pred_made = tf.argmax(pred, 1)
           right_pred = tf.argmax(y, 1)
           cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=pred, labels=y))
@@ -317,6 +318,7 @@ class NetSimple(object):
           accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
           #print (init)
           return {'x': x, 'y': y,# 'init':init,
+                  'softmax_pred':soft_max_pred,
                   'pred': pred, 'pred_made':pred_made,
                   'right_pred':right_pred,
                   'cost': cost, 'optimizer': optimizer,
@@ -576,4 +578,4 @@ def make_trojan_models(criteria_fn=None,passed_table=None,reps=2,device='/gpu:0'
 if __name__ == "__main__":
     n_classes = 10
     train_X,train_y,test_X,test_y = load_mnist_dataset()
-    tf.reset_default_graph()
+    #tf.reset_default_graph()

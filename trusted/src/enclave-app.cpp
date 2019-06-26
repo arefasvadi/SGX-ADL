@@ -1,13 +1,14 @@
 #include "enclave-app.h"
-#include "util.h"
 #include "DNNTrainer.h"
 #include "darknet-addons.h"
 #include "enclave_t.h"
+#include "util.h"
 #include <BlockEngine.hpp>
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 #include <set>
 #include <sgx_trts.h>
 #include <string>
@@ -24,6 +25,15 @@ sgt::darknet::DNNTrainer
 
 int gpu_index = -1;
 
+static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_x;
+static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_y;
+static std::shared_ptr<sgt::BlockedBuffer<float, 1>> plain_ds_1d_x;
+static std::shared_ptr<sgt::BlockedBuffer<float, 1>> plain_ds_1d_y;
+
+int total_items = 0;
+int single_len_x = 0;
+int single_leb_y = 0;
+
 void printf(const char *fmt, ...) {
   char buf[BUFSIZ] = {'\0'};
   va_list ap;
@@ -32,7 +42,6 @@ void printf(const char *fmt, ...) {
   va_end(ap);
   ocall_print_string(buf);
 }
-
 
 void ecall_enclave_init() {
   LOG_TRACE("entered enclave_init!\n");
@@ -57,6 +66,103 @@ void ecall_enclave_init() {
 
   set_random_seed(seed1, seed2);
   LOG_TRACE("finished enclave_init!\n");
+}
+
+void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,
+                                     int single_size_y_bytes, int total_items) {
+  LOG_TRACE("entered init ptext image data set blocking\n");
+  int64_t num_pixels = single_size_x_bytes / sizeof(float);
+  int64_t num_labels = single_size_y_bytes / sizeof(float);
+  plain_ds_2d_x = sgt::BlockedBuffer<float, 2>::MakeBlockedBuffer(
+      {total_items, num_pixels});
+  LOG_DEBUG("Blocked buffer for plaintext X instantiated!\n");
+  plain_ds_2d_y = sgt::BlockedBuffer<float, 2>::MakeBlockedBuffer(
+      {total_items, num_labels});
+  LOG_DEBUG("Blocked buffer for plaintext Y instantiated!\n");
+
+  BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_2d_x, x_valid_range, block_val_x, float)
+  BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_2d_y, y_valid_range, block_val_y, float)
+
+  const int total_single_size = single_size_x_bytes + single_size_y_bytes;
+  unsigned char *buff = new unsigned char[total_single_size];
+  float *buff_val = nullptr;
+
+  for (int64_t i = 0; i < total_items; ++i) {
+    // LOG_DEBUG("processing image %d\n", i);
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ret = ocall_get_ptext_img(i, buff, total_single_size);
+    CHECK_SGX_SUCCESS(ret, "ocall get ptext img was not successful\n");
+    buff_val = reinterpret_cast<float *>(buff);
+    for (int64_t j = 0; j < num_pixels; ++j) {
+      BLOCK_ENGINE_COND_CHECK_FOR_LOOP_2D(plain_ds_2d_x, x_valid_range,
+                                          block_val_x, true, current_ind, i, j)
+      *(block_val_x + (current_ind) - (x_valid_range.block_requested_ind)) =
+          *(buff_val + j);
+    }
+    // LOG_DEBUG("processing image %d finished X\n", i);
+    buff_val += single_size_x_bytes / sizeof(float);
+    for (int64_t j = 0; j < num_labels; ++j) {
+      BLOCK_ENGINE_COND_CHECK_FOR_LOOP_2D(plain_ds_2d_y, y_valid_range,
+                                          block_val_y, true, current_ind, i, j)
+      *(block_val_y + (current_ind) - (y_valid_range.block_requested_ind)) =
+          *(buff_val + j);
+    }
+    // LOG_DEBUG("processing image %d finished Y\n", i);
+  }
+  BLOCK_ENGINE_LAST_UNLOCK(plain_ds_2d_x, x_valid_range)
+  BLOCK_ENGINE_LAST_UNLOCK(plain_ds_2d_y, y_valid_range)
+
+  delete[] buff;
+  LOG_TRACE("finished init ptext image data set blocking\n");
+}
+
+void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,
+                                     int single_size_y_bytes, int total_items) {
+  /* LOG_TRACE("entered init ptext image data set blocking\n");
+  int64_t num_pixels = single_size_x_bytes / sizeof(float);
+  int64_t num_labels = single_size_y_bytes / sizeof(float);
+  plain_ds_1d_x = sgt::BlockedBuffer<float, 1>::MakeBlockedBuffer(
+      {total_items, num_pixels});
+  LOG_DEBUG("Blocked buffer for plaintext X instantiated!\n");
+  plain_ds_1d_y = sgt::BlockedBuffer<float, 1>::MakeBlockedBuffer(
+      {total_items, num_labels});
+  LOG_DEBUG("Blocked buffer for plaintext Y instantiated!\n");
+
+  BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_1d_x, x_valid_range, block_val_x, float)
+  BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_1d_y, y_valid_range, block_val_y, float)
+
+  const int total_single_size = single_size_x_bytes + single_size_y_bytes;
+  unsigned char *buff = new unsigned char[total_single_size];
+  float *buff_val = nullptr;
+
+  for (int64_t i = 0; i < total_items; ++i) {
+    // LOG_DEBUG("processing image %d\n", i);
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ret = ocall_get_ptext_img(i, buff, total_single_size);
+    CHECK_SGX_SUCCESS(ret, "ocall get ptext img was not successful\n");
+    buff_val = reinterpret_cast<float *>(buff);
+    
+    for (int64_t j = 0; j < num_pixels; ++j) {
+      BLOCK_ENGINE_COND_CHECK_FOR_LOOP_2D(plain_ds_1d_x, x_valid_range,
+                                          block_val_x, true, current_ind, i, j)
+      *(block_val_x + (current_ind) - (x_valid_range.block_requested_ind)) =
+          *(buff_val + j);
+    }
+    // LOG_DEBUG("processing image %d finished X\n", i);
+    buff_val += single_size_x_bytes / sizeof(float);
+    for (int64_t j = 0; j < num_labels; ++j) {
+      BLOCK_ENGINE_COND_CHECK_FOR_LOOP_2D(plain_ds_1d_y, y_valid_range,
+                                          block_val_y, true, current_ind, i, j)
+      *(block_val_y + (current_ind) - (y_valid_range.block_requested_ind)) =
+          *(buff_val + j);
+    }
+    // LOG_DEBUG("processing image %d finished Y\n", i);
+  }
+  BLOCK_ENGINE_LAST_UNLOCK(plain_ds_1d_x, x_valid_range)
+  BLOCK_ENGINE_LAST_UNLOCK(plain_ds_1d_y, y_valid_range)
+
+  delete[] buff;
+  LOG_TRACE("finished init ptext image data set blocking\n"); */
 }
 
 void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
@@ -107,7 +213,7 @@ void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
 
 void ecall_check_for_sort_correctness() {
   LOG_TRACE("entered ecall check for sort correctness\n");
-  /* auto &crypto_engine = trainer.getCryptoEngine();
+  auto &crypto_engine = trainer.getCryptoEngine();
   uint32_t total_data = 50000;
   uint32_t shuffle_id = 0;
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
@@ -118,11 +224,12 @@ void ecall_check_for_sort_correctness() {
 
   for (int ind = 0; ind < total_data; ++ind) {
 
-    res = ocall_get_records(ind, &enc_payload[0], sizeof(trainRecordEncrypted));
+    res = ocall_get_records_encrypted(1, ind, &enc_payload[0],
+                                      sizeof(trainRecordEncrypted));
     if (res != SGX_SUCCESS) {
       printf("ocall get records caused problem! the error is "
-                "%#010X \n",
-                res);
+             "%#010X \n",
+             res);
       abort();
     }
     trainRecordEncrypted *enc_r = (trainRecordEncrypted *)&(enc_payload[0]);
@@ -131,31 +238,38 @@ void ecall_check_for_sort_correctness() {
     std::memcpy(&MAC[0], (enc_r->MAC), AES_GCM_TAG_SIZE);
 
     auto enc_tuple = std::make_tuple(enc_data, IV, MAC);
-    // printf("oblivious compared called for %d times\n",++num_calls);
     auto decrypted = crypto_engine.decrypt(enc_tuple);
     trainRecordSerialized *record = (trainRecordSerialized *)&(decrypted[0]);
     if (record->shuffleID < shuffle_id) {
       printf("Unexpected shuffle value for current record and previous one: "
-                "%u vs %u\n");
+             "%u vs %u\n");
       abort();
     }
     shuffle_id = record->shuffleID;
-  } */
+  }
   LOG_TRACE("finished ecall check for sort correctness\n");
 }
 
 void ecall_initial_sort() {
   LOG_TRACE("entered ecall initial sorrt\n");
-  /* printf("Starting the initial_sort\n");
-  trainer.intitialSort(); */
+  trainer.intitialSort();
   LOG_TRACE("finished ecall initial sorrt\n");
 }
 
 void ecall_start_training() {
-  LOG_TRACE("entered in %s\n",__func__)
-  sgx_status_t ret  = SGX_ERROR_UNEXPECTED;
+  LOG_TRACE("entered in %s\n", __func__)
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+#if defined (USE_SGX) && defined (USE_SGX_BLOCKING)
+  bool res = trainer.loadNetworkConfigBlocked();
+  LOG_DEBUG("blocked network config file loaded\n")
+  trainer.loadTrainDataBlocked(plain_ds_2d_x, plain_ds_2d_y);
+  trainer.trainBlocked();
+#else
+
   bool res = trainer.loadNetworkConfig();
   LOG_DEBUG("network config file loaded\n")
-  trainer.train();
-  LOG_TRACE("finished in %s\n",__func__);
+  trainer.train(true);
+#endif
+  LOG_TRACE("finished in %s\n", __func__);
 }

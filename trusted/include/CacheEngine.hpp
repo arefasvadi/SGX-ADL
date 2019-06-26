@@ -59,9 +59,9 @@ public:
 
   ~Cache() = default;
 
-  inline void Put(const K &key, const std::shared_ptr<V> &item,
+  /*inline*/ void Put(const K &key, const std::shared_ptr<V> &item,
                   const EvictionHandlerType &evict_hdl) override;
-  inline const std::shared_ptr<V> &
+  /*inline*/ const std::shared_ptr<V> &
   Get(const K &key, const EvictionHandlerType &evict_hdl,
       const ReadHandlerType &read_hdl) override;
   void Evict() override;
@@ -106,6 +106,8 @@ template <typename K, typename V> std::size_t Cache<K, V>::GetTotalElements() {
 template <typename K, typename V>
 void Cache<K, V>::Put(const K &key, const std::shared_ptr<V> &item,
                       const EvictionHandlerType &evict_hdl) {
+  LOG_TRACE("Put was invoked for key %ld\n",key);
+  //LOG_DEBUG("Put was invoked for key %ld\n",key);
   if (cache_.size() == totalAllowedElements_) {
     EvictN(1);
   }
@@ -134,6 +136,8 @@ const std::shared_ptr<V> &Cache<K, V>::Get(const K &key,
                                            const ReadHandlerType &read_hdl) {
   // const char *timee =  "cache get";
   // ocall_set_timing(timee,strlen(timee)+1, 1,0);
+  LOG_TRACE("Cache Get was invokded for key %ld\n",key);
+  // LOG_DEBUG("Cache Get was invokded for key %ld\n",key);
   const auto &key_it = cache_.find(key);
   if (key_it == cache_.cend()) {
     Put(key, std::move(read_hdl(key)), evict_hdl);
@@ -145,9 +149,12 @@ const std::shared_ptr<V> &Cache<K, V>::Get(const K &key,
 
 template <typename K, typename V> void Cache<K, V>::Delete(const K &key, bool &success) {
   // printf("Delete was invoked\n");
+  LOG_TRACE("Cache Delete invoked with key: %ld\n",key);
+  //LOG_DEBUG("Cache Delete invoked with key: %ld\n",key);
   const auto &key_it = cache_.find(key);
   // calls the wrie to untrusted!
   if (std::get<0>(key_it->second)->isLocked()){
+    LOG_TRACE("Cache Delete with key %ld was not successful due to lock!\n",key);
     success = false;
     return;
   }
@@ -161,16 +168,21 @@ template <typename K, typename V> void Cache<K, V>::Evict() {
 }
 
 template <typename K, typename V> void Cache<K, V>::EvictN(int64_t n) {
+  LOG_TRACE("Cache Eviction was invoked for total of %ld\n",n);
+  auto it = timer_.begin();
   while (--n >= 0) {
-    const auto &it = timer_.cbegin();
-    if (it != timer_.cend()) {
+    if (it != timer_.end()) {
       bool success = true;
       Delete(it->second,success);
-      if (success)
+      if (success){
         timer_.erase(it);
+        it = timer_.begin();
+      }
       else {
+        ++it;
         ++n;
       }
+
     }
   }
 }

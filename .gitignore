@@ -41,3 +41,6 @@ cmake-build-debug/
 .ccls-cache/
 python/backdoor_data_poisoning/poisoned_datasets/
 python/backdoor_data_poisoning/graphics/
+python/**/*.log
+*.bz2
+

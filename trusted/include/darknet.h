@@ -5,7 +5,13 @@
 #include <stdlib.h>
 #include "util.h"
 
+
+#ifndef USE_SGX
 #define USE_SGX
+#ifndef USE_SGX_BLOCKING
+#define USE_SGX_BLOCKING
+#endif
+#endif
 
 #undef GPU
 #undef DEBUG
@@ -13,11 +19,12 @@
 #undef OPENMP
 #undef CUDNN
 
+#include "../../third_party/darknet/include/darknet.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#include "../../third_party/darknet/include/darknet.h"
 #include "pcg_basic.h"
 // #define RAND_MAX (int)2147483647
 

@@ -1,11 +1,12 @@
 
 #pragma once
 
-#include "CacheEngine.hpp"
 #include "BlockHeader.h"
+#include "CacheEngine.hpp"
 #include "IBlockable.h"
 #include "enclave_t.h"
 #include "sgx_error.h"
+#include <array>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -13,8 +14,46 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
 #include "common.h"
+#include "util.h"
+
+
+#define BLOCK_ENGINE_INIT_FOR_LOOP(blocked_bf_var, valid_range_var,            \
+                                   block_val_ptr_var, TYPE_)                   \
+  auto valid_range_var = blocked_bf_var->GetEmptyValidRangeData();             \
+  TYPE_ *block_val_ptr_var = nullptr;
+
+#define BLOCK_ENGINE_COND_CHECK_FOR_LOOP_1D(blocked_bf_var, valid_range_var,   \
+                                            block_val_ptr_var, is_write,       \
+                                            current_index_var, i_look)         \
+  int64_t current_index_var = blocked_bf_var->nDIndexToFlattend({{i_look}});   \
+  if (current_index_var < valid_range_var.block_begin_ind ||                   \
+      current_index_var > valid_range_var.block_end_ind) {                     \
+    if (valid_range_var.block_requested_ind >= 0) {                            \
+      blocked_bf_var->unlockBlock(valid_range_var.block_requested_ind);        \
+    }                                                                          \
+    block_val_ptr_var = blocked_bf_var->GetItemAt(current_index_var,           \
+                                                  valid_range_var, is_write);  \
+  }
+
+#define BLOCK_ENGINE_COND_CHECK_FOR_LOOP_2D(blocked_bf_var, valid_range_var,   \
+                                            block_val_ptr_var, is_write,       \
+                                            current_index_var, ilook, jlook)   \
+  int64_t current_index_var =                                                  \
+      blocked_bf_var->nDIndexToFlattend({{ilook, jlook}});                     \
+  if (current_index_var < valid_range_var.block_begin_ind ||                   \
+      current_index_var > valid_range_var.block_end_ind) {                     \
+    if (valid_range_var.block_requested_ind >= 0) {                            \
+      blocked_bf_var->unlockBlock(valid_range_var.block_requested_ind);        \
+    }                                                                          \
+    block_val_ptr_var = blocked_bf_var->GetItemAt(current_index_var,           \
+                                                  valid_range_var, is_write);  \
+  }
+
+#define BLOCK_ENGINE_LAST_UNLOCK(blocked_bf_var, valid_range_var)              \
+  if (valid_range_var.block_requested_ind >= 0) {                              \
+    blocked_bf_var->unlockBlock(valid_range_var.block_requested_ind);          \
+  }
 
 namespace sgx {
 namespace trusted {
@@ -29,8 +68,8 @@ public:
                                                      bool locked);
   using IBlockable::GetNextBlockID;
 
-  inline T *GetItemAt(size_t index, size_t *valid_len);
-  inline T *const GetItemAt(size_t index);
+  /*inline*/ T *GetItemAt(size_t index, size_t *valid_len);
+  /*inline*/ T *const GetItemAt(size_t index);
 
   std::array<T, BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE> &
   GetAllBlockContents();
@@ -102,11 +141,11 @@ public:
   MakeBlockedBuffer(const std::vector<int64_t> &dim_size);
 
   static BlockValidRangeType GetEmptyValidRangeData();
+  std::vector<int64_t> GetDimSize();
+  /*inline*/ int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
+  /*inline*/ std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
 
-  inline int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
-  inline std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
-
-  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 64 * ONE_KB;
+  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 4 * ONE_KB;
   static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE =
       MAX_PER_BLOCK_BUFFER_SIZE_BYTES / sizeof(T);
 
@@ -163,6 +202,11 @@ std::shared_ptr<BlockedBuffer<T, Axis>>
 BlockedBuffer<T, Axis>::MakeBlockedBuffer(
     const std::vector<int64_t> &dim_size) {
   return std::make_shared<BlockedBuffer<T, Axis>>(dim_size);
+}
+
+template <typename T, int Axis>
+std::vector<int64_t> BlockedBuffer<T, Axis>::GetDimSize() {
+  return dimSize;
 }
 
 template <typename T, int Axis>
@@ -304,15 +348,24 @@ T *BlockedBuffer<T, Axis>::GetItemAt(const int64_t &index,
   // https://stackoverflow.com/a/20994371/1906041
 
   auto block_number = index / BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE;
+  if (!(block_number>=0 && block_number < orderedBlocks_.size())) {
+    LOG_DEBUG("Undesired situation for block number %d where it can only be in [%d,%d]\n",block_number,0,orderedBlocks_.size()-1)
+    auto aaa = 1;
+  }
   auto block_id = orderedBlocks_[block_number];
   auto index_in_block =
       index % BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE;
-
+  LOG_TRACE("About to get index %ld in block %ld\n", index_in_block, block_id);
+  // LOG_DEBUG("About to get index %ld in block
+  // %ld\n",index_in_block,block_id); LOG_DEBUG("About to get item %ld in
+  // block %ld\n",index_in_block,block_id);
   if (write) {
     changedBlocks_.insert(block_id);
   }
   size_t valid_len = 0;
   T *item = GetItemAtBlock(block_id, index_in_block, &valid_len);
+  LOG_TRACE("loaded item %ld in block %ld with value %f\n", index_in_block,
+            block_id, (double)(*item));
   valid_range.block_begin_ind = index - index_in_block;
   valid_range.block_end_ind = index + valid_len - 1;
   valid_range.block_requested_ind = index;
@@ -340,10 +393,12 @@ T *BlockedBuffer<T, Axis>::GetItemAtBlock(int64_t block_id, int64_t index,
 }
 template <typename T, int Axis>
 void BlockedBuffer<T, Axis>::unlockBlock(const int64_t &index) {
+  LOG_TRACE("Blocked Buffer UnlockBlock invoked with index: %ld\n", index);
   auto block_id =
       orderedBlocks_[index / BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE];
   auto &block = blockCache_.Get(block_id, evictHdl_, readHdl_);
   block->setLocked(false);
+  LOG_TRACE("Blocked Buffer UnlockBlock finished for index: %ld\n", index);
 }
 
 template <typename T, int Axis>
@@ -357,12 +412,20 @@ int64_t BlockedBuffer<T, Axis>::nDIndexToFlattend(
     flattened_index += index[i] * mul;
     mul *= dimSize[i];
   }
+  if (flattened_index >=totalElements_ || flattened_index <0)  {
+    LOG_ERROR("Wrong nD index requested to be flattened\n")
+    abort();
+  }
   return flattened_index;
 }
 
 template <typename T, int Axis>
 std::array<int64_t, Axis>
 BlockedBuffer<T, Axis>::flattenedIndextoND(int64_t index) {
+  if (index >=totalElements_ || index <0)  {
+    LOG_ERROR("Wrong flattend index requested\n")
+    abort();
+  }
   std::array<int64_t, Axis> indexes;
   size_t mul = totalElements_;
   for (int64_t i = 0; i < Axis; ++i) {

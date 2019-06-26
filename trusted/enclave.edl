@@ -11,6 +11,8 @@ enclave {
               public void ecall_start_training();
               public void ecall_singal_convolution(int size1,int size2);
               public void ecall_matrix_mult(int row1,int col1,int row2,int col2);
+              public void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
+              public void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
     };
     untrusted {
               void ocall_load_net_config(
@@ -22,14 +24,15 @@ enclave {
                      [out, size = 12] unsigned char* config_iv,
                      [out, size = 16] unsigned char* config_mac);
 
+              void ocall_get_ptext_img(int loc,[out,size=len] unsigned char* buff,size_t len);
               void ocall_print_string([in, string] const char *str);
               void ocall_print_log([in, string] const char *str);
-              void ocall_get_record_sort(int i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i,
-                                         int j, [out, size=len_j] unsigned char* tr_record_j, size_t len_j); 
-              void ocall_set_record_sort(int i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i,
-                                         int j, [in, size=len_j] unsigned char* tr_record_j, size_t len_j);
-              void ocall_get_records(size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i); 
-              void ocall_set_records(size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i);
+              void ocall_get_record_sort(int i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i, int j, [out, size=len_j] unsigned char* tr_record_j, size_t len_j); 
+              void ocall_set_record_sort(int i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i, int j, [in, size=len_j] unsigned char* tr_record_j, size_t len_j);
+              void ocall_get_records_encrypted(int train_or_test,size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i); 
+              void ocall_set_records_encrypted(int train_or_test,size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i);
+              void ocall_get_records_plain(int train_or_test,size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i); 
+              void ocall_set_records_plain(int train_or_test,size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i);
               void ocall_set_timing([in, size=len] const char* time_id, size_t len , int is_it_first_call,int is_it_last_call);
               void ocall_write_block(int64_t block_id,size_t index, [in,size=len] unsigned char* buff,size_t len);
               void ocall_read_block(int64_t block_id,size_t index, [out,size=len] unsigned char* buff,size_t len);

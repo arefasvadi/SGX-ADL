@@ -42,14 +42,14 @@ set(SGX_MALLOC_LIBRARY_NAME "sgx_tcmalloc")
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
-set(DEFAULT_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-set(DEFAULT_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+set(DEFAULT_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}" "-E")
+set(DEFAULT_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" "-E")
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
-  set(Untrusted_C_Flags "-O0" "-g" "-m64"
+  set(Untrusted_C_Flags "-O0" "-g" "-g3" "-m64" "-ggdb3"
     "-fPIC" "-Wno-attributes" "-DDEBUG" "-UNDEBUG" "-DEDEBUG")
   set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++1z")
-  set(Untrusted_Link_Flags "-O0 -g -m64 -L${SGX_LIBRARY_PATH}")
-  set(Trusted_C_Flags "-O0" "-g" "-m64" "-nostdinc"
+  set(Untrusted_Link_Flags "-ggdb3 -O0 -g -g3 -m64 -L${SGX_LIBRARY_PATH}")
+  set(Trusted_C_Flags "-O0" "-g" "-g3" "-m64" "-nostdinc" "-DDEBUG" "-ggdb3"
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
 else()
   set(Untrusted_C_Flags "-O3"
@@ -80,57 +80,58 @@ set(Trusted_Link_Flags "-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfile
 -Wl,--version-script=${Version_Script}")
 ############################################################
 set(DARKNET_SOURCE_FILES
-"third_party/darknet/src/gemm.c"
-"third_party/darknet/src/utils.c"
-# "third_party/darknet/src/cuda.c"
-"third_party/darknet/src/deconvolutional_layer.c"
-"third_party/darknet/src/convolutional_layer.c"
-"third_party/darknet/src/list.c"
-"third_party/darknet/src/image.c"
-"third_party/darknet/src/activations.c"
-"third_party/darknet/src/im2col.c"
-"third_party/darknet/src/col2im.c"
-"third_party/darknet/src/blas.c"
-"third_party/darknet/src/crop_layer.c"
-"third_party/darknet/src/dropout_layer.c"
-"third_party/darknet/src/maxpool_layer.c"
-"third_party/darknet/src/softmax_layer.c"
-"third_party/darknet/src/data.c"
-"third_party/darknet/src/matrix.c"
-"third_party/darknet/src/network.c"
-"third_party/darknet/src/connected_layer.c"
-"third_party/darknet/src/cost_layer.c"
-"third_party/darknet/src/parser.c"
-"third_party/darknet/src/option_list.c"
-"third_party/darknet/src/detection_layer.c"
-"third_party/darknet/src/route_layer.c"
-"third_party/darknet/src/upsample_layer.c"
-# "third_party/darknet/src/box.c"
-"third_party/darknet/src/normalization_layer.c"
-"third_party/darknet/src/avgpool_layer.c"
-"third_party/darknet/src/layer.c"
-"third_party/darknet/src/local_layer.c"
-"third_party/darknet/src/shortcut_layer.c"
-"third_party/darknet/src/logistic_layer.c"
-"third_party/darknet/src/activation_layer.c"
-"third_party/darknet/src/rnn_layer.c"
-"third_party/darknet/src/gru_layer.c"
-"third_party/darknet/src/crnn_layer.c"
-# "third_party/darknet/src/demo.c"
-"third_party/darknet/src/batchnorm_layer.c"
-# "third_party/darknet/src/region_layer.c"
-# "third_party/darknet/src/reorg_layer.c"
-# "third_party/darknet/src/tree.c"
-"third_party/darknet/src/lstm_layer.c"
-"third_party/darknet/src/l2norm_layer.c"
-# "third_party/darknet/src/yolo_layer.c"
+"third_party/darknet/src/gemm.cpp"
+"third_party/darknet/src/utils.cpp"
+"third_party/darknet/src/im2col.cpp"
+# "third_party/darknet/src/cuda.cpp"
+## "third_party/darknet/src/deconvolutional_layer.cpp"
+"third_party/darknet/src/convolutional_layer.cpp"
+"third_party/darknet/src/list.cpp"
+"third_party/darknet/src/image.cpp"
+"third_party/darknet/src/activations.cpp"
+"third_party/darknet/src/col2im.cpp"
+"third_party/darknet/src/blas.cpp"
+"third_party/darknet/src/crop_layer.cpp"
+"third_party/darknet/src/dropout_layer.cpp"
+"third_party/darknet/src/maxpool_layer.cpp"
+"third_party/darknet/src/softmax_layer.cpp"
+"third_party/darknet/src/data.cpp"
+"third_party/darknet/src/matrix.cpp"
+"third_party/darknet/src/network.cpp"
+"third_party/darknet/src/connected_layer.cpp"
+"third_party/darknet/src/cost_layer.cpp"
+"third_party/darknet/src/parser.cpp"
+"third_party/darknet/src/option_list.cpp"
+##"third_party/darknet/src/detection_layer.cpp"
+##"third_party/darknet/src/route_layer.cpp"
+##"third_party/darknet/src/upsample_layer.cpp"
+# "third_party/darknet/src/box.cpp"
+"third_party/darknet/src/normalization_layer.cpp"
+"third_party/darknet/src/avgpool_layer.cpp"
+"third_party/darknet/src/layer.cpp"
+##"third_party/darknet/src/local_layer.cpp"
+"third_party/darknet/src/shortcut_layer.cpp"
+"third_party/darknet/src/logistic_layer.cpp"
+"third_party/darknet/src/activation_layer.cpp"
+##"third_party/darknet/src/rnn_layer.cpp"
+##"third_party/darknet/src/gru_layer.cpp"
+##"third_party/darknet/src/crnn_layer.cpp"
+##"third_party/darknet/src/demo.cpp"
+"third_party/darknet/src/batchnorm_layer.cpp"
+# "third_party/darknet/src/region_layer.cpp"
+# "third_party/darknet/src/reorg_layer.cpp"
+# "third_party/darknet/src/tree.cpp"
+##"third_party/darknet/src/lstm_layer.cpp"
+##"third_party/darknet/src/l2norm_layer.cpp"
+# "third_party/darknet/src/yolo_layer.cpp"
 )
-SET_SOURCE_FILES_PROPERTIES(${DARKNET_SOURCE_FILES} PROPERTIES LANGUAGE CXX )
 add_library(DARKNET_T OBJECT
 "${DARKNET_SOURCE_FILES}"
-"${Trusted_Home}/src/darknet-addons.c"
+"${Trusted_Home}/src/darknet-addons.cpp"
 "${Trusted_Home}/src/pcg_basic.c"
 )
+#SET_SOURCE_FILES_PROPERTIES(${DARKNET_SOURCE_FILES} PROPERTIES LANGUAGE CXX )
+
 target_include_directories(DARKNET_T PUBLIC
   "${Trusted_Home}"
   "${Trusted_Home}/include"
@@ -143,6 +144,7 @@ target_compile_options(DARKNET_T PUBLIC
 "${Trusted_Cpp_Flags}"
 #"${Trusted_C_Flags}" 
 "-DUSE_SGX"
+"-DUSE_SGX_BLOCKING"
 )
 ########################################################################################################################
 #Untrusted Code
@@ -202,13 +204,13 @@ target_compile_options(Enclave_T PUBLIC "${Trusted_C_Flags}")
 set(App_Cpp_Files
   "${Untrusted_Home}/src/app.cpp"
   "${Untrusted_Home}/src/load-image.cpp"
-  "third_party/darknet/src/data.c"
-  "third_party/darknet/src/utils.c"
-  "third_party/darknet/src/list.c"
-  "third_party/darknet/src/image.c"
-  "third_party/darknet/src/matrix.c"
-  "third_party/darknet/src/list.c"
-  "third_party/darknet/src/blas.c"
+  "third_party/darknet/src/data.cpp"
+  "third_party/darknet/src/utils.cpp"
+  "third_party/darknet/src/list.cpp"
+  "third_party/darknet/src/image.cpp"
+  "third_party/darknet/src/matrix.cpp"
+  "third_party/darknet/src/list.cpp"
+  "third_party/darknet/src/blas.cpp"
   )
 add_executable(${Untrusted_Name} "${App_Cpp_Files}" $<TARGET_OBJECTS:Enclave_U>)
 target_include_directories(${Untrusted_Name} PUBLIC
@@ -248,11 +250,12 @@ target_include_directories(${Trusted_Name} PUBLIC
   )
 target_compile_options(${Trusted_Name} PUBLIC "${Trusted_Cpp_Flags}" 
 "-DUSE_SGX"
+"-DUSE_SGX_BLOCKING"
 )
 #target_link_libraries(${Trusted_Name} "/usr/lib/x86_64-linux-gnu/libgsl.a" "/usr/lib/x86_64-linux-gnu/libgslcblas.a" "${Trusted_Link_Flags}")
 target_link_libraries(${Trusted_Name} "${Trusted_Link_Flags}")
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
-  set_target_properties(${Trusted_Name} PROPERTIES LINK_FLAGS "-O0 -g -m64")
+  set_target_properties(${Trusted_Name} PROPERTIES LINK_FLAGS "-O0 -g -m64 -ggdb3")
 else()
   set_target_properties(${Trusted_Name} PROPERTIES LINK_FLAGS "-O3 -m64")
 endif()

@@ -34,9 +34,13 @@ sgx::untrusted::CryptoEngine<uint8_t>
     crypto_engine(sgx::untrusted::CryptoEngine<uint8_t>::Key{
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
 
-training_pub_params tr_pub_params;
+data_params tr_pub_params;
 std::vector<trainRecordSerialized> plain_dataset;
 std::vector<trainRecordEncrypted> encrypted_dataset;
+
+data_params test_pub_params;
+std::vector<trainRecordSerialized> plain_test_dataset;
+std::vector<trainRecordEncrypted> encrypted_test_dataset;
 
 // std::unordered_map<std::string, timeTracker> grand_timer;
 std::map<std::string, timeTracker> grand_timer;
@@ -265,6 +269,15 @@ void ocall_get_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
   len_j = sizeof(trainRecordEncrypted);
 }
 
+void ocall_get_ptext_img(int loc, unsigned char *buff, size_t len) {
+  unsigned char *val_buf =
+      reinterpret_cast<unsigned char *>(plain_dataset[loc].data);
+  std::memcpy(buff, val_buf, sizeof(plain_dataset[loc].data));
+  val_buf = reinterpret_cast<unsigned char *>(plain_dataset[loc].label);
+  std::memcpy(buff + sizeof(plain_dataset[loc].data), val_buf,
+              sizeof(plain_dataset[loc].label));
+}
+
 void ocall_set_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
                            int j, unsigned char *tr_record_j, size_t len_j) {
   trainRecordEncrypted *tr_rec_i = (trainRecordEncrypted *)tr_record_i;
@@ -273,12 +286,40 @@ void ocall_set_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
   encrypted_dataset[j] = *tr_rec_j;
 }
 
-void ocall_get_records(size_t i, unsigned char *tr_record_i, size_t len_i) {
-  std::memcpy(tr_record_i, &(encrypted_dataset[i]), len_i);
+void ocall_get_records_encrypted(int train_or_test, size_t i,
+                                 unsigned char *tr_record_i, size_t len_i) {
+  if (train_or_test == 1) { // train
+    std::memcpy(tr_record_i, &(encrypted_dataset[i]), len_i);
+  } else {
+    std::memcpy(tr_record_i, &(encrypted_test_dataset[i]), len_i);
+  }
 }
 
-void ocall_set_records(size_t i, unsigned char *tr_record_i, size_t len_i) {
-  std::memcpy(&(encrypted_dataset[i]), tr_record_i, len_i);
+void ocall_set_records_encrypted(int train_or_test, size_t i,
+                                 unsigned char *tr_record_i, size_t len_i) {
+  if (train_or_test == 1) { // train
+    std::memcpy(&(encrypted_dataset[i]), tr_record_i, len_i);
+  } else {
+    std::memcpy(&(encrypted_test_dataset[i]), tr_record_i, len_i);
+  }
+}
+
+void ocall_get_records_plain(int train_or_test, size_t i,
+                             unsigned char *tr_record_i, size_t len_i) {
+  if (train_or_test == 1) { // train
+    std::memcpy(tr_record_i, &(plain_dataset[i]), len_i);
+  } else {
+    std::memcpy(tr_record_i, &(plain_test_dataset[i]), len_i);
+  }
+}
+
+void ocall_set_records_plain(int train_or_test, size_t i,
+                             unsigned char *tr_record_i, size_t len_i) {
+  if (train_or_test == 1) { // train
+    std::memcpy(&(plain_dataset[i]), tr_record_i, len_i);
+  } else {
+    std::memcpy(&(plain_test_dataset[i]), tr_record_i, len_i);
+  }
 }
 
 void ocall_set_timing(const char *time_id, size_t len, int is_it_first_call,
@@ -391,14 +432,21 @@ int SGX_CDECL main(int argc, char *argv[]) {
   %#010\n", ret); abort();
   } */
 
-  initialize_data(tr_pub_params, plain_dataset, encrypted_dataset,
+  initialize_data(tr_pub_params, test_pub_params, plain_dataset,
+                  encrypted_dataset, plain_test_dataset, encrypted_test_dataset,
                   crypto_engine);
 
   LOG_INFO("Size of encrypted data is: %fMB\n",
            (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
                (1 << 20));
 
-  random_id_assign(encrypted_dataset);
+  ret = ecall_init_ptext_imgds_blocking2D(
+      global_eid, sizeof(plain_dataset[0].data), sizeof(plain_dataset[0].label),
+      plain_dataset.size());
+  CHECK_SGX_SUCCESS(
+      ret, "ecall to init plaintext image dataset blocking wa unsuccessful!\n");
+
+  /* random_id_assign(encrypted_dataset);
 
   ret = ecall_initial_sort(global_eid);
   if (ret != SGX_SUCCESS) {
@@ -416,7 +464,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
               ret);
     abort();
   }
-  LOG_DEBUG("check for sorting finished successfully\n");
+  LOG_DEBUG("check for sorting finished successfully\n"); */
 
   LOG_DEBUG("starting the training...\n");
   ret = ecall_start_training(global_eid);
@@ -426,6 +474,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
     abort();
   }
   LOG_DEBUG("finished the training\n");
+
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);
 

@@ -18,6 +18,18 @@ typedef struct ms_ecall_matrix_mult_t {
 	int ms_col2;
 } ms_ecall_matrix_mult_t;
 
+typedef struct ms_ecall_init_ptext_imgds_blocking2D_t {
+	int ms_single_size_x_bytes;
+	int ms_single_size_y_bytes;
+	int ms_total_items;
+} ms_ecall_init_ptext_imgds_blocking2D_t;
+
+typedef struct ms_ecall_init_ptext_imgds_blocking1D_t {
+	int ms_single_size_x_bytes;
+	int ms_single_size_y_bytes;
+	int ms_total_items;
+} ms_ecall_init_ptext_imgds_blocking1D_t;
+
 typedef struct ms_ocall_load_net_config_t {
 	const unsigned char* ms_path;
 	size_t ms_path_len;
@@ -27,6 +39,12 @@ typedef struct ms_ocall_load_net_config_t {
 	unsigned char* ms_config_iv;
 	unsigned char* ms_config_mac;
 } ms_ocall_load_net_config_t;
+
+typedef struct ms_ocall_get_ptext_img_t {
+	int ms_loc;
+	unsigned char* ms_buff;
+	size_t ms_len;
+} ms_ocall_get_ptext_img_t;
 
 typedef struct ms_ocall_print_string_t {
 	const char* ms_str;
@@ -54,17 +72,33 @@ typedef struct ms_ocall_set_record_sort_t {
 	size_t ms_len_j;
 } ms_ocall_set_record_sort_t;
 
-typedef struct ms_ocall_get_records_t {
+typedef struct ms_ocall_get_records_encrypted_t {
+	int ms_train_or_test;
 	size_t ms_i;
 	unsigned char* ms_tr_record_i;
 	size_t ms_len_i;
-} ms_ocall_get_records_t;
+} ms_ocall_get_records_encrypted_t;
 
-typedef struct ms_ocall_set_records_t {
+typedef struct ms_ocall_set_records_encrypted_t {
+	int ms_train_or_test;
 	size_t ms_i;
 	unsigned char* ms_tr_record_i;
 	size_t ms_len_i;
-} ms_ocall_set_records_t;
+} ms_ocall_set_records_encrypted_t;
+
+typedef struct ms_ocall_get_records_plain_t {
+	int ms_train_or_test;
+	size_t ms_i;
+	unsigned char* ms_tr_record_i;
+	size_t ms_len_i;
+} ms_ocall_get_records_plain_t;
+
+typedef struct ms_ocall_set_records_plain_t {
+	int ms_train_or_test;
+	size_t ms_i;
+	unsigned char* ms_tr_record_i;
+	size_t ms_len_i;
+} ms_ocall_set_records_plain_t;
 
 typedef struct ms_ocall_set_timing_t {
 	const char* ms_time_id;
@@ -123,6 +157,14 @@ static sgx_status_t SGX_CDECL enclave_ocall_load_net_config(void* pms)
 	return SGX_SUCCESS;
 }
 
+static sgx_status_t SGX_CDECL enclave_ocall_get_ptext_img(void* pms)
+{
+	ms_ocall_get_ptext_img_t* ms = SGX_CAST(ms_ocall_get_ptext_img_t*, pms);
+	ocall_get_ptext_img(ms->ms_loc, ms->ms_buff, ms->ms_len);
+
+	return SGX_SUCCESS;
+}
+
 static sgx_status_t SGX_CDECL enclave_ocall_print_string(void* pms)
 {
 	ms_ocall_print_string_t* ms = SGX_CAST(ms_ocall_print_string_t*, pms);
@@ -155,18 +197,34 @@ static sgx_status_t SGX_CDECL enclave_ocall_set_record_sort(void* pms)
 	return SGX_SUCCESS;
 }
 
-static sgx_status_t SGX_CDECL enclave_ocall_get_records(void* pms)
+static sgx_status_t SGX_CDECL enclave_ocall_get_records_encrypted(void* pms)
 {
-	ms_ocall_get_records_t* ms = SGX_CAST(ms_ocall_get_records_t*, pms);
-	ocall_get_records(ms->ms_i, ms->ms_tr_record_i, ms->ms_len_i);
+	ms_ocall_get_records_encrypted_t* ms = SGX_CAST(ms_ocall_get_records_encrypted_t*, pms);
+	ocall_get_records_encrypted(ms->ms_train_or_test, ms->ms_i, ms->ms_tr_record_i, ms->ms_len_i);
 
 	return SGX_SUCCESS;
 }
 
-static sgx_status_t SGX_CDECL enclave_ocall_set_records(void* pms)
+static sgx_status_t SGX_CDECL enclave_ocall_set_records_encrypted(void* pms)
 {
-	ms_ocall_set_records_t* ms = SGX_CAST(ms_ocall_set_records_t*, pms);
-	ocall_set_records(ms->ms_i, ms->ms_tr_record_i, ms->ms_len_i);
+	ms_ocall_set_records_encrypted_t* ms = SGX_CAST(ms_ocall_set_records_encrypted_t*, pms);
+	ocall_set_records_encrypted(ms->ms_train_or_test, ms->ms_i, ms->ms_tr_record_i, ms->ms_len_i);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL enclave_ocall_get_records_plain(void* pms)
+{
+	ms_ocall_get_records_plain_t* ms = SGX_CAST(ms_ocall_get_records_plain_t*, pms);
+	ocall_get_records_plain(ms->ms_train_or_test, ms->ms_i, ms->ms_tr_record_i, ms->ms_len_i);
+
+	return SGX_SUCCESS;
+}
+
+static sgx_status_t SGX_CDECL enclave_ocall_set_records_plain(void* pms)
+{
+	ms_ocall_set_records_plain_t* ms = SGX_CAST(ms_ocall_set_records_plain_t*, pms);
+	ocall_set_records_plain(ms->ms_train_or_test, ms->ms_i, ms->ms_tr_record_i, ms->ms_len_i);
 
 	return SGX_SUCCESS;
 }
@@ -237,17 +295,20 @@ static sgx_status_t SGX_CDECL enclave_sgx_thread_set_multiple_untrusted_events_o
 
 static const struct {
 	size_t nr_ocall;
-	void * table[15];
+	void * table[18];
 } ocall_table_enclave = {
-	15,
+	18,
 	{
 		(void*)enclave_ocall_load_net_config,
+		(void*)enclave_ocall_get_ptext_img,
 		(void*)enclave_ocall_print_string,
 		(void*)enclave_ocall_print_log,
 		(void*)enclave_ocall_get_record_sort,
 		(void*)enclave_ocall_set_record_sort,
-		(void*)enclave_ocall_get_records,
-		(void*)enclave_ocall_set_records,
+		(void*)enclave_ocall_get_records_encrypted,
+		(void*)enclave_ocall_set_records_encrypted,
+		(void*)enclave_ocall_get_records_plain,
+		(void*)enclave_ocall_set_records_plain,
 		(void*)enclave_ocall_set_timing,
 		(void*)enclave_ocall_write_block,
 		(void*)enclave_ocall_read_block,
@@ -315,6 +376,28 @@ sgx_status_t ecall_matrix_mult(sgx_enclave_id_t eid, int row1, int col1, int row
 	ms.ms_row2 = row2;
 	ms.ms_col2 = col2;
 	status = sgx_ecall(eid, 6, &ocall_table_enclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_init_ptext_imgds_blocking2D(sgx_enclave_id_t eid, int single_size_x_bytes, int single_size_y_bytes, int total_items)
+{
+	sgx_status_t status;
+	ms_ecall_init_ptext_imgds_blocking2D_t ms;
+	ms.ms_single_size_x_bytes = single_size_x_bytes;
+	ms.ms_single_size_y_bytes = single_size_y_bytes;
+	ms.ms_total_items = total_items;
+	status = sgx_ecall(eid, 7, &ocall_table_enclave, &ms);
+	return status;
+}
+
+sgx_status_t ecall_init_ptext_imgds_blocking1D(sgx_enclave_id_t eid, int single_size_x_bytes, int single_size_y_bytes, int total_items)
+{
+	sgx_status_t status;
+	ms_ecall_init_ptext_imgds_blocking1D_t ms;
+	ms.ms_single_size_x_bytes = single_size_x_bytes;
+	ms.ms_single_size_y_bytes = single_size_y_bytes;
+	ms.ms_total_items = total_items;
+	status = sgx_ecall(eid, 8, &ocall_table_enclave, &ms);
 	return status;
 }
 

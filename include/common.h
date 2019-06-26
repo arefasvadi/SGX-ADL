@@ -1,5 +1,6 @@
 #pragma once
 // #include <stdint.h>
+#include "sgx_error.h"
 
 // later remove this to CMAKE
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
@@ -95,7 +96,8 @@
 
 #define CHECK_SGX_SUCCESS(RET, MSG)                                            \
   if ((RET) != (SGX_SUCCESS)) {                                                \
-    LOG_ERROR(MSG)                                                             \
+    LOG_ERROR(MSG "\nerror code: %#010x expected: %#010x\n", (RET),            \
+              (SGX_SUCCESS))                                                   \
     abort();                                                                   \
   }
 
