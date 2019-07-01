@@ -398,8 +398,7 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
 void print_timers() {
 
   for (const auto &s : duration_map) {
-    std::cout << "++ Item " << s.first << " took about " << s.second / 1000000.0
-              << " seconds\n";
+    LOG_WARN("++ Item %s took about %f seconds\n",s.first.c_str(),s.second/1000000.0)
   }
 }
 /* Application entry */

@@ -4,8 +4,10 @@
 #include "BlockHeader.h"
 #include "CacheEngine.hpp"
 #include "IBlockable.h"
+#include "common.h"
 #include "enclave_t.h"
 #include "sgx_error.h"
+#include "util.h"
 #include <array>
 #include <functional>
 #include <memory>
@@ -14,9 +16,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include "common.h"
-#include "util.h"
-
 
 #define BLOCK_ENGINE_INIT_FOR_LOOP(blocked_bf_var, valid_range_var,            \
                                    block_val_ptr_var, TYPE_)                   \
@@ -146,7 +145,7 @@ public:
   /*inline*/ int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
   /*inline*/ std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
 
-  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 8 * ONE_KB;
+  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 16 * ONE_KB;
   static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE =
       MAX_PER_BLOCK_BUFFER_SIZE_BYTES / sizeof(T);
 
@@ -164,12 +163,12 @@ private:
   calculateBlockHeader(std::array<T, MAX_PER_BLOCK_BUFFER_SIZE> &block_content);
 
   std::vector<int64_t> dimSize;
-  // std::vector<int64_t> dimOrder;
-  #ifdef CACHE_LRU
+// std::vector<int64_t> dimOrder;
+#ifdef CACHE_LRU
   LRUCache<int64_t, IBlockable> &blockCache_;
-  #else
+#else
   FIFOCache<int64_t, IBlockable> &blockCache_;
-  #endif
+#endif
   std::unordered_map<int64_t, std::shared_ptr<BlockHeader>> headers_;
   std::vector<int64_t> orderedBlocks_;
   // TODO Later check maybe a vector of bool could be more efficient
@@ -190,14 +189,14 @@ private:
 
 template <typename T, int Axis>
 BlockedBuffer<T, Axis>::BlockedBuffer(const std::vector<int64_t> &dim_size)
-    : dimSize(dim_size), 
-    #ifdef CACHE_LRU
-    blockCache_(LRUCache<int64_t, IBlockable>::GetInstance(
-                             BLOCKING_TOTAL_ITEMS_IN_CACHE)),
-    #else
-    blockCache_(FIFOCache<int64_t, IBlockable>::GetInstance(
-                             BLOCKING_TOTAL_ITEMS_IN_CACHE)),
-    #endif
+    : dimSize(dim_size),
+#ifdef CACHE_LRU
+      blockCache_(LRUCache<int64_t, IBlockable>::GetInstance(
+          BLOCKING_TOTAL_ITEMS_IN_CACHE)),
+#else
+      blockCache_(FIFOCache<int64_t, IBlockable>::GetInstance(
+          BLOCKING_TOTAL_ITEMS_IN_CACHE)),
+#endif
       headers_(), orderedBlocks_(), changedBlocks_(),
       secStrategy_(SecStrategy::PLAIN), totalElements_(), expectedBlocks_(),
       lastBlockUsed_(0),
@@ -272,8 +271,8 @@ template <typename T, int Axis> void BlockedBuffer<T, Axis>::GenerateBlocks() {
     // put the block in cache
     std::shared_ptr<IBlockable> blockable = block;
     blockCache_.Put(block_id, blockable, evictHdl_);
-    //blockCache_.EvictN(1);
   }
+  blockCache_.EvictN(expectedBlocks_);
 }
 
 template <typename T, int Axis>
@@ -368,8 +367,10 @@ T *BlockedBuffer<T, Axis>::GetItemAt(const int64_t &index,
   // https://stackoverflow.com/a/20994371/1906041
 
   auto block_number = index / BlockedBuffer<T, Axis>::MAX_PER_BLOCK_BUFFER_SIZE;
-  if (!(block_number>=0 && block_number < orderedBlocks_.size())) {
-    LOG_DEBUG("Undesired situation for block number %d where it can only be in [%d,%d]\n",block_number,0,orderedBlocks_.size()-1)
+  if (!(block_number >= 0 && block_number < orderedBlocks_.size())) {
+    LOG_DEBUG("Undesired situation for block number %d where it can only be in "
+              "[%d,%d]\n",
+              block_number, 0, orderedBlocks_.size() - 1)
     auto aaa = 1;
   }
   auto block_id = orderedBlocks_[block_number];
@@ -432,8 +433,10 @@ int64_t BlockedBuffer<T, Axis>::nDIndexToFlattend(
     flattened_index += index[i] * mul;
     mul *= dimSize[i];
   }
-  if (flattened_index >=totalElements_ || flattened_index <0)  {
-    LOG_ERROR("Wrong nD index requested to be flattened.\n%d is out of bound for [0-%d]\n",flattened_index,totalElements_)
+  if (flattened_index >= totalElements_ || flattened_index < 0) {
+    LOG_ERROR("Wrong nD index requested to be flattened.\n%d is out of bound "
+              "for [0-%d]\n",
+              flattened_index, totalElements_)
     abort();
   }
   return flattened_index;
@@ -442,8 +445,10 @@ int64_t BlockedBuffer<T, Axis>::nDIndexToFlattend(
 template <typename T, int Axis>
 std::array<int64_t, Axis>
 BlockedBuffer<T, Axis>::flattenedIndextoND(int64_t index) {
-  if (index >=totalElements_ || index <0)  {
-    LOG_ERROR("Wrong flattened index requested.\n%d is out of bound for [0-%d]\n",index,totalElements_)
+  if (index >= totalElements_ || index < 0) {
+    LOG_ERROR(
+        "Wrong flattened index requested.\n%d is out of bound for [0-%d]\n",
+        index, totalElements_)
     abort();
   }
   std::array<int64_t, Axis> indexes;

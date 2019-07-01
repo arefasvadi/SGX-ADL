@@ -11,6 +11,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <utility>
+#include "util.h"
 
 namespace sgx {
 namespace trusted {
@@ -59,6 +60,7 @@ class FIFOCache : public ICacheable<K, V>, virtual MakeCacheFinal<K, V> {
 public:
   using EvictionHandlerType = typename ICacheable<K, V>::EvictionHandlerType;
   using ReadHandlerType = typename ICacheable<K, V>::ReadHandlerType;
+  using CacheListType = std::list<typename std::tuple<std::shared_ptr<V>, EvictionHandlerType,K>>;
 
   ~FIFOCache() = default;
 
@@ -77,11 +79,8 @@ private:
   explicit FIFOCache(std::size_t total_elements);
 
   std::size_t totalAllowedElements_;
-  std::unordered_map<K, std::tuple<std::shared_ptr<V>, EvictionHandlerType>>
-      cache_;
-  std::list<typename std::unordered_map<
-      K, std::tuple<std::shared_ptr<V>, EvictionHandlerType>>::iterator>
-      fifoList_;
+  std::unordered_map<K,typename CacheListType::iterator> cache_;
+  CacheListType fifoList_;
 };
 
 template <typename K, typename V>
@@ -113,11 +112,10 @@ void FIFOCache<K, V>::Put(const K &key, const std::shared_ptr<V> &item,
   if (cache_.size() == totalAllowedElements_) {
     EvictN(1);
   }
-
-  cache_[key] =
-      std::tuple<std::shared_ptr<V>, EvictionHandlerType>(item, evict_hdl);
+  
+  fifoList_.emplace_back(std::tuple<std::shared_ptr<V>, EvictionHandlerType,K>(item, evict_hdl,key));
+  cache_[key] = std::prev(fifoList_.end());
   // Due to reverse iterator issues we add new elements to back
-  fifoList_.emplace_back(cache_.find(key));
   return;
 }
 
@@ -131,10 +129,14 @@ FIFOCache<K, V>::Get(const K &key, const EvictionHandlerType &evict_hdl,
   // LOG_DEBUG("Cache Get was invokded for key %ld\n",key);
   const auto &key_it = cache_.find(key);
   if (key_it == cache_.cend()) {
+    char *timee =  "Cache Miss";
+    ocall_set_timing(timee,strlen(timee)+1, 1,0);
     Put(key, std::move(read_hdl(key)), evict_hdl);
-    return std::get<0>(cache_[key]);
+    ocall_set_timing(timee,strlen(timee)+1, 0,0);
+    return std::get<0>(*(cache_[key]));
   }
-  return std::get<0>(key_it->second);
+
+  return std::get<0>(*(key_it->second));
   // ocall_set_timing(timee,strlen(timee)+1, 0,0);
 }
 
@@ -145,13 +147,13 @@ void FIFOCache<K, V>::Delete(const K &key, bool &success) {
   // LOG_DEBUG("Cache Delete invoked with key: %ld\n",key);
   const auto &key_it = cache_.find(key);
   // calls the wrie to untrusted!
-  if (std::get<0>(key_it->second)->isLocked()) {
+  if (std::get<0>(*(key_it->second))->isLocked()) {
     LOG_TRACE("Cache Delete with key %ld was not successful due to lock!\n",
               key);
     success = false;
     return;
   }
-  std::get<1>(key_it->second)(key, std::get<0>(key_it->second));
+  std::get<1>(*(key_it->second))(key, std::get<0>(*(key_it->second)));
   cache_.erase(key_it);
   // blockLastTimer_.erase(key);
 }
@@ -166,7 +168,7 @@ template <typename K, typename V> void FIFOCache<K, V>::EvictN(int64_t n) {
   auto last_item = fifoList_.begin();
   while (n > 0 && fifoList_.end() != last_item) {
     bool success = true;
-    Delete((*last_item)->first, success);
+    Delete(std::get<2>(*last_item), success);
     if (success) {
       fifoList_.erase(last_item++);
       --n;
@@ -182,7 +184,7 @@ class LRUCache : public ICacheable<K, V>, virtual MakeCacheFinal<K, V> {
 public:
   using EvictionHandlerType = typename ICacheable<K, V>::EvictionHandlerType;
   using ReadHandlerType = typename ICacheable<K, V>::ReadHandlerType;
-
+  using CacheListType = std::list<typename std::tuple<std::shared_ptr<V>, EvictionHandlerType,K>>;
   ~LRUCache() = default;
 
   /*inline*/ void Put(const K &key, const std::shared_ptr<V> &item,
@@ -200,10 +202,8 @@ private:
   explicit LRUCache(std::size_t total_elements);
 
   std::size_t totalAllowedElements_;
-  std::unordered_map<K, std::tuple<std::shared_ptr<V>, EvictionHandlerType>>
-      cache_;
-  std::map<uint64_t, K> timer_;
-  uint64_t lastAccess_;
+  std::unordered_map<K,typename CacheListType::iterator> cache_;
+  CacheListType fifoList_;
 };
 
 template <typename K, typename V>
@@ -215,7 +215,9 @@ LRUCache<K, V> &LRUCache<K, V>::GetInstance(std::size_t total_elements) {
 template <typename K, typename V>
 LRUCache<K, V>::LRUCache(std ::size_t total_elements)
     : ICacheable<K, V>(), totalAllowedElements_(total_elements), cache_(),
-      /*blockLastTimer_(),*/ timer_(), /*handlers_(),*/ lastAccess_(0) {}
+      fifoList_() {
+        //LOG_DEBUG("LRU Cache Invoked\n")
+      }
 
 /* template <typename K, typename V> Cache<K, V>::~Cache() {
   // causes segmentation fault!
@@ -235,23 +237,11 @@ void LRUCache<K, V>::Put(const K &key, const std::shared_ptr<V> &item,
   if (cache_.size() == totalAllowedElements_) {
     EvictN(1);
   }
-
-  // const auto &key_it = cache_.find(key);
-  // if (key_it == cache_.cend()) {
-  lastAccess_++;
-  /* if (lastAccess_ == 0) {
-    // reset everything since counter is maxed out
-    Evict();
-    lastAccess_ = 1;
-  } */
-  cache_[key] =
-      std::tuple<std::shared_ptr<V>, EvictionHandlerType>(item, evict_hdl);
-  timer_[lastAccess_] = key;
+  
+  fifoList_.emplace_back(std::tuple<std::shared_ptr<V>, EvictionHandlerType,K>(item, evict_hdl,key));
+  cache_[key] = std::prev(fifoList_.end());
+  // Due to reverse iterator issues we add new elements to back
   return;
-  //}
-
-  // std::get<0>(key_it->second) = item;
-  // timer_[lastAccess_] = key;
 }
 
 template <typename K, typename V>
@@ -262,12 +252,20 @@ LRUCache<K, V>::Get(const K &key, const EvictionHandlerType &evict_hdl,
   // ocall_set_timing(timee,strlen(timee)+1, 1,0);
   LOG_TRACE("Cache Get was invokded for key %ld\n", key);
   // LOG_DEBUG("Cache Get was invokded for key %ld\n",key);
+  // char *timee =  "Cache Get";
+  // ocall_set_timing(timee,strlen(timee)+1, 1,0);
   const auto &key_it = cache_.find(key);
   if (key_it == cache_.cend()) {
+    // char *timee =  "Cache Miss";
+    // ocall_set_timing(timee,strlen(timee)+1, 1,0);
     Put(key, std::move(read_hdl(key)), evict_hdl);
-    return std::get<0>(cache_[key]);
+    // ocall_set_timing(timee,strlen(timee)+1, 0,0);
+    return std::get<0>(*(cache_[key]));
   }
-  return std::get<0>(key_it->second);
+
+  fifoList_.splice(fifoList_.end(), fifoList_,key_it->second);
+  // ocall_set_timing(timee,strlen(timee)+1, 0,0);
+  return std::get<0>(*(key_it->second));
   // ocall_set_timing(timee,strlen(timee)+1, 0,0);
 }
 
@@ -278,13 +276,13 @@ void LRUCache<K, V>::Delete(const K &key, bool &success) {
   // LOG_DEBUG("Cache Delete invoked with key: %ld\n",key);
   const auto &key_it = cache_.find(key);
   // calls the wrie to untrusted!
-  if (std::get<0>(key_it->second)->isLocked()) {
+  if (std::get<0>(*(key_it->second))->isLocked()) {
     LOG_TRACE("Cache Delete with key %ld was not successful due to lock!\n",
               key);
     success = false;
     return;
   }
-  std::get<1>(key_it->second)(key, std::get<0>(key_it->second));
+  std::get<1>(*(key_it->second))(key, std::get<0>(*(key_it->second)));
   cache_.erase(key_it);
   // blockLastTimer_.erase(key);
 }
@@ -295,18 +293,16 @@ template <typename K, typename V> void LRUCache<K, V>::Evict() {
 
 template <typename K, typename V> void LRUCache<K, V>::EvictN(int64_t n) {
   LOG_TRACE("Cache Eviction was invoked for total of %ld\n", n);
-  auto it = timer_.begin();
-  while (--n >= 0) {
-    if (it != timer_.end()) {
-      bool success = true;
-      Delete(it->second, success);
-      if (success) {
-        timer_.erase(it);
-        it = timer_.begin();
-      } else {
-        ++it;
-        ++n;
-      }
+  // Due to reverse iterator issues we remove elements from front
+  auto last_item = fifoList_.begin();
+  while (n > 0 && fifoList_.end() != last_item) {
+    bool success = true;
+    Delete(std::get<2>(*last_item), success);
+    if (success) {
+      fifoList_.erase(last_item++);
+      --n;
+    } else {
+      ++last_item;
     }
   }
 }
