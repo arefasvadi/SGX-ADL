@@ -16,7 +16,15 @@
 #define ONE_MB (1024 * ONE_KB)
 #define ONE_GB (1024 * ONE_MB)
 
-#define BLOCKING_TOTAL_ITEMS_IN_CACHE 12 * ONE_KB
+#define BLOCKING_TOTAL_ITEMS_IN_CACHE 4 * ONE_KB
+
+// Later define with enums and constexpr if
+// possible values CACHE_FIFO, CACHE_LRU
+//#define CACHE_LRU
+#ifndef CACHE_LRU
+#define CACHE_FIFO
+#endif
+
 
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"

@@ -146,7 +146,7 @@ public:
   /*inline*/ int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
   /*inline*/ std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
 
-  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 4 * ONE_KB;
+  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 8 * ONE_KB;
   static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE =
       MAX_PER_BLOCK_BUFFER_SIZE_BYTES / sizeof(T);
 
@@ -165,7 +165,11 @@ private:
 
   std::vector<int64_t> dimSize;
   // std::vector<int64_t> dimOrder;
-  Cache<int64_t, IBlockable> &blockCache_;
+  #ifdef CACHE_LRU
+  LRUCache<int64_t, IBlockable> &blockCache_;
+  #else
+  FIFOCache<int64_t, IBlockable> &blockCache_;
+  #endif
   std::unordered_map<int64_t, std::shared_ptr<BlockHeader>> headers_;
   std::vector<int64_t> orderedBlocks_;
   // TODO Later check maybe a vector of bool could be more efficient
@@ -175,15 +179,25 @@ private:
   int64_t totalElements_;
   int64_t expectedBlocks_;
   int64_t lastBlockUsed_;
-
-  Cache<int64_t, IBlockable>::EvictionHandlerType evictHdl_;
-  Cache<int64_t, IBlockable>::ReadHandlerType readHdl_;
+#ifdef CACHE_LRU
+  LRUCache<int64_t, IBlockable>::EvictionHandlerType evictHdl_;
+  LRUCache<int64_t, IBlockable>::ReadHandlerType readHdl_;
+#else
+  FIFOCache<int64_t, IBlockable>::EvictionHandlerType evictHdl_;
+  FIFOCache<int64_t, IBlockable>::ReadHandlerType readHdl_;
+#endif
 };
 
 template <typename T, int Axis>
 BlockedBuffer<T, Axis>::BlockedBuffer(const std::vector<int64_t> &dim_size)
-    : dimSize(dim_size), blockCache_(Cache<int64_t, IBlockable>::GetInstance(
+    : dimSize(dim_size), 
+    #ifdef CACHE_LRU
+    blockCache_(LRUCache<int64_t, IBlockable>::GetInstance(
                              BLOCKING_TOTAL_ITEMS_IN_CACHE)),
+    #else
+    blockCache_(FIFOCache<int64_t, IBlockable>::GetInstance(
+                             BLOCKING_TOTAL_ITEMS_IN_CACHE)),
+    #endif
       headers_(), orderedBlocks_(), changedBlocks_(),
       secStrategy_(SecStrategy::PLAIN), totalElements_(), expectedBlocks_(),
       lastBlockUsed_(0),
