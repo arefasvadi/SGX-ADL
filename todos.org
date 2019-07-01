@@ -63,3 +63,24 @@
 * first test blocking on simple test withoout encryption
 * make sure encryption/cmacs are implemented
 * better logging mechanisms
+* Meging with master
+** Remove cost from last year!
+** art.c
+*** cVCapture is changed to open_video_stream
+** cifar.c
+*** save_image_options changed to save_image_png or sth else
+** coco.c
+*** showimage changed
+** other example files too: regressor.c, segmenter, super, yolo
+** darknet.h
+*** change line of sec num, gpu index
+*** selu added activations
+*** Put all blocking code at the bottom
+*** then put everything as it should go and wrap it around ifdef use_sgx
+** softmax layer
+** parser.cpp
+*** softmax no loss
+*** network config iseg and numload
+*** load conv weights and similar
+*** option_list
+

@@ -8,9 +8,9 @@
 
 #ifndef USE_SGX
 #define USE_SGX
-#ifndef USE_SGX_BLOCKING
-#define USE_SGX_BLOCKING
-#endif
+//#ifndef USE_SGX_BLOCKING
+//#define USE_SGX_BLOCKING
+//#endif
 #endif
 
 #undef GPU

@@ -142,6 +142,7 @@ public:
 
   static BlockValidRangeType GetEmptyValidRangeData();
   std::vector<int64_t> GetDimSize();
+  int64_t GetTotalElements();
   /*inline*/ int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
   /*inline*/ std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
 
@@ -208,6 +209,10 @@ template <typename T, int Axis>
 std::vector<int64_t> BlockedBuffer<T, Axis>::GetDimSize() {
   return dimSize;
 }
+template <typename T, int Axis>
+int64_t BlockedBuffer<T, Axis>::GetTotalElements() {
+  return totalElements_;
+}
 
 template <typename T, int Axis>
 typename BlockedBuffer<T, Axis>::BlockValidRangeType
@@ -253,6 +258,7 @@ template <typename T, int Axis> void BlockedBuffer<T, Axis>::GenerateBlocks() {
     // put the block in cache
     std::shared_ptr<IBlockable> blockable = block;
     blockCache_.Put(block_id, blockable, evictHdl_);
+    //blockCache_.EvictN(1);
   }
 }
 
@@ -413,7 +419,7 @@ int64_t BlockedBuffer<T, Axis>::nDIndexToFlattend(
     mul *= dimSize[i];
   }
   if (flattened_index >=totalElements_ || flattened_index <0)  {
-    LOG_ERROR("Wrong nD index requested to be flattened\n")
+    LOG_ERROR("Wrong nD index requested to be flattened.\n%d is out of bound for [0-%d]\n",flattened_index,totalElements_)
     abort();
   }
   return flattened_index;
@@ -423,7 +429,7 @@ template <typename T, int Axis>
 std::array<int64_t, Axis>
 BlockedBuffer<T, Axis>::flattenedIndextoND(int64_t index) {
   if (index >=totalElements_ || index <0)  {
-    LOG_ERROR("Wrong flattend index requested\n")
+    LOG_ERROR("Wrong flattened index requested.\n%d is out of bound for [0-%d]\n",index,totalElements_)
     abort();
   }
   std::array<int64_t, Axis> indexes;

@@ -29,6 +29,7 @@ public:
       std::shared_ptr<sgt::BlockedBuffer<float, 2>> XBlocked_,
       std::shared_ptr<sgt::BlockedBuffer<float, 2>> YBlocked_);
   bool prepareBatchTrainBlocked(int start);
+  bool prepareBatchTrainBlockedDirect();
 #endif
   inline sgt::CryptoEngine<uint8_t> &getCryptoEngine() {
     return cryptoEngine_;
@@ -43,14 +44,19 @@ private:
   bool prepareBatchTestPlain(int start);
   sgt::CryptoEngine<uint8_t> cryptoEngine_;
   std::unique_ptr<DNNConfigIO> configIO_;
-  data trainData_ = {0};
-  data testData_ = {0};
-  network *net_ = nullptr;
+  
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
   network_blocked *net_blcoked_ = nullptr;
   std::shared_ptr<sgt::BlockedBuffer<float, 2>> trainXBlocked_;
   std::shared_ptr<sgt::BlockedBuffer<float, 2>> trainYBlocked_;
+#elif defined(USE_SGX)
+  
 #endif
+  data trainData_ = {0};
+  data testData_ = {0};
+  network *net_ = nullptr;
+
+  
   const int trainSize_ = TOTAL_IMG_TRAIN_RECORDS;
   const int testSize_ = TOTAL_IMG_TEST_RECORDS;
   // std::unique_ptr<DNNParamIO> paramoIO_;

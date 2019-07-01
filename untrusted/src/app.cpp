@@ -236,10 +236,11 @@ int initialize_enclave(void) {
 
   /* Call sgx_create_enclave to initialize an enclave instance */
   /* Debug Support: set 2nd parameter to 1 */
-  ret = sgx_create_enclave(ENCLAVE_FILENAME, ((int)1), &token, &updated,
+  // SGX_DEBUG_FLAG
+  ret = sgx_create_enclave(ENCLAVE_FILENAME, 1, &token, &updated,
                            &global_eid, NULL);
   if (ret != SGX_SUCCESS) {
-    print_error_message(ret);
+    LOG_ERROR("Error code is %#010X\n",ret);
     return -1;
   }
 

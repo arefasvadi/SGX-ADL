@@ -64,21 +64,23 @@ void ecall_enclave_init() {
     abort();
   }
 
-  set_random_seed(seed1, seed2);
+  //set_random_seed(seed1, seed2);
+  set_random_seed(1, 2);
   LOG_TRACE("finished enclave_init!\n");
 }
 
 void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,
                                      int single_size_y_bytes, int total_items) {
   LOG_TRACE("entered init ptext image data set blocking\n");
+  #if defined (USE_SGX) && defined(USE_SGX_BLOCKING) && defined(DO_BLOCK_INPUT)
   int64_t num_pixels = single_size_x_bytes / sizeof(float);
   int64_t num_labels = single_size_y_bytes / sizeof(float);
   plain_ds_2d_x = sgt::BlockedBuffer<float, 2>::MakeBlockedBuffer(
       {total_items, num_pixels});
-  LOG_DEBUG("Blocked buffer for plaintext X instantiated!\n");
+  LOG_DEBUG("Blocked buffer for plaintext X instantiated! for %d images with %d pixels\n",total_items,num_pixels);
   plain_ds_2d_y = sgt::BlockedBuffer<float, 2>::MakeBlockedBuffer(
       {total_items, num_labels});
-  LOG_DEBUG("Blocked buffer for plaintext Y instantiated!\n");
+  LOG_DEBUG("Blocked buffer for plaintext Y instantiated! for %d images with %d labels\n",total_items,num_labels);
 
   BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_2d_x, x_valid_range, block_val_x, float)
   BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_2d_y, y_valid_range, block_val_y, float)
@@ -113,6 +115,7 @@ void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,
   BLOCK_ENGINE_LAST_UNLOCK(plain_ds_2d_y, y_valid_range)
 
   delete[] buff;
+  #endif
   LOG_TRACE("finished init ptext image data set blocking\n");
 }
 
@@ -263,7 +266,9 @@ void ecall_start_training() {
 #if defined (USE_SGX) && defined (USE_SGX_BLOCKING)
   bool res = trainer.loadNetworkConfigBlocked();
   LOG_DEBUG("blocked network config file loaded\n")
+  #ifdef DO_BLOCK_INPUT
   trainer.loadTrainDataBlocked(plain_ds_2d_x, plain_ds_2d_y);
+  #endif
   trainer.trainBlocked();
 #else
 

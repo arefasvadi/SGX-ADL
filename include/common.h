@@ -2,6 +2,8 @@
 // #include <stdint.h>
 #include "sgx_error.h"
 
+//#define DO_BLOCK_INPUT
+
 // later remove this to CMAKE
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
@@ -14,7 +16,7 @@
 #define ONE_MB (1024 * ONE_KB)
 #define ONE_GB (1024 * ONE_MB)
 
-#define BLOCKING_TOTAL_ITEMS_IN_CACHE 1024
+#define BLOCKING_TOTAL_ITEMS_IN_CACHE 12 * ONE_KB
 
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"

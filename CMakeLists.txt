@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 3.5)
 project(SGX_DDL)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_BUILD_TYPE "Debug")
-#set(CMAKE_BUILD_TYPE "Release")
+#set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "Release")
+
+#set(FAST_ENCLAVE "ON")
 
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
@@ -19,6 +21,17 @@ set(Scripts_Home "${PROJECT_SOURCE_DIR}/scripts")
 set(Untrusted_Name "sgxdnnapp")
 set(Trusted_Name "sgxdnn.enclave.so")
 set(Signed_Trusted_Name "sgxdnn.enclave.signed.so")
+
+# if(FAST_ENCLAVE MATCHES "ON")
+#   set(Trusted_Config_File "${Trusted_Home}/enclave.config.fast.xml")
+#   set(ENCLAVE_DEBUG_OPT "-DENCLAVE_NO_DEBUG")
+#   MESSAGE(STATUS "FAST_ENCLAVE_ENABLED")
+# else()
+#   set(Trusted_Config_File "${Trusted_Home}/enclave.config.xml")
+#   set(ENCLAVE_DEBUG_OPT "-UENCLAVE_NO_DEBUG")
+#   MESSAGE(STATUS "FAST_ENCLAVE DISABLED")
+# endif()
+
 set(Trusted_Config_File "${Trusted_Home}/enclave.config.xml")
 set(Trusted_Edl "${Trusted_Home}/enclave.edl")
 set(Private_Key_File "${Trusted_Home}/enclave_private.pem")
@@ -44,12 +57,13 @@ include_directories("${PROJECT_SOURCE_DIR}/include")
 
 set(DEFAULT_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}" "-E")
 set(DEFAULT_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" "-E")
+
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
-  set(Untrusted_C_Flags "-O0" "-g" "-g3" "-m64" "-ggdb3"
+  set(Untrusted_C_Flags "-O0" "-g" "-g3" "-ggdb3" "-m64"
     "-fPIC" "-Wno-attributes" "-DDEBUG" "-UNDEBUG" "-DEDEBUG")
   set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++1z")
   set(Untrusted_Link_Flags "-ggdb3 -O0 -g -g3 -m64 -L${SGX_LIBRARY_PATH}")
-  set(Trusted_C_Flags "-O0" "-g" "-g3" "-m64" "-nostdinc" "-DDEBUG" "-ggdb3"
+  set(Trusted_C_Flags "-O0" "-g" "-g3" "-ggdb3" "-m64" "-nostdinc" "-DDEBUG" "-UNDEBUG" "-DEDEBUG"
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
 else()
   set(Untrusted_C_Flags "-O3"
@@ -219,7 +233,9 @@ target_include_directories(${Untrusted_Name} PUBLIC
   "${Untrusted_Home}/include"
   "third_party/darknet/include"
   "${SGX_SDK}/include")
-target_compile_options(${Untrusted_Name} PUBLIC "${Untrusted_Cpp_Flags}" "-msse4.2")
+
+target_compile_options(${Untrusted_Name} PUBLIC "${Untrusted_Cpp_Flags}" "-msse4.2" "${ENCLAVE_DEBUG_OPT}")
+MESSAGE(STATUS "${Untrusted_Name}")
 set_target_properties(${Untrusted_Name} PROPERTIES LINK_FLAGS "${Untrusted_Link_Flags}")
 target_link_libraries(${Untrusted_Name} ${Urts_Library_Name} "crypto" "pthread" "sgx_uae_service")
 ########################################################################################################################
