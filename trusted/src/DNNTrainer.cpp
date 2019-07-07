@@ -414,23 +414,25 @@ void DNNTrainer::train(bool is_plain) {
     loss = train_network(net_, trainData_);
     // printf("* reported loss is: %f\n ",loss);
 
-    if (avg_loss == -1) {
-      avg_loss = loss;
+    if(((*net_->seen)/net_->batch)%net_->subdivisions == 0) {
+      if (avg_loss == -1) {
+        avg_loss = loss;
+      }
+
+      avg_loss = avg_loss * .9 + loss * .1;
+      LOG_INFO(
+          "iteration %ld: loss = %f, avg loss = %f avg, learning rate = %f "
+          "rate, images processed = %ld images\n",
+          get_current_batch(net_), loss, avg_loss, (double)get_current_rate(net_),
+          *net_->seen);
+
+      /* AVG_ACC = network_accuracy(net_, trainData_);
+      LOG_INFO(
+          "iteration %ld: loss = %f, avg loss = %f avg, learning rate = %f "
+          "rate, images processed = %ld images, training batch accuracy %f\n",
+          get_current_batch(net_), loss, avg_loss, (double)get_current_rate(net_),
+          *net_->seen, (double)AVG_ACC); */
     }
-
-    avg_loss = avg_loss * .9 + loss * .1;
-    LOG_INFO(
-        "iteration %ld: loss = %f, avg loss = %f avg, learning rate = %f "
-        "rate, images processed = %ld images\n",
-        get_current_batch(net_), loss, avg_loss, (double)get_current_rate(net_),
-        *net_->seen);
-
-    /* AVG_ACC = network_accuracy(net_, trainData_);
-    LOG_INFO(
-        "iteration %ld: loss = %f, avg loss = %f avg, learning rate = %f "
-        "rate, images processed = %ld images, training batch accuracy %f\n",
-        get_current_batch(net_), loss, avg_loss, (double)get_current_rate(net_),
-        *net_->seen, (double)AVG_ACC); */
 
     free_data(trainData_);
     if (get_current_batch(net_) > 1500 &&

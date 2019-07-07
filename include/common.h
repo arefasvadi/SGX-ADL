@@ -16,7 +16,7 @@
 #define ONE_MB (1024 * ONE_KB)
 #define ONE_GB (1024 * ONE_MB)
 
-#define BLOCKING_TOTAL_ITEMS_IN_CACHE 3 * ONE_KB
+#define BLOCKING_TOTAL_ITEMS_IN_CACHE (1 * ONE_KB)
 
 // Later define with enums and constexpr if
 // possible values CACHE_FIFO, CACHE_LRU

@@ -22,19 +22,9 @@ set(Untrusted_Name "sgxdnnapp")
 set(Trusted_Name "sgxdnn.enclave.so")
 set(Signed_Trusted_Name "sgxdnn.enclave.signed.so")
 
-# if(FAST_ENCLAVE MATCHES "ON")
-#   set(Trusted_Config_File "${Trusted_Home}/enclave.config.fast.xml")
-#   set(ENCLAVE_DEBUG_OPT "-DENCLAVE_NO_DEBUG")
-#   MESSAGE(STATUS "FAST_ENCLAVE_ENABLED")
-# else()
-#   set(Trusted_Config_File "${Trusted_Home}/enclave.config.xml")
-#   set(ENCLAVE_DEBUG_OPT "-UENCLAVE_NO_DEBUG")
-#   MESSAGE(STATUS "FAST_ENCLAVE DISABLED")
-# endif()
-
 set(Trusted_Config_File "${Trusted_Home}/enclave.config.xml")
 set(Trusted_Edl "${Trusted_Home}/enclave.edl")
-set(Private_Key_File "${Trusted_Home}/enclave_private.pem")
+set(Private_Key_File "${Trusted_Home}/private_key.pem")
 set(Version_Script "${Trusted_Home}/enclave.lds")
 
 #set(SGX_SDK "/opt/intel/sgxsdk")
@@ -61,7 +51,7 @@ set(DEFAULT_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" "-E")
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
   set(Untrusted_C_Flags "-O0" "-g" "-g3" "-ggdb3" "-m64"
     "-fPIC" "-Wno-attributes" "-DDEBUG" "-UNDEBUG" "-DEDEBUG")
-  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++1z")
+  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++17")
   set(Untrusted_Link_Flags "-ggdb3 -O0 -g -g3 -m64 -L${SGX_LIBRARY_PATH}")
   set(Trusted_C_Flags "-O0" "-g" "-g3" "-ggdb3" "-m64" "-nostdinc" "-DDEBUG" "-UNDEBUG" "-DEDEBUG"
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
@@ -73,7 +63,7 @@ else()
     # "-DDEBUG" "-UNDEBUG" "-UEDEBUG"
    "-DNDEBUG" "-UEDEBUG" "-UDEBUG"
     )
-  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++1z")
+  set(Untrusted_Cpp_Flags "${Untrusted_C_Flags}" "-std=c++17")
   set(Untrusted_Link_Flags "-O3"
     # "-g0"
     "-m64 -L${SGX_LIBRARY_PATH}")
@@ -83,7 +73,7 @@ else()
     "-fvisibility=hidden" "-fpie" "-fstack-protector")
 endif()
 
-set(Trusted_Cpp_Flags "${Trusted_C_Flags}" "-std=c++1z" "-nostdinc++")
+set(Trusted_Cpp_Flags "${Trusted_C_Flags}" "-std=c++17" "-nostdinc++")
 set(Trusted_Link_Flags "-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
 -Wl,--whole-archive -l${Trts_Library_Name} -Wl,--no-whole-archive \
 -Wl,--whole-archive -l${SGX_MALLOC_LIBRARY_NAME} -Wl,--no-whole-archive \
@@ -158,7 +148,7 @@ target_compile_options(DARKNET_T PUBLIC
 "${Trusted_Cpp_Flags}"
 #"${Trusted_C_Flags}" 
 "-DUSE_SGX"
-"-DUSE_SGX_BLOCKING"
+#"-DUSE_SGX_BLOCKING"
 )
 ########################################################################################################################
 #Untrusted Code
@@ -234,7 +224,7 @@ target_include_directories(${Untrusted_Name} PUBLIC
   "third_party/darknet/include"
   "${SGX_SDK}/include")
 
-target_compile_options(${Untrusted_Name} PUBLIC "${Untrusted_Cpp_Flags}" "-msse4.2" "${ENCLAVE_DEBUG_OPT}")
+target_compile_options(${Untrusted_Name} PUBLIC "${Untrusted_Cpp_Flags}" "-msse4.2")
 MESSAGE(STATUS "${Untrusted_Name}")
 set_target_properties(${Untrusted_Name} PROPERTIES LINK_FLAGS "${Untrusted_Link_Flags}")
 target_link_libraries(${Untrusted_Name} ${Urts_Library_Name} "crypto" "pthread" "sgx_uae_service")
@@ -251,7 +241,7 @@ set(Enclave_Cpp_Files
   "${Trusted_Home}/src/BlockHeader.cpp" 
   "${Trusted_Home}/src/IBlockable.cpp" 
   "${Trusted_Home}/src/util.cpp" 
-  "${Trusted_Home}/src/tests.cpp" 
+  "${Trusted_Home}/src/tests.cpp"
   )
 add_executable(${Trusted_Name} "${Enclave_Cpp_Files}" $<TARGET_OBJECTS:Enclave_T> $<TARGET_OBJECTS:DARKNET_T>)
 target_include_directories(${Trusted_Name} PUBLIC
@@ -266,7 +256,7 @@ target_include_directories(${Trusted_Name} PUBLIC
   )
 target_compile_options(${Trusted_Name} PUBLIC "${Trusted_Cpp_Flags}" 
 "-DUSE_SGX"
-"-DUSE_SGX_BLOCKING"
+#"-DUSE_SGX_BLOCKING"
 )
 #target_link_libraries(${Trusted_Name} "/usr/lib/x86_64-linux-gnu/libgsl.a" "/usr/lib/x86_64-linux-gnu/libgslcblas.a" "${Trusted_Link_Flags}")
 target_link_libraries(${Trusted_Name} "${Trusted_Link_Flags}")

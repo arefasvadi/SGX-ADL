@@ -22,15 +22,35 @@
   auto valid_range_var = blocked_bf_var->GetEmptyValidRangeData();             \
   TYPE_ *block_val_ptr_var = nullptr;
 
+#define BLOCK_ENGINE_INIT_FOR_LOOP_NEW_1D(blocked_bf_var, valid_range_var,     \
+                                          block_val_ptr_var,                   \
+                                          current_index_var, is_write, TYPE_)  \
+  auto valid_range_var = blocked_bf_var->GetEmptyValidRangeData();             \
+  int64_t current_index_var = 0;                                               \
+  TYPE_ *block_val_ptr_var =                                                   \
+      blocked_bf_var->GetItemAt(current_index_var, valid_range_var, is_write);
+
 #define BLOCK_ENGINE_COND_CHECK_FOR_LOOP_1D(blocked_bf_var, valid_range_var,   \
                                             block_val_ptr_var, is_write,       \
                                             current_index_var, i_look)         \
-  int64_t current_index_var = blocked_bf_var->nDIndexToFlattend({{i_look}});   \
-  if (current_index_var < valid_range_var.block_begin_ind ||                   \
-      current_index_var > valid_range_var.block_end_ind) {                     \
+  int64_t current_index_var =                                                  \
+      i_look; /*blocked_bf_var->nDIndexToFlattend({{i_look}});*/               \
+  if (current_index_var > valid_range_var.block_end_ind ||                     \
+      current_index_var < valid_range_var.block_begin_ind) {                   \
     if (valid_range_var.block_requested_ind >= 0) {                            \
       blocked_bf_var->unlockBlock(valid_range_var.block_requested_ind);        \
     }                                                                          \
+    block_val_ptr_var = blocked_bf_var->GetItemAt(current_index_var,           \
+                                                  valid_range_var, is_write);  \
+  }
+
+#define BLOCK_ENGINE_COND_CHECK_FOR_LOOP_1D_NEW(                               \
+    blocked_bf_var, valid_range_var, block_val_ptr_var, is_write,              \
+    current_index_var, i_look)                                                 \
+  current_index_var = (int64_t)i_look;                                         \
+  if (current_index_var > valid_range_var.block_end_ind ||                     \
+      current_index_var < valid_range_var.block_begin_ind) {                   \
+    blocked_bf_var->unlockBlock(valid_range_var.block_requested_ind);          \
     block_val_ptr_var = blocked_bf_var->GetItemAt(current_index_var,           \
                                                   valid_range_var, is_write);  \
   }
@@ -40,8 +60,8 @@
                                             current_index_var, ilook, jlook)   \
   int64_t current_index_var =                                                  \
       blocked_bf_var->nDIndexToFlattend({{ilook, jlook}});                     \
-  if (current_index_var < valid_range_var.block_begin_ind ||                   \
-      current_index_var > valid_range_var.block_end_ind) {                     \
+  if (current_index_var > valid_range_var.block_end_ind ||                     \
+      current_index_var < valid_range_var.block_begin_ind) {                   \
     if (valid_range_var.block_requested_ind >= 0) {                            \
       blocked_bf_var->unlockBlock(valid_range_var.block_requested_ind);        \
     }                                                                          \
@@ -145,7 +165,7 @@ public:
   /*inline*/ int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
   /*inline*/ std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
 
-  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = 16 * ONE_KB;
+  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = (64 * ONE_KB);
   static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE =
       MAX_PER_BLOCK_BUFFER_SIZE_BYTES / sizeof(T);
 
@@ -426,31 +446,34 @@ template <typename T, int Axis>
 int64_t BlockedBuffer<T, Axis>::nDIndexToFlattend(
     const std::array<int64_t, Axis> &index) {
   // https://stackoverflow.com/a/20994371/1906041
-
-  int64_t flattened_index = 0;
-  int64_t mul = 1;
-  for (int64_t i = Axis - 1; i >= 0; --i) {
-    flattened_index += index[i] * mul;
-    mul *= dimSize[i];
+  if constexpr (Axis == 1) {
+    return index[0];
+  } else {
+    int64_t flattened_index = 0;
+    int64_t mul = 1;
+    for (int64_t i = Axis - 1; i >= 0; --i) {
+      flattened_index += index[i] * mul;
+      mul *= dimSize[i];
+    }
+    /* if (flattened_index >= totalElements_ || flattened_index < 0) {
+      LOG_ERROR("Wrong nD index requested to be flattened.\n%d is out of bound "
+                "for [0-%d]\n",
+                flattened_index, totalElements_)
+      abort();
+    } */
+    return flattened_index;
   }
-  if (flattened_index >= totalElements_ || flattened_index < 0) {
-    LOG_ERROR("Wrong nD index requested to be flattened.\n%d is out of bound "
-              "for [0-%d]\n",
-              flattened_index, totalElements_)
-    abort();
-  }
-  return flattened_index;
 }
 
 template <typename T, int Axis>
 std::array<int64_t, Axis>
 BlockedBuffer<T, Axis>::flattenedIndextoND(int64_t index) {
-  if (index >= totalElements_ || index < 0) {
+  /* if (index >= totalElements_ || index < 0) {
     LOG_ERROR(
         "Wrong flattened index requested.\n%d is out of bound for [0-%d]\n",
         index, totalElements_)
     abort();
-  }
+  } */
   std::array<int64_t, Axis> indexes;
   size_t mul = totalElements_;
   for (int64_t i = 0; i < Axis; ++i) {
