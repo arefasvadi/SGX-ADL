@@ -46,6 +46,9 @@ std::vector<trainRecordEncrypted> encrypted_test_dataset;
 std::map<std::string, timeTracker> grand_timer;
 std::map<std::string, double> duration_map;
 
+std::unordered_map<uint32_t, std::vector<unsigned char>> layerwise_contents;
+std::unordered_map<int64_t, std::vector<unsigned char>> all_blocks;
+
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
   const char *msg;
@@ -349,8 +352,6 @@ void ocall_set_timing(const char *time_id, size_t len, int is_it_first_call,
   }
 }
 
-std::unordered_map<int64_t, std::vector<unsigned char>> all_blocks;
-
 void ocall_write_block(int64_t block_id, size_t index, unsigned char *buff,
                        size_t len) {
   std::vector<unsigned char> temp(len, 0);
@@ -393,6 +394,23 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
   LOG_TRACE("ocall_load_net_config finished successfully for size of "
             "%zu bytes!\n",
             *real_len);
+}
+
+void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) {
+  /* if (buff_id == 1) {
+    auto aaa = 0;
+  } */
+  layerwise_contents[buff_id] = std::vector<unsigned char>(buff_size,0);
+}
+
+void ocall_get_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end,unsigned char* temp_buff, size_t temp_buff_len) {
+  assert((end-start) == temp_buff_len);
+  std::memcpy(temp_buff, &((layerwise_contents[buff_id])[start]), temp_buff_len);
+}
+
+void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end, unsigned char* temp_buff, size_t temp_buff_len) {
+  assert((end-start) == temp_buff_len);
+  std::memcpy(&((layerwise_contents[buff_id])[start]), temp_buff, temp_buff_len);
 }
 
 void print_timers() {

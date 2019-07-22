@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-// extern void printf(const char *fmt, ...);
+// extern int printf(const char *fmt, ...);
 
 namespace sgx {
 namespace trusted {

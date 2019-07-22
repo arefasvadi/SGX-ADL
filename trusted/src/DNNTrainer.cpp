@@ -399,6 +399,11 @@ void DNNTrainer::train(bool is_plain) {
   float avg_loss = -1, loss = -1;
   float AVG_ACC = -1;
   int epochs = 0;
+  #ifndef USE_SGX_LAYERWISE
+  char* mode = "PURE_SGX";
+  #else
+  char* mode = "SGX_LAYERWISE";
+  #endif
   while (get_current_batch(net_) < net_->max_batches) {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
     auto prepared = is_plain ? prepareBatchTrainPlain(start)
@@ -421,8 +426,8 @@ void DNNTrainer::train(bool is_plain) {
 
       avg_loss = avg_loss * .9 + loss * .1;
       LOG_INFO(
-          "iteration %ld: loss = %f, avg loss = %f avg, learning rate = %f "
-          "rate, images processed = %ld images\n",
+          "mode: %s, iteration %ld: loss = %f, avg loss = %f avg, learning rate = %f "
+          "rate, images processed = %ld images\n",mode,
           get_current_batch(net_), loss, avg_loss, (double)get_current_rate(net_),
           *net_->seen);
 
@@ -435,8 +440,10 @@ void DNNTrainer::train(bool is_plain) {
     }
 
     free_data(trainData_);
-    if (get_current_batch(net_) > 1500 &&
-        get_current_batch(net_) % 1500 /*epochs*/ == 1) {
+    /*if (get_current_batch(net_) > 1500 &&
+        get_current_batch(net_) % 1500 
+        //epochs
+        == 1) {
       // epochs++;
       int start_test = 0;
       auto prepared_test = is_plain ? prepareBatchTestPlain(start_test)
@@ -453,7 +460,7 @@ void DNNTrainer::train(bool is_plain) {
       test_accuracy /= start_test;
       LOG_OUT("iteration %ld: test set accuracy %f\n", get_current_batch(net_),
               test_accuracy);
-    }
+      }*/
   }
 }
 

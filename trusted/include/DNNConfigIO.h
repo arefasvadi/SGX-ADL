@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 
-extern void printf(const char *fmt, ...);
+extern int printf(const char *fmt, ...);
 namespace sgx {
 namespace trusted {
 namespace darknet {
