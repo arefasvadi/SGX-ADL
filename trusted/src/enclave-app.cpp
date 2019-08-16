@@ -19,9 +19,15 @@
  */
 
 namespace sgt = ::sgx::trusted;
-sgt::darknet::DNNTrainer
+/* sgt::darknet::DNNTrainer
     trainer("/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",
             "", "");
+ */
+/* sgt::darknet::DNNTrainer
+    trainer("/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16.cfg",
+            "", ""); */
+
+sgt::darknet::DNNTrainer *trainer = nullptr;
 
 int gpu_index = -1;
 
@@ -44,11 +50,24 @@ int printf(const char *fmt, ...) {
   return 0;
 }
 
-void ecall_enclave_init() {
+void ecall_enclave_init(const char *net_conf_file,const char *task,const char* sec_mode, int width, 
+                     int height, int channels, int num_classes, int train_size, int test_size) {
   LOG_TRACE("entered enclave_init!\n");
-  // sgt::darknet::DNNTrainer trainer(
-  //     "/home/aref/projects/SGX-DDL/test/config/cifar10/cifar_small.cfg", "",
-  //     "");
+  int s_mode = -1;
+  if (strcmp(sec_mode, "plain") == 0) {
+    s_mode = 0;
+  } else if (strcmp(sec_mode, "integrity") == 0) {
+    s_mode = 1;
+    LOG_ERROR("Not implemented!\n")
+    abort();
+  } else if (strcmp(sec_mode, "privacy_integrity") == 0) {
+    s_mode = 2;
+  } else {
+    LOG_ERROR("Wrong security mode option!\n")
+    abort();
+  }
+  trainer = new sgt::darknet::DNNTrainer(net_conf_file, "", "",s_mode,width,height,channels,num_classes,train_size,test_size);
+
   sgx_status_t result = SGX_ERROR_UNEXPECTED;
   uint64_t seed1;
   result = sgx_read_rand((unsigned char *)&seed1, 8);
@@ -65,23 +84,31 @@ void ecall_enclave_init() {
     abort();
   }
 
-  //set_random_seed(seed1, seed2);
+  // set_random_seed(seed1, seed2);
   set_random_seed(1, 2);
   LOG_TRACE("finished enclave_init!\n");
 }
 
 void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,
-                                     int single_size_y_bytes, int total_items) {
+                                       int single_size_y_bytes,
+                                       int total_items) {
   LOG_TRACE("entered init ptext image data set blocking\n");
-  #if defined (USE_SGX) && defined(USE_SGX_BLOCKING) && defined(DO_BLOCK_INPUT)
+  
+#if defined(USE_SGX) && defined(USE_SGX_BLOCKING) && defined(DO_BLOCK_INPUT)
+  LOG_ERROR("This part needs change!\n");
+  abort();
   int64_t num_pixels = single_size_x_bytes / sizeof(float);
   int64_t num_labels = single_size_y_bytes / sizeof(float);
   plain_ds_2d_x = sgt::BlockedBuffer<float, 2>::MakeBlockedBuffer(
       {total_items, num_pixels});
-  LOG_DEBUG("Blocked buffer for plaintext X instantiated! for %d images with %d pixels\n",total_items,num_pixels);
+  LOG_DEBUG("Blocked buffer for plaintext X instantiated! for %d images with "
+            "%d pixels\n",
+            total_items, num_pixels);
   plain_ds_2d_y = sgt::BlockedBuffer<float, 2>::MakeBlockedBuffer(
       {total_items, num_labels});
-  LOG_DEBUG("Blocked buffer for plaintext Y instantiated! for %d images with %d labels\n",total_items,num_labels);
+  LOG_DEBUG("Blocked buffer for plaintext Y instantiated! for %d images with "
+            "%d labels\n",
+            total_items, num_labels);
 
   BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_2d_x, x_valid_range, block_val_x, float)
   BLOCK_ENGINE_INIT_FOR_LOOP(plain_ds_2d_y, y_valid_range, block_val_y, float)
@@ -116,12 +143,16 @@ void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,
   BLOCK_ENGINE_LAST_UNLOCK(plain_ds_2d_y, y_valid_range)
 
   delete[] buff;
-  #endif
+#endif
   LOG_TRACE("finished init ptext image data set blocking\n");
 }
 
 void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,
-                                     int single_size_y_bytes, int total_items) {
+                                       int single_size_y_bytes,
+                                       int total_items) {
+  
+  LOG_ERROR("This part needs change!\n");
+  abort();
   /* LOG_TRACE("entered init ptext image data set blocking\n");
   int64_t num_pixels = single_size_x_bytes / sizeof(float);
   int64_t num_labels = single_size_y_bytes / sizeof(float);
@@ -145,7 +176,7 @@ void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,
     ret = ocall_get_ptext_img(i, buff, total_single_size);
     CHECK_SGX_SUCCESS(ret, "ocall get ptext img was not successful\n");
     buff_val = reinterpret_cast<float *>(buff);
-    
+
     for (int64_t j = 0; j < num_pixels; ++j) {
       BLOCK_ENGINE_COND_CHECK_FOR_LOOP_2D(plain_ds_1d_x, x_valid_range,
                                           block_val_x, true, current_ind, i, j)
@@ -170,35 +201,39 @@ void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,
 }
 
 void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
+  LOG_ERROR("This part needs change!\n");
+  abort();
   LOG_TRACE("entered ecall assign random id\n");
   // printf("called with length %d\n", len);
-  trainRecordEncrypted *ptr_records = (trainRecordEncrypted *)tr_records;
-  size_t size = len / sizeof(trainRecordEncrypted);
-  auto &crypto_engine = trainer.getCryptoEngine();
+  
+  // trainRecordEncrypted *ptr_records = (trainRecordEncrypted *)tr_records;
+  // size_t size = len / sizeof(trainRecordEncrypted);
+  // auto &crypto_engine = trainer->getCryptoEngine();
 
-  for (int i = 0; i < size; ++i) {
-    std::vector<uint8_t> encData(sizeof(trainRecordSerialized));
-    std::memcpy(&encData[0], &(ptr_records[i].encData),
-                sizeof(trainRecordSerialized));
-    std::array<uint8_t, 12> IV;
-    std::memcpy(&IV[0], (ptr_records[i].IV), 12);
-    std::array<uint8_t, 16> MAC;
-    std::memcpy(&MAC[0], (ptr_records[i].MAC), 16);
+  // for (int i = 0; i < size; ++i) {
+  //   std::vector<uint8_t> encData(sizeof(trainRecordSerialized));
+  //   std::memcpy(&encData[0], &(ptr_records[i].encData),
+  //               sizeof(trainRecordSerialized));
+  //   std::array<uint8_t, 12> IV;
+  //   std::memcpy(&IV[0], (ptr_records[i].IV), 12);
+  //   std::array<uint8_t, 16> MAC;
+  //   std::memcpy(&MAC[0], (ptr_records[i].MAC), 16);
 
-    auto enc_tuple = std::make_tuple(encData, IV, MAC);
-    auto decrypted = crypto_engine.decrypt(enc_tuple);
-    trainRecordSerialized *ptr_record = (trainRecordSerialized *)&decrypted[0];
-    ptr_record->shuffleID = (unsigned int)rand();
+  //   auto enc_tuple = std::make_tuple(encData, IV, MAC);
+  //   auto decrypted = crypto_engine.decrypt(enc_tuple);
+  //   trainRecordSerialized *ptr_record = (trainRecordSerialized *)&decrypted[0];
+  //   ptr_record->shuffleID = (unsigned int)rand();
 
-    auto encrypted = crypto_engine.encrypt(decrypted);
-    encData = std::get<0>(encrypted);
-    std::memcpy(&(ptr_records[i].encData), &encData[0],
-                sizeof(trainRecordSerialized));
-    IV = std::get<1>(encrypted);
-    std::memcpy(&(ptr_records[i].IV[0]), &IV[0], 12);
-    MAC = std::get<2>(encrypted);
-    std::memcpy(&(ptr_records[i].MAC[0]), &MAC[0], 16);
+  //   auto encrypted = crypto_engine.encrypt(decrypted);
+  //   encData = std::get<0>(encrypted);
+  //   std::memcpy(&(ptr_records[i].encData), &encData[0],
+  //               sizeof(trainRecordSerialized));
+  //   IV = std::get<1>(encrypted);
+  //   std::memcpy(&(ptr_records[i].IV[0]), &IV[0], 12);
+  //   MAC = std::get<2>(encrypted);
+  //   std::memcpy(&(ptr_records[i].MAC[0]), &MAC[0], 16);
 
+    
     // std::vector<uint8_t> encDatak(sizeof(trainRecordSerialized));
     // std::memcpy(&encDatak[0], &(ptr_records[i].encData),
     // sizeof(trainRecordSerialized));
@@ -212,12 +247,14 @@ void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
     // printf("waiting for illegal!\n");
 
     LOG_TRACE("finished ecall assign random id\n");
-  }
+  //}
 }
 
 void ecall_check_for_sort_correctness() {
+  LOG_ERROR("This part needs change!\n");
+  abort();
   LOG_TRACE("entered ecall check for sort correctness\n");
-  auto &crypto_engine = trainer.getCryptoEngine();
+  /* auto &crypto_engine = trainer->getCryptoEngine();
   uint32_t total_data = 50000;
   uint32_t shuffle_id = 0;
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
@@ -250,13 +287,15 @@ void ecall_check_for_sort_correctness() {
       abort();
     }
     shuffle_id = record->shuffleID;
-  }
+  } */
   LOG_TRACE("finished ecall check for sort correctness\n");
 }
 
 void ecall_initial_sort() {
+  LOG_ERROR("This part needs change!\n");
+  abort();
   LOG_TRACE("entered ecall initial sorrt\n");
-  trainer.intitialSort();
+  trainer->intitialSort();
   LOG_TRACE("finished ecall initial sorrt\n");
 }
 
@@ -264,18 +303,87 @@ void ecall_start_training() {
   LOG_TRACE("entered in %s\n", __func__)
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-#if defined (USE_SGX) && defined (USE_SGX_BLOCKING)
-  bool res = trainer.loadNetworkConfigBlocked();
+#if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
+  bool res = trainer->loadNetworkConfigBlocked();
   LOG_DEBUG("blocked network config file loaded\n")
-  #ifdef DO_BLOCK_INPUT
-  trainer.loadTrainDataBlocked(plain_ds_2d_x, plain_ds_2d_y);
-  #endif
-  trainer.trainBlocked();
+#ifdef DO_BLOCK_INPUT
+  trainer->loadTrainDataBlocked(plain_ds_2d_x, plain_ds_2d_y);
+#endif
+  trainer->trainBlocked();
 #else
 
-  bool res = trainer.loadNetworkConfig();
+  bool res = trainer->loadNetworkConfig();
   LOG_DEBUG("network config file loaded\n")
-  trainer.train(true);
+  trainer->train(false);
 #endif
   LOG_TRACE("finished in %s\n", __func__);
+}
+
+void ecall_handle_gemm_cpu_first_mult(int starter_M, int M, int N, float BETA,
+                                      int ldc, size_t new_address_of_C) {
+  float *C = (float *)new_address_of_C;
+  int i, j;
+  for (i = starter_M; i < M; ++i) {
+    for (j = 0; j < N; ++j) {
+      C[i * ldc + j] *= BETA;
+    }
+  }
+}
+
+void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K,
+                           float ALPHA, size_t addr_A, int lda, size_t addr_B,
+                           int ldb, size_t addr_C, int ldc) {
+  float *A = (float *)addr_A;
+  float *B = (float *)addr_B;
+  float *C = (float *)addr_C;
+  if (!TA && !TB) {
+    //gemm_nn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i,j,k;
+    for(i = starter_M; i < M; ++i){
+        for(k = 0; k < K; ++k){
+            register float A_PART = ALPHA*A[i*lda+k];
+            for(j = 0; j < N; ++j){
+                C[i*ldc+j] += A_PART*B[k*ldb+j];
+            }
+        }
+    }
+  }
+  else if (TA && !TB) {
+    //gemm_tn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i,j,k;
+    for(i = starter_M; i < M; ++i){
+        for(k = 0; k < K; ++k){
+            register float A_PART = ALPHA*A[k*lda+i];
+            for(j = 0; j < N; ++j){
+                C[i*ldc+j] += A_PART*B[k*ldb+j];
+            }
+        }
+    }
+  }
+  else if (!TA && TB) {
+    //gemm_nt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i,j,k;
+    for(i = starter_M; i < M; ++i){
+        for(j = 0; j < N; ++j){
+            register float sum = 0;
+            for(k = 0; k < K; ++k){
+                sum += ALPHA*A[i*lda+k]*B[j*ldb + k];
+            }
+            C[i*ldc+j] += sum;
+        }
+    }
+  }
+  else {
+    //gemm_tt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i,j,k;
+    for(i = starter_M; i < M; ++i){
+        for(j = 0; j < N; ++j){
+            register float sum = 0;
+            for(k = 0; k < K; ++k){
+                sum += ALPHA*A[i+k*lda]*B[k+j*ldb];
+            }
+            C[i*ldc+j] += sum;
+        }
+    }
+  }
 }

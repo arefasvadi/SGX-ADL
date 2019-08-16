@@ -2,7 +2,7 @@
 
 #include "CryptoEngine.hpp"
 #include "DNNConfigIO.h"
-#include "bitonic-sort.h"
+//#include "bitonic-sort.h"
 #include "darknet.h"
 // #include "DNNDataIO.h"
 // #include "DNNParamIO.h"
@@ -15,11 +15,21 @@ namespace darknet {
 
 namespace sgt = ::sgx::trusted;
 namespace std = ::std;
+
+enum class DNNTask {
+  NO_TASK,
+  TRAIN,
+  VALIDATION,
+  TEST,
+  PREDICTION
+};
+
 class DNNTrainer {
 public:
   explicit DNNTrainer(const std::string &config_file_path,
                       const std::string &param_dir_path,
-                      const std::string &data_dir_path);
+                      const std::string &data_dir_path,int security_mode,int width, 
+                     int height, int channels,int num_classes, int train_size, int test_size);
 
   bool loadNetworkConfig();
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
@@ -37,6 +47,14 @@ public:
   void intitialSort();
   void train(bool is_plain = false);
 
+  int trainSize_;
+  int testSize_;
+  int w;
+  int h;
+  int c;
+  int n_classes;
+  int sec_mode = -1;
+  //DNNTask currTask_;
 private:
   bool prepareBatchTrainEncrypted(int start);
   bool prepareBatchTrainPlain(int start);
@@ -56,9 +74,6 @@ private:
   data testData_ = {0};
   network *net_ = nullptr;
 
-  
-  const int trainSize_ = TOTAL_IMG_TRAIN_RECORDS;
-  const int testSize_ = TOTAL_IMG_TEST_RECORDS;
   // std::unique_ptr<DNNParamIO> paramoIO_;
   // std::unique_ptr<DNNDataIO> dataIO_;
 };

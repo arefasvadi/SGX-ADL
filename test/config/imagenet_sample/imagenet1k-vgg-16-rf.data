@@ -1,0 +1,7 @@
+classes=1000
+train  = cfg/darknet_imagenet1k_train.list
+backup = backup/imagenet/vgg-16
+labels = data/imagenet.labels.list
+names  = data/imagenet.shortnames.list
+top=5
+

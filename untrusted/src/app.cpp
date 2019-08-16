@@ -13,8 +13,12 @@
 #include <utility>
 #include <vector>
 
+#include <future>
+#include <nlohmann/json.hpp>
 #include <pwd.h>
+#include <thread>
 #include <unistd.h>
+
 #define MAX_PATH FILENAME_MAX
 
 #include "CryptoEngine.hpp"
@@ -22,6 +26,8 @@
 #include "enclave_u.h"
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
+
+using json = nlohmann::json;
 
 using timeTracker =
     std::pair<std::chrono::time_point<std::chrono::high_resolution_clock>,
@@ -240,10 +246,10 @@ int initialize_enclave(void) {
   /* Call sgx_create_enclave to initialize an enclave instance */
   /* Debug Support: set 2nd parameter to 1 */
   // SGX_DEBUG_FLAG
-  ret = sgx_create_enclave(ENCLAVE_FILENAME, 1, &token, &updated,
-                           &global_eid, NULL);
+  ret = sgx_create_enclave(ENCLAVE_FILENAME, 1, &token, &updated, &global_eid,
+                           NULL);
   if (ret != SGX_SUCCESS) {
-    LOG_ERROR("Error code is %#010X\n",ret);
+    LOG_ERROR("Error code is %#010X\n", ret);
     return -1;
   }
 
@@ -275,45 +281,65 @@ void ocall_get_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
 
 void ocall_get_ptext_img(int loc, unsigned char *buff, size_t len) {
   unsigned char *val_buf =
-      reinterpret_cast<unsigned char *>(plain_dataset[loc].data);
-  std::memcpy(buff, val_buf, sizeof(plain_dataset[loc].data));
-  val_buf = reinterpret_cast<unsigned char *>(plain_dataset[loc].label);
-  std::memcpy(buff + sizeof(plain_dataset[loc].data), val_buf,
-              sizeof(plain_dataset[loc].label));
+      reinterpret_cast<unsigned char *>(&plain_dataset[loc].data[0]);
+  std::memcpy(buff, val_buf, (plain_dataset[loc].data.size()) * sizeof(float));
+  val_buf = reinterpret_cast<unsigned char *>(&plain_dataset[loc].label[0]);
+  std::memcpy(buff + (plain_dataset[loc].data.size()) * sizeof(float), val_buf,
+              plain_dataset[loc].label.size() * sizeof(float));
 }
 
 void ocall_set_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
                            int j, unsigned char *tr_record_j, size_t len_j) {
-  trainRecordEncrypted *tr_rec_i = (trainRecordEncrypted *)tr_record_i;
+  LOG_ERROR("This part is not ready yet!\n")
+  abort();
+  /* trainRecordEncrypted *tr_rec_i = (trainRecordEncrypted *)tr_record_i;
   encrypted_dataset[i] = *tr_rec_i;
   trainRecordEncrypted *tr_rec_j = (trainRecordEncrypted *)tr_record_j;
-  encrypted_dataset[j] = *tr_rec_j;
+  encrypted_dataset[j] = *tr_rec_j; */
 }
 
 void ocall_get_records_encrypted(int train_or_test, size_t i,
-                                 unsigned char *tr_record_i, size_t len_i) {
+                                 unsigned char *tr_record_i, size_t len_i,
+                                 unsigned char *_iv, unsigned char *_tag) {
   if (train_or_test == 1) { // train
-    std::memcpy(tr_record_i, &(encrypted_dataset[i]), len_i);
+    std::memcpy(tr_record_i, &(encrypted_dataset[i].encData[0]), len_i);
+    std::memcpy(_iv, (encrypted_dataset[i].IV), AES_GCM_IV_SIZE);
+    std::memcpy(_tag, (encrypted_dataset[i].MAC), AES_GCM_TAG_SIZE);
   } else {
-    std::memcpy(tr_record_i, &(encrypted_test_dataset[i]), len_i);
+    std::memcpy(tr_record_i, &(encrypted_test_dataset[i].encData[0]), len_i);
+    std::memcpy(_iv, (encrypted_test_dataset[i].IV), AES_GCM_IV_SIZE);
+    std::memcpy(_tag, (encrypted_test_dataset[i].MAC), AES_GCM_TAG_SIZE);
   }
 }
 
 void ocall_set_records_encrypted(int train_or_test, size_t i,
-                                 unsigned char *tr_record_i, size_t len_i) {
+                                 unsigned char *tr_record_i, size_t len_i,
+                                 unsigned char *_iv, unsigned char *_tag) {
   if (train_or_test == 1) { // train
-    std::memcpy(&(encrypted_dataset[i]), tr_record_i, len_i);
+    std::memcpy(&(encrypted_dataset[i].encData[0]), tr_record_i, len_i);
+    std::memcpy((encrypted_dataset[i].IV), _iv, AES_GCM_IV_SIZE);
+    std::memcpy((encrypted_dataset[i].MAC), _tag, AES_GCM_TAG_SIZE);
   } else {
-    std::memcpy(&(encrypted_test_dataset[i]), tr_record_i, len_i);
+    std::memcpy(&(encrypted_test_dataset[i].encData[0]), tr_record_i, len_i);
+    std::memcpy((encrypted_test_dataset[i].IV), _iv, AES_GCM_IV_SIZE);
+    std::memcpy((encrypted_test_dataset[i].MAC), _tag, AES_GCM_TAG_SIZE);
   }
 }
 
 void ocall_get_records_plain(int train_or_test, size_t i,
                              unsigned char *tr_record_i, size_t len_i) {
   if (train_or_test == 1) { // train
-    std::memcpy(tr_record_i, &(plain_dataset[i]), len_i);
+    std::memcpy(tr_record_i, &(plain_dataset[i].data[0]),
+                sizeof(float) * plain_dataset[i].data.size());
+    std::memcpy(tr_record_i + sizeof(float) * plain_dataset[i].data.size(),
+                &(plain_dataset[i].label[0]),
+                sizeof(float) * plain_dataset[i].label.size());
   } else {
-    std::memcpy(tr_record_i, &(plain_test_dataset[i]), len_i);
+    std::memcpy(tr_record_i, &(plain_test_dataset[i].data[0]),
+                sizeof(float) * plain_test_dataset[i].data.size());
+    std::memcpy(tr_record_i + sizeof(float) * plain_test_dataset[i].data.size(),
+                &(plain_test_dataset[i].label[0]),
+                sizeof(float) * plain_test_dataset[i].label.size());
   }
 }
 
@@ -400,29 +426,109 @@ void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) {
   /* if (buff_id == 1) {
     auto aaa = 0;
   } */
-  layerwise_contents[buff_id] = std::vector<unsigned char>(buff_size,0);
+  layerwise_contents[buff_id] = std::vector<unsigned char>(buff_size, 0);
 }
 
-void ocall_get_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end,unsigned char* temp_buff, size_t temp_buff_len) {
-  assert((end-start) == temp_buff_len);
-  std::memcpy(temp_buff, &((layerwise_contents[buff_id])[start]), temp_buff_len);
+void ocall_get_buffer_layerwise(uint32_t buff_id, uint32_t start, uint32_t end,
+                                unsigned char *temp_buff,
+                                size_t temp_buff_len) {
+  assert((end - start) == temp_buff_len);
+  std::memcpy(temp_buff, &((layerwise_contents[buff_id])[start]),
+              temp_buff_len);
 }
 
-void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end, unsigned char* temp_buff, size_t temp_buff_len) {
-  assert((end-start) == temp_buff_len);
-  std::memcpy(&((layerwise_contents[buff_id])[start]), temp_buff, temp_buff_len);
+void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start, uint32_t end,
+                                unsigned char *temp_buff,
+                                size_t temp_buff_len) {
+  assert((end - start) == temp_buff_len);
+  std::memcpy(&((layerwise_contents[buff_id])[start]), temp_buff,
+              temp_buff_len);
+}
+
+void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
+                                      size_t address_of_C) {
+  std::future<sgx_status_t> returns[AVAIL_THREADS];
+  int q = M / AVAIL_THREADS;
+  int r = M % AVAIL_THREADS;
+  int curr_M = 0;
+  for (int i = 0; i < AVAIL_THREADS; ++i) {
+    int M_size = q;
+    if (r > 0) {
+      M_size += r;
+      r = 0;
+    }
+    returns[i] = std::async(&ecall_handle_gemm_cpu_first_mult, global_eid,
+                            curr_M, M_size, N, BETA, ldc, address_of_C);
+    curr_M += M_size;
+  }
+  for (int i = 0; i < AVAIL_THREADS; ++i) {
+    auto res = returns[i].get();
+    CHECK_SGX_SUCCESS(
+        res, "call to ecall_handle_gemm_cpu_first_mult caused problem!!");
+  }
+}
+
+void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA,
+                           size_t addr_A, int lda, size_t addr_B, int ldb,
+                           size_t addr_C, int ldc) {
+  std::future<sgx_status_t> returns[AVAIL_THREADS];
+  int q = M / AVAIL_THREADS;
+  int r = M % AVAIL_THREADS;
+  int curr_M = 0;
+  for (int i = 0; i < AVAIL_THREADS; ++i) {
+    int M_size = q;
+    if (r > 0) {
+      M_size += r;
+      r = 0;
+    }
+    returns[i] =
+        std::async(&ecall_handle_gemm_all, global_eid, curr_M, TA, TB, M_size,
+                   N, K, ALPHA, addr_A, lda, addr_B, ldb, addr_C, ldc);
+    curr_M += M_size;
+  }
+  for (int i = 0; i < AVAIL_THREADS; ++i) {
+    auto res = returns[i].get();
+    CHECK_SGX_SUCCESS(res, "call to ecall_handle_gemm_all caused problem!!");
+  }
 }
 
 void print_timers() {
 
   for (const auto &s : duration_map) {
-    LOG_WARN("++ Item %s took about %f seconds\n",s.first.c_str(),s.second/1000000.0)
+    LOG_WARN("++ Item %s took about %f seconds\n", s.first.c_str(),
+             s.second / 1000000.0)
   }
 }
+
+json process_json_config(const std::string &f_path) {
+  std::ifstream json_in(f_path);
+  json j;
+  json_in >> j;
+  return j;
+}
+json configs;
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[]) {
   (void)(argc);
   (void)(argv);
+  if (argc < 2) {
+    LOG_ERROR("You need to specify the json config file\n");
+    abort();
+  }
+  configs = process_json_config(std::string(argv[1]));
+  LOG_INFO("The loaded config file is:\n%s\n", configs.dump(2).c_str());
+
+  initialize_data(tr_pub_params, test_pub_params, plain_dataset,
+                  encrypted_dataset, plain_test_dataset, encrypted_test_dataset,
+                  crypto_engine);
+
+  LOG_INFO("Size of plain data is: %fMB\n",
+           (double)(plain_dataset.size() * sizeof(plain_dataset[0])) /
+               (1 << 20));
+
+  LOG_INFO("Size of encrypted data is: %fMB\n",
+           (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
+               (1 << 20));
 
   /* Initialize the enclave */
   if (initialize_enclave() < 0) {
@@ -432,7 +538,14 @@ int SGX_CDECL main(int argc, char *argv[]) {
   }
 
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-  ret = ecall_enclave_init(global_eid);
+  std::string network_arch_string = configs["network_config"];
+  std::string task = configs["task"];
+  std::string sec_mode = configs["security"];
+  ret = ecall_enclave_init(
+      global_eid, network_arch_string.c_str(), task.c_str(),sec_mode.c_str(),
+      configs["data_config"]["dims"][0], configs["data_config"]["dims"][1],
+      configs["data_config"]["dims"][2], configs["data_config"]["num_classes"],
+      configs["data_config"]["trainSize"], configs["data_config"]["testSize"]);
   if (ret != SGX_SUCCESS) {
     LOG_ERROR("ecall init enclave caused problem! Error code is %#010\n", ret);
     abort();
@@ -450,19 +563,11 @@ int SGX_CDECL main(int argc, char *argv[]) {
   %#010\n", ret); abort();
   } */
 
-  initialize_data(tr_pub_params, test_pub_params, plain_dataset,
-                  encrypted_dataset, plain_test_dataset, encrypted_test_dataset,
-                  crypto_engine);
-
-  LOG_INFO("Size of encrypted data is: %fMB\n",
-           (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
-               (1 << 20));
-
-  ret = ecall_init_ptext_imgds_blocking2D(
+  /* ret = ecall_init_ptext_imgds_blocking2D(
       global_eid, sizeof(plain_dataset[0].data), sizeof(plain_dataset[0].label),
       plain_dataset.size());
   CHECK_SGX_SUCCESS(
-      ret, "ecall to init plaintext image dataset blocking wa unsuccessful!\n");
+      ret, "ecall to init plaintext image dataset blocking wa unsuccessful!\n"); */
 
   /* random_id_assign(encrypted_dataset);
 

@@ -6,12 +6,14 @@
         "request": "launch",
         "name": "SGX ADL",
         "program": "${workspaceRoot}/build/sgxdnnapp",
-        "args": [],
+        //"args": ["../test/config/cifar10/cifar10-train-config.json"],
+        //"args": ["../test/config/imagenet_sample/vgg16-train-config.json"],
+        "args": ["../test/config/imagenet_sample/resnet152-train-config.json"],
         "cwd": "${workspaceRoot}/build",
         "MIMode": "gdb",
         "miDebuggerPath": "/opt/intel/sdk-2.5/sgxsdk/bin/sgx-gdb",
         "stopAtEntry": true,
-        "setupCommands":[{"text":"enable sgx_emmt", "description":"enable sgx memory calc","ignoreFailures": false},]
+        /* "setupCommands":[{"text":"enable sgx_emmt", "description":"enable sgx memory calc","ignoreFailures": false},] */
       },
     ]
   }

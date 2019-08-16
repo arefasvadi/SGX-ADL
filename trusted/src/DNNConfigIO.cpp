@@ -13,7 +13,7 @@ DNNConfigIO::DNNConfigIO(const std::string &config_file_path,
 bool DNNConfigIO::receiveFromUntrusted(
     const std::function<decltype(ocall_load_net_config)> &read_handler) {
   // TODO: probably this size should be set to constant defined in a constexpr!
-  int len = 10000;
+  int len = 20000;
   unsigned int real_len = 0;
   IOCipher cipher(len);
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;

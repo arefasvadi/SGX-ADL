@@ -1,0 +1,19 @@
+{
+    "security": "privacy_integrity",
+    "task": "train",
+    "network_config": "../test/config/cifar10/cifar_small.cfg",
+    "data_config": {
+        "train_path": "../test/config/cifar10/train.list",
+        "test_path": "../test/config/cifar10/test.list",
+        "labels_path": "../test/config/cifar10/labels.txt",
+        "dims": [28,28,3],
+        "num_classes":10,
+        "data_type": "float32",
+        "is_image":true,
+        "trainSize": 50000,
+        "testSize": 10000
+    },
+    "weights_save_file": "../test/config/cifar10/cifar-small-weights.bin",
+    "weights_load_file": "../test/config/cifar10/cifar-small-weights.bin",
+    "backup_path": "../test/config/cifar10/"
+}

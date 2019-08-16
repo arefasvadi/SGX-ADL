@@ -1,0 +1,18 @@
+{
+    "security": "privacy_integrity or only integiry or plain",
+    "task": "train",
+    "network_config": "some dir",
+    "data_config": {
+        "path": "some directory",
+        "dims": [32,32,3],
+        "num_classes":10,
+        "labels":[0,1,2],
+        "aliases":["cat","dog"],
+        "type": "float32",
+        "tarinSize": 10,
+        "testSize": 10
+    },
+    "weights_save_file": "",
+    "weights_load_file": "",
+    "backup_path": ""
+}

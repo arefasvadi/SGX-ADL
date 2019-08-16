@@ -7,6 +7,13 @@
 // later remove this to CMAKE
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
+
+#define USE_GEMM_THREADING
+
+#ifndef AVAIL_THREADS
+#define AVAIL_THREADS 7
+#endif
+
 #define AES_GCM_KEY_SIZE 16
 #define AES_GCM_TAG_SIZE 16
 #define AES_GCM_IV_SIZE 12
@@ -113,48 +120,42 @@
   }
 
 #ifndef IMG_WIDTH
-#define IMG_WIDTH 28
+//#define IMG_WIDTH 28 //CIFAR10
+//#define IMG_WIDTH 256 //IMAGENET
 #endif
 
 #ifndef IMG_HEIGHT
-#define IMG_HEIGHT 28
+//#define IMG_HEIGHT 28 //CIFAR10
+//#define IMG_HEIGHT 256 //IMAGENET
 #endif
 
 #ifndef IMG_CHAN
-#define IMG_CHAN 3
+//#define IMG_CHAN 3
 #endif
 
 #ifndef WIDTH_X_HEIGHT_X_CHAN
-#define WIDTH_X_HEIGHT_X_CHAN 2352
+//#define WIDTH_X_HEIGHT_X_CHAN 196608 //IMAGENET
+//#define WIDTH_X_HEIGHT_X_CHAN 2352 //CIFAR10
 #endif
 
 #ifndef TOTAL_IMG_TRAIN_RECORDS
-#define TOTAL_IMG_TRAIN_RECORDS 50000
+//#define TOTAL_IMG_TRAIN_RECORDS 50000 //IMAGENET
+//#define TOTAL_IMG_TRAIN_RECORDS 50000 //CIFAR10
 #endif
 
 #ifndef TOTAL_IMG_TEST_RECORDS
-#define TOTAL_IMG_TEST_RECORDS 10000
+//#define TOTAL_IMG_TEST_RECORDS 0 //IMAGENET
+//#define TOTAL_IMG_TEST_RECORDS 10000 //CIFAR10
 #endif
 
 #ifndef NUM_CLASSES
-#define NUM_CLASSES 10
+//#define NUM_CLASSES 1000  //IMAGENET
+//#define NUM_CLASSES 10 //CIFAR10
 #endif
 
 #ifndef ALL_INDICES_AT_DIMENSION
 #define ALL_INDICES_AT_DIMENSION -1
 #endif
-
-typedef struct trainRecordSerialized {
-  float data[WIDTH_X_HEIGHT_X_CHAN];
-  float label[NUM_CLASSES];
-  unsigned int shuffleID;
-} trainRecordSerialized;
-
-typedef struct trainRecordEncrypted {
-  trainRecordSerialized encData;
-  unsigned char IV[AES_GCM_IV_SIZE];
-  unsigned char MAC[AES_GCM_TAG_SIZE];
-} trainRecordEncrypted;
 
 enum SecStrategy {
   PLAIN,

@@ -5,7 +5,9 @@
     <!-- <HeapMaxSize>0x7F00000</HeapMaxSize> -->
     <HeapMaxSize>0x5800000</HeapMaxSize>
     <!-- <HeapMaxSize>0xFF00000</HeapMaxSize> -->
-    <TCSNum>1</TCSNum>
+    <TCSNum>8</TCSNum>
+    <TCSMinPool>2</TCSMinPool>
+    <TCSMaxNum>8</TCSMaxNum>
     <TCSPolicy>1</TCSPolicy>
     <DisableDebug>1</DisableDebug>
     <MiscSelect>0</MiscSelect>

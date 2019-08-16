@@ -3,6 +3,9 @@
 #include "CryptoEngine.hpp"
 #include "common.h"
 #include <vector>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 
 #undef USE_SGX
 #include "../../third_party/darknet/include/darknet.h"
@@ -18,6 +21,21 @@ extern "C" {
 #endif
 
 #include <string>
+
+typedef struct trainRecordSerialized {
+  //float data[WIDTH_X_HEIGHT_X_CHAN];
+  std::vector<float> data;
+  //float label[NUM_CLASSES];
+  std::vector<float> label;
+  unsigned int shuffleID;
+} trainRecordSerialized;
+
+typedef struct trainRecordEncrypted {
+  //trainRecordSerialized encData;
+  std::vector<uint8_t> encData;
+  unsigned char IV[AES_GCM_IV_SIZE];
+  unsigned char MAC[AES_GCM_TAG_SIZE];
+} trainRecordEncrypted;
 
 typedef struct data_params {
   std::string label_path;
@@ -48,8 +66,11 @@ bool encrypt_train_test_data(
     const std::vector<trainRecordSerialized> &in,
     std::vector<trainRecordEncrypted> &out);
 
-void initialize_train_params_cifar(data_params &param);
-void initialize_test_params_cifar(data_params &param);
+//void initialize_train_params_cifar(data_params &param);
+//void initialize_test_params_cifar(data_params &param);
+
+//void initialize_train_params_imagenet(data_params &param);
+//void initialize_test_params_imagenet(data_params &param);
 
 void initialize_data(data_params &tr_pub_params, data_params &test_pub_params,
                      std::vector<trainRecordSerialized> &plain_dataset,

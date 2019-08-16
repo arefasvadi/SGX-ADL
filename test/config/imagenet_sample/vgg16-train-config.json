@@ -1,0 +1,19 @@
+{
+    "security": "privacy_integrity",
+    "task": "train",
+    "network_config": "../test/config/imagenet_sample/vgg-16.cfg",
+    "data_config": {
+        "train_path": "../test/config/imagenet_sample/darknet_imagenet1k_train_random_50000.list",
+        "test_path": "",
+        "labels_path": "../test/config/imagenet_sample/imagenet.labels.list",
+        "dims": [256,256,3],
+        "num_classes":1000,
+        "data_type": "float32",
+        "is_image":true,
+        "trainSize": 50000,
+        "testSize": 0
+    },
+    "weights_save_file": "../test/config/imagenet_sample/vgg16-weights.bin",
+    "weights_load_file": "../test/config/imagenet_sample/vgg16-weights.bin",
+    "backup_path": "../test/config/cifar10/"
+}

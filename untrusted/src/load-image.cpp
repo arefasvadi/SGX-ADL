@@ -9,6 +9,8 @@
 #include <vector>
 
 extern sgx_enclave_id_t global_eid;
+extern json configs;
+
 
 bool load_train_test_data(data_params &par) {
 
@@ -34,23 +36,25 @@ bool load_train_test_data(data_params &par) {
 
 bool serialize_train_test_data(data_params &par,
                              std::vector<trainRecordSerialized> &out) {
-  if (par.height * par.width * par.channels != WIDTH_X_HEIGHT_X_CHAN ||
+  /* if (par.height * par.width * par.channels != WIDTH_X_HEIGHT_X_CHAN ||
       par.num_classes != NUM_CLASSES) {
     LOG_ERROR("Problems with image size or labels size!!\n");
     std::exit(1);
     // return false;
-  }
+  } */
 
   out.resize(par.total_records);
   int cnt = 0;
   for (auto &t_record : out) {
     t_record.shuffleID = 0;
+    t_record.data.resize(par.channels*par.height*par.width);
+    t_record.label.resize(par.num_classes);
     // fill the labels
-    std::memcpy(t_record.label, par.input_data.y.vals[cnt],
-                NUM_CLASSES * sizeof(float));
+    std::memcpy(&t_record.label[0], par.input_data.y.vals[cnt],
+                par.num_classes * sizeof(float));
     // fill the data
-    std::memcpy(t_record.data, par.input_data.X.vals[cnt],
-                WIDTH_X_HEIGHT_X_CHAN * sizeof(float));
+    std::memcpy(&t_record.data[0], par.input_data.X.vals[cnt],
+                par.height * par.width * par.channels * sizeof(float));
     ++cnt;
   }
 
@@ -64,14 +68,17 @@ bool encrypt_train_test_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engin
   out.resize(in.size());
   int cnt = 0;
   for (const auto &record : in) {
-    std::vector<uint8_t> buff(sizeof(record));
-    std::memcpy(&buff[0], &record, sizeof(record));
+    std::vector<uint8_t> buff((record.data.size()+record.label.size())*sizeof(float)+sizeof(record.shuffleID));
+    std::memcpy(&buff[0], &record.data[0], record.data.size() * sizeof(float));
+    std::memcpy(&buff[record.data.size() * sizeof(float)], &record.label[0], record.label.size() * sizeof(float));
+    std::memcpy(&buff[(record.data.size()+record.label.size()) * sizeof(float)], &record.shuffleID, sizeof(record.shuffleID));
     auto enc = crypto_engine.encrypt(buff);
     trainRecordEncrypted enc_rec;
+    enc_rec.encData.resize((record.data.size()+record.label.size())*sizeof(float)+sizeof(record.shuffleID));
     auto enc_data = std::get<0>(enc);
     auto IV = std::get<1>(enc);
     auto MAC = std::get<2>(enc);
-    std::memcpy(&enc_rec.encData, &enc_data[0], sizeof(trainRecordSerialized));
+    std::memcpy(&enc_rec.encData[0], &enc_data[0], enc_rec.encData.size());
     std::memcpy(enc_rec.IV, &IV[0], AES_GCM_IV_SIZE);
     std::memcpy(enc_rec.MAC, &MAC[0], AES_GCM_TAG_SIZE);
     out[cnt] = enc_rec;
@@ -80,8 +87,26 @@ bool encrypt_train_test_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engin
   return true;
 }
 
+void initialize_train_params(data_params &param) {
+  param.label_path = configs["data_config"]["labels_path"];
+  param.train_paths = configs["data_config"]["train_path"];
+  param.width = configs["data_config"]["dims"][0];
+  param.height = configs["data_config"]["dims"][1];
+  param.channels = configs["data_config"]["dims"][2];
+  param.num_classes = configs["data_config"]["num_classes"];
+}
+
+void initialize_test_params(data_params &param) {
+  param.label_path = configs["data_config"]["labels_path"];
+  param.train_paths = configs["data_config"]["test_path"];
+  param.width = configs["data_config"]["dims"][0];
+  param.height = configs["data_config"]["dims"][1];
+  param.channels = configs["data_config"]["dims"][2];
+  param.num_classes = configs["data_config"]["num_classes"];
+}
+
 /* initializing dataset params */
-void initialize_train_params_cifar(data_params &param) {
+/* void initialize_train_params_cifar(data_params &param) {
   param.label_path =
       "/home/aref/projects/SGX-ADL/test/config/cifar10/labels.txt";
   param.train_paths =
@@ -90,9 +115,9 @@ void initialize_train_params_cifar(data_params &param) {
   param.height = 28;
   param.channels = 3;
   param.num_classes = 10;
-}
+} */
 
-void initialize_test_params_cifar(data_params &param) {
+/* void initialize_test_params_cifar(data_params &param) {
   param.label_path =
       "/home/aref/projects/SGX-ADL/test/config/cifar10/labels.txt";
   param.train_paths =
@@ -101,7 +126,31 @@ void initialize_test_params_cifar(data_params &param) {
   param.height = 28;
   param.channels = 3;
   param.num_classes = 10;
-}
+} */
+
+/* void initialize_train_params_imagenet(data_params &param) {
+  param.label_path =
+      "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/imagenet.labels.list";
+  param.train_paths =
+      "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/darknet_imagenet1k_train_random_50000.list";
+  param.width = 256;
+  param.height = 256;
+  param.channels = 3;
+  param.num_classes = 1000;
+} */
+
+/* void initialize_test_params_imagenet(data_params &param) {
+  param.label_path =
+      "/home/aref/projects/SGX-ADL/test/config/cifar10/labels.txt";
+  param.train_paths =
+      "/home/aref/projects/SGX-ADL/test/config/cifar10/test.list";
+  param.width = 28;
+  param.height = 28;
+  param.channels = 3;
+  param.num_classes = 10;
+  LOG_ERROR("To be implemented!\n");
+  abort();
+} */
 
 void initialize_data(data_params &tr_pub_params,
                      data_params &test_pub_params,
@@ -110,7 +159,27 @@ void initialize_data(data_params &tr_pub_params,
                      std::vector<trainRecordSerialized> &test_plain_dataset,
                      std::vector<trainRecordEncrypted> &test_encrypted_dataset,
                      sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine) {
-  initialize_train_params_cifar(tr_pub_params);
+  
+  std::string task = configs["task"];
+  std::string sec = configs["security"];
+  if (task.compare(std::string("train")) == 0) {
+    initialize_train_params(tr_pub_params);
+    load_train_test_data(tr_pub_params);
+    serialize_train_test_data(tr_pub_params, plain_dataset);
+    if (sec.compare(std::string("privacy_integrity")) == 0) {
+      encrypt_train_test_data(crypto_engine, plain_dataset, encrypted_dataset);    
+    }
+  }
+  else if (task.compare(std::string("test")) == 0) {
+    initialize_test_params(test_pub_params);
+    load_train_test_data(test_pub_params);
+    serialize_train_test_data(test_pub_params, test_plain_dataset);
+    if (sec.compare(std::string("privacy_integrity")) == 0) {
+      encrypt_train_test_data(crypto_engine, test_plain_dataset, test_encrypted_dataset);    
+    }
+  }
+
+  /* initialize_train_params_cifar(tr_pub_params);
   load_train_test_data(tr_pub_params);
   serialize_train_test_data(tr_pub_params, plain_dataset);
   encrypt_train_test_data(crypto_engine, plain_dataset, encrypted_dataset);
@@ -118,7 +187,17 @@ void initialize_data(data_params &tr_pub_params,
   initialize_test_params_cifar(test_pub_params);
   load_train_test_data(test_pub_params);
   serialize_train_test_data(test_pub_params, test_plain_dataset);
-  encrypt_train_test_data(crypto_engine, test_plain_dataset, test_encrypted_dataset);
+  encrypt_train_test_data(crypto_engine, test_plain_dataset, test_encrypted_dataset); */
+
+  /* initialize_train_params_imagenet(tr_pub_params);
+  load_train_test_data(tr_pub_params);
+  serialize_train_test_data(tr_pub_params, plain_dataset);
+  encrypt_train_test_data(crypto_engine, plain_dataset, encrypted_dataset); */
+
+  /* initialize_test_params_imagenet(test_pub_params);
+  load_train_test_data(test_pub_params);
+  serialize_train_test_data(test_pub_params, test_plain_dataset);
+  encrypt_train_test_data(crypto_engine, test_plain_dataset, test_encrypted_dataset); */
   //plain_dataset.clear();
 }
 

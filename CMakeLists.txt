@@ -32,8 +32,10 @@ set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 find_package(Threads REQUIRED)
-find_library(SSL_LIB libssl.a REQUIRED)
-find_library(CRYPTO_LIB libcrypto.a REQUIRED)
+find_package(nlohmann_json 3.2.0 REQUIRED)
+find_package(OpenSSL REQUIRED)
+#find_library(SSL_LIB libssl.a REQUIRED)
+#find_library(CRYPTO_LIB libcrypto.a REQUIRED)
 
 set(Untrusted_Home "${PROJECT_SOURCE_DIR}/untrusted")
 set(Trusted_Home "${PROJECT_SOURCE_DIR}/trusted")
@@ -75,6 +77,7 @@ set(DARKNET_SOURCE_FILES
 "third_party/darknet/src/im2col.cpp"
 "third_party/darknet/src/cuda.cpp"
 "third_party/darknet/src/deconvolutional_layer.cpp"
+"third_party/darknet/src/convolutional1D_layer.cpp"
 "third_party/darknet/src/convolutional_layer.cpp"
 "third_party/darknet/src/list.cpp"
 "third_party/darknet/src/image.cpp"
@@ -84,6 +87,7 @@ set(DARKNET_SOURCE_FILES
 "third_party/darknet/src/crop_layer.cpp"
 "third_party/darknet/src/dropout_layer.cpp"
 "third_party/darknet/src/maxpool_layer.cpp"
+"third_party/darknet/src/maxpool1D_layer.cpp"
 "third_party/darknet/src/softmax_layer.cpp"
 "third_party/darknet/src/data.cpp"
 "third_party/darknet/src/matrix.cpp"
@@ -98,6 +102,8 @@ set(DARKNET_SOURCE_FILES
 "third_party/darknet/src/box.cpp"
 "third_party/darknet/src/normalization_layer.cpp"
 "third_party/darknet/src/avgpool_layer.cpp"
+"third_party/darknet/src/avgpoolx_layer.cpp"
+"third_party/darknet/src/avgpoolx1D_layer.cpp"
 "third_party/darknet/src/layer.cpp"
 "third_party/darknet/src/local_layer.cpp"
 "third_party/darknet/src/shortcut_layer.cpp"
@@ -121,7 +127,7 @@ list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX
   "third_party/darknet/src/cuda.cpp"
   "third_party/darknet/src/deconvolutional_layer.cpp"
   "third_party/darknet/src/detection_layer.cpp"
-  "third_party/darknet/src/route_layer.cpp"
+  #"third_party/darknet/src/route_layer.cpp"
   "third_party/darknet/src/upsample_layer.cpp"
   "third_party/darknet/src/box.cpp"
   #"third_party/darknet/src/normalization_layer.cpp"
@@ -145,12 +151,12 @@ list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_LAYERWISE
   "third_party/darknet/src/cuda.cpp"
   "third_party/darknet/src/deconvolutional_layer.cpp"
   "third_party/darknet/src/detection_layer.cpp"
-  "third_party/darknet/src/route_layer.cpp"
+  #"third_party/darknet/src/route_layer.cpp"
   "third_party/darknet/src/upsample_layer.cpp"
   "third_party/darknet/src/box.cpp"
   "third_party/darknet/src/normalization_layer.cpp"
   "third_party/darknet/src/local_layer.cpp"
-  "third_party/darknet/src/shortcut_layer.cpp"
+  #"third_party/darknet/src/shortcut_layer.cpp"
   "third_party/darknet/src/logistic_layer.cpp"
   "third_party/darknet/src/rnn_layer.cpp"
   "third_party/darknet/src/gru_layer.cpp"
@@ -210,7 +216,7 @@ target_include_directories(DARKNET_T PUBLIC
 target_compile_definitions(DARKNET_T PUBLIC USE_SGX $<$<BOOL:${CUSTOM_ENABLE_BLOCKING}>:USE_SGX_BLOCKING> $<$<BOOL:${CUSTOM_ENABLE_LAYERWISE}>:USE_SGX_LAYERWISE>)
 
 set(Enclave_Cpp_Files
-  "${Trusted_Home}/src/bitonic-sort.cpp" 
+  #"${Trusted_Home}/src/bitonic-sort.cpp" 
   "${Trusted_Home}/src/enclave-app.cpp"
   "${Trusted_Home}/src/DNNConfigIO.cpp" 
   "${Trusted_Home}/src/DNNTrainer.cpp" 
@@ -251,6 +257,7 @@ enclave_sign(
 set(App_Cpp_Files
   "${Untrusted_Home}/src/app.cpp"
   "${Untrusted_Home}/src/load-image.cpp"
+  #${DARKNET_SOURCE_FILES}
   "third_party/darknet/src/data.cpp"
   "third_party/darknet/src/utils.cpp"
   "third_party/darknet/src/list.cpp"
@@ -273,4 +280,4 @@ set(App_Cpp_Files
   "${Untrusted_Home}"
   "${Untrusted_Home}/include"
   "third_party/darknet/include")
-  target_link_libraries(${Untrusted_Name} "crypto" "pthread")
+  target_link_libraries(${Untrusted_Name} nlohmann_json::nlohmann_json OpenSSL::Crypto OpenSSL::SSL Threads::Threads)
