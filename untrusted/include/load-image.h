@@ -12,6 +12,7 @@ using json = nlohmann::json;
 matrix load_image_paths(char **paths, int n, int w, int h);
 matrix load_labels_paths(char **paths, int n, char **labels, int k,
                          tree *hierarchy);
+data load_data_idash(char **paths, int n);
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -40,7 +41,7 @@ typedef struct trainRecordEncrypted {
 typedef struct data_params {
   std::string label_path;
   // std::vector<std::string> labels;
-  std::string train_paths;
+  std::string data_paths;
 
   int total_records;
   int num_classes;
@@ -55,6 +56,10 @@ typedef struct data_params {
   char **labels;
 
 } data_params;
+
+std::vector<uint8_t> read_file_binary(const char* file_name);
+bool write_file_binary(const char* file_name, const std::vector<uint8_t>& contents);
+std::vector<std::string> read_file_text(const char* file_name);
 
 bool load_train_test_data(data_params &par);
 
@@ -72,11 +77,13 @@ bool encrypt_train_test_data(
 //void initialize_train_params_imagenet(data_params &param);
 //void initialize_test_params_imagenet(data_params &param);
 
-void initialize_data(data_params &tr_pub_params, data_params &test_pub_params,
+void initialize_data(data_params &tr_pub_params, data_params &test_pub_params, data_params &predict_pub_params,
                      std::vector<trainRecordSerialized> &plain_dataset,
                      std::vector<trainRecordEncrypted> &encrypted_dataset,
                      std::vector<trainRecordSerialized> &test_plain_dataset,
                      std::vector<trainRecordEncrypted> &test_encrypted_dataset,
+                     std::vector<trainRecordSerialized> &predict_plain_dataset,
+                     std::vector<trainRecordEncrypted> &predict_encrypted_dataset,
                      sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine);
 
 void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset);

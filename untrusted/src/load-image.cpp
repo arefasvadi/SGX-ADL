@@ -14,18 +14,32 @@ extern json configs;
 
 bool load_train_test_data(data_params &par) {
 
-  par.labels = get_labels((char *)par.label_path.c_str());
-  par.plist = get_paths((char *)par.train_paths.c_str());
+  std::string task = configs["task"];
+  bool is_image = configs["data_config"]["is_image"];
+  par.plist = get_paths((char *)par.data_paths.c_str());
   par.paths = (char **)list_to_array(par.plist);
   par.total_records = par.plist->size;
   par.input_data = {0};
   par.input_data.shallow = 0;
-  par.input_data.X =
+  if (is_image) {
+    par.input_data.X =
       load_image_paths(par.paths, par.total_records, par.width, par.height);
-  LOG_INFO("Total images %d Each image is are of length: %d\n", par.total_records, par.input_data.X.cols);
-  par.input_data.y = load_labels_paths(par.paths, par.total_records, par.labels,
+    LOG_INFO("Total images %d Each image is are of length: %d\n", par.total_records, par.input_data.X.cols);
+  } else if (configs["data_config"]["is_idash"]){
+    par.input_data = load_data_idash(par.paths, par.total_records);
+    par.input_data.y = make_matrix(par.total_records, par.num_classes);
+  }
+  else {
+    LOG_ERROR("Data handler of this type not known!\n")
+    abort();
+  }
+  if (task.compare(std::string("predict")) != 0) {
+    par.labels = get_labels((char *)par.label_path.c_str());
+    par.input_data.y = load_labels_paths(par.paths, par.total_records, par.labels,
                                        par.num_classes, NULL);
-  LOG_INFO("Each label is are of length: %d\n", par.input_data.y.cols);
+    LOG_INFO("Each label is are of length: %d\n", par.input_data.y.cols);
+  }
+  
   // TODO remember to delete
   // paths in plist
   // free_list too
@@ -89,7 +103,7 @@ bool encrypt_train_test_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engin
 
 void initialize_train_params(data_params &param) {
   param.label_path = configs["data_config"]["labels_path"];
-  param.train_paths = configs["data_config"]["train_path"];
+  param.data_paths = configs["data_config"]["train_path"];
   param.width = configs["data_config"]["dims"][0];
   param.height = configs["data_config"]["dims"][1];
   param.channels = configs["data_config"]["dims"][2];
@@ -98,7 +112,16 @@ void initialize_train_params(data_params &param) {
 
 void initialize_test_params(data_params &param) {
   param.label_path = configs["data_config"]["labels_path"];
-  param.train_paths = configs["data_config"]["test_path"];
+  param.data_paths = configs["data_config"]["test_path"];
+  param.width = configs["data_config"]["dims"][0];
+  param.height = configs["data_config"]["dims"][1];
+  param.channels = configs["data_config"]["dims"][2];
+  param.num_classes = configs["data_config"]["num_classes"];
+}
+
+void initialize_predict_params(data_params &param) {
+  param.label_path = configs["data_config"]["labels_path"];
+  param.data_paths = configs["data_config"]["predict_path"];
   param.width = configs["data_config"]["dims"][0];
   param.height = configs["data_config"]["dims"][1];
   param.channels = configs["data_config"]["dims"][2];
@@ -152,12 +175,13 @@ void initialize_test_params(data_params &param) {
   abort();
 } */
 
-void initialize_data(data_params &tr_pub_params,
-                     data_params &test_pub_params,
+void initialize_data(data_params &tr_pub_params, data_params &test_pub_params, data_params &predict_pub_params,
                      std::vector<trainRecordSerialized> &plain_dataset,
                      std::vector<trainRecordEncrypted> &encrypted_dataset,
                      std::vector<trainRecordSerialized> &test_plain_dataset,
                      std::vector<trainRecordEncrypted> &test_encrypted_dataset,
+                     std::vector<trainRecordSerialized> &predict_plain_dataset,
+                     std::vector<trainRecordEncrypted> &predict_encrypted_dataset,
                      sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine) {
   
   std::string task = configs["task"];
@@ -176,6 +200,14 @@ void initialize_data(data_params &tr_pub_params,
     serialize_train_test_data(test_pub_params, test_plain_dataset);
     if (sec.compare(std::string("privacy_integrity")) == 0) {
       encrypt_train_test_data(crypto_engine, test_plain_dataset, test_encrypted_dataset);    
+    }
+  }
+  else if (task.compare(std::string("predict")) == 0) {
+    initialize_predict_params(predict_pub_params);
+    load_train_test_data(predict_pub_params);
+    serialize_train_test_data(predict_pub_params, predict_plain_dataset);
+    if (sec.compare(std::string("privacy_integrity")) == 0) {
+      encrypt_train_test_data(crypto_engine, predict_plain_dataset, predict_encrypted_dataset);    
     }
   }
 
@@ -244,4 +276,38 @@ void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {
     }
   }
   LOG_TRACE("finished in random id assign\n");
+}
+
+
+std::vector<uint8_t> read_file_binary(const char* file_name) {
+    std::ifstream file(file_name, std::ios::out | std::ios::binary);
+    file.unsetf(std::ios::skipws);
+    std::streampos fileSize;
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+    
+    std::vector<uint8_t> contents;
+    contents.reserve(fileSize);
+    contents.insert(contents.begin(),
+                         std::istream_iterator<uint8_t>(file),
+                         std::istream_iterator<uint8_t>());
+    file.close();
+    return contents;
+}
+
+bool write_file_binary(const char* file_name, const std::vector<uint8_t>& contents) {
+  std::ofstream file(file_name, std::ios::out | std::ios::binary);
+  file.write((const char*)contents.data(), contents.size());
+  file.close();
+  return true;
+}
+
+std::vector<std::string> read_file_text(const char* file_name) {
+  std::ifstream file(file_name, std::ios::out | std::ios::binary);
+  std::vector<std::string> contents;
+  copy(std::istream_iterator<std::string>(file),
+         std::istream_iterator<std::string>(),
+         std::back_inserter(contents));
+  return contents;
 }

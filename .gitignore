@@ -44,3 +44,15 @@ python/backdoor_data_poisoning/graphics/
 python/**/*.log
 *.bz2
 
+
+python/backdoor_data_poisoning/MNIST-CLASS-PREDS-HISTOGRAM-CLEAN-VS-POISONED.jpeg
+
+python/backdoor_data_poisoning/p-v-cdf-bar-real-p-range-0.002.png
+
+python/backdoor_data_poisoning/test-stat-cdf-step.png
+
+python/backdoor_data_poisoning/test-stat-cdf-bar.png
+
+python/backdoor_data_poisoning/p-v-cdf-step.png
+
+python/backdoor_data_poisoning/p-v-cdf-bar.png

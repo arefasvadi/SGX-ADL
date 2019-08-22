@@ -5,11 +5,12 @@ enclave {
     from "sgx_tstdc.edl" import *;
     trusted {
               public void ecall_enclave_init([in, string]const char* net_conf_file,[in, string]const char* task,[in, string]const char* sec_mode,int width, 
-                     int height, int channels, int num_classes, int train_size, int test_size); 
+                     int height, int channels, int num_classes, int train_size, int test_size, int predict_size); 
               public void ecall_assign_random_id([in,out, size=len] unsigned char* tr_records, size_t len); 
               public void ecall_initial_sort(); 
               public void ecall_check_for_sort_correctness();
               public void ecall_start_training();
+              public void ecall_start_predicting();
               public void ecall_singal_convolution(int size1,int size2);
               public void ecall_matrix_mult(int row1,int col1,int row2,int col2);
               public void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
@@ -48,5 +49,9 @@ enclave {
               void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size);
               void ocall_get_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end,[out,size=temp_buff_len] unsigned char* temp_buff, size_t temp_buff_len);
               void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end,[in,size=temp_buff_len] unsigned char* temp_buff, size_t temp_buff_len);
+
+              void ocall_load_weights_plain(int start,[out,size=weight_len] unsigned char* weight_arr,size_t weight_len);
+              void ocall_load_weights_encrypted(int start,[out,size=weight_len] unsigned char* weight_arr, size_t weight_len, [out, size = 12] unsigned char* weights_iv,
+                     [out, size = 16] unsigned char* weights_mac,int final_round);
             };
 };

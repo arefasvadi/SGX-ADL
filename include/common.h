@@ -10,8 +10,10 @@
 
 #define USE_GEMM_THREADING
 
+#ifdef USE_GEMM_THREADING
 #ifndef AVAIL_THREADS
-#define AVAIL_THREADS 7
+  #define AVAIL_THREADS 7
+#endif
 #endif
 
 #define AES_GCM_KEY_SIZE 16

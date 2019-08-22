@@ -29,9 +29,12 @@ public:
   explicit DNNTrainer(const std::string &config_file_path,
                       const std::string &param_dir_path,
                       const std::string &data_dir_path,int security_mode,int width, 
-                     int height, int channels,int num_classes, int train_size, int test_size);
+                     int height, int channels,int num_classes, int train_size, int test_size,int predict_size);
 
   bool loadNetworkConfig();
+  bool loadWeightsPlain();
+  bool loadWeightsEncrypted();
+
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
   bool loadNetworkConfigBlocked();
   void trainBlocked();
@@ -46,20 +49,26 @@ public:
   };
   void intitialSort();
   void train(bool is_plain = false);
+  void test(bool is_plain = false);
+  void predict(bool is_plain = false);
+  
 
   int trainSize_;
   int testSize_;
+  int predictSize_;
   int w;
   int h;
   int c;
   int n_classes;
-  int sec_mode = -1;
+  int secMode = -1;
   //DNNTask currTask_;
 private:
   bool prepareBatchTrainEncrypted(int start);
   bool prepareBatchTrainPlain(int start);
   bool prepareBatchTestEncrypted(int start);
   bool prepareBatchTestPlain(int start);
+  bool prepareBatchPredictEncrypted(int start);
+  bool prepareBatchPredictPlain(int start);
   sgt::CryptoEngine<uint8_t> cryptoEngine_;
   std::unique_ptr<DNNConfigIO> configIO_;
   
@@ -72,6 +81,7 @@ private:
 #endif
   data trainData_ = {0};
   data testData_ = {0};
+  data predictData_ = {0};
   network *net_ = nullptr;
 
   // std::unique_ptr<DNNParamIO> paramoIO_;

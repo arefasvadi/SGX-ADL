@@ -7,7 +7,7 @@ namespace darknet {
 DNNTrainer::DNNTrainer(const std::string &config_file_path,
                        const std::string &param_dir_path,
                        const std::string &data_dir_path,int security_mode,int width, 
-                     int height, int channels,int num_classes, int train_size, int test_size)
+                     int height, int channels,int num_classes, int train_size, int test_size,int predict_size)
     : cryptoEngine_(sgt::CryptoEngine<uint8_t>::Key{
           1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}),
       configIO_(std::unique_ptr<DNNConfigIO>(
@@ -15,7 +15,7 @@ DNNTrainer::DNNTrainer(const std::string &config_file_path,
   trainData_.shallow = 0;
   testData_.shallow = 0;
 
-  sec_mode = security_mode;
+  secMode = security_mode;
 
   w = width;
   h = height;
@@ -26,9 +26,12 @@ DNNTrainer::DNNTrainer(const std::string &config_file_path,
   trainData_.h = height;
   testData_.w = width;
   testData_.h = height;
+  predictData_.w = width;
+  predictData_.h = height;
   
   trainSize_ = train_size;
   testSize_ = test_size;
+  predictSize_ = predict_size;
 }
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
@@ -263,7 +266,7 @@ bool DNNTrainer::prepareBatchTestEncrypted(int start) {
     testData_.y.vals = (float **)calloc(testData_.y.rows, sizeof(float *));
 
     for (int i = 0; i < net_->batch; ++i) {
-      res = ocall_get_records_encrypted(0, start + i, &enc_data[0],
+      res = ocall_get_records_encrypted(2, start + i, &enc_data[0],
                                       enc_data.size(),&IV[0],&MAC[0]);
       if (res !=
           SGX_SUCCESS /* || (len_i == len_j && len_i = sizeof(trainRecordEncrypted)) */) {
@@ -277,14 +280,58 @@ bool DNNTrainer::prepareBatchTestEncrypted(int start) {
 
       testData_.X.vals[i] =
           (float *)calloc(w*h*c, sizeof(float));
-      std::memcpy(testData_.X.vals[i], &enc_data[0],
+      std::memcpy(testData_.X.vals[i], &decrypted[0],
                   w*h*c * sizeof(float));
 
       testData_.y.vals[i] = (float *)calloc(n_classes, sizeof(float));
-      std::memcpy(testData_.y.vals[i], &enc_data[w*h*c * sizeof(float)],
+      std::memcpy(testData_.y.vals[i], &decrypted[w*h*c * sizeof(float)],
                   n_classes * sizeof(float));
     }
     testData_.shallow = 0;
+    return true;
+  }
+  return false;
+}
+
+bool DNNTrainer::prepareBatchPredictEncrypted(int start) {
+  if (start + net_->batch <= predictSize_) {
+    // LOG_DEBUG("prepare test encrypted with start index %d\n",start)
+    std::vector<uint8_t> enc_data(sizeof(float)*(w*h*c + n_classes)+sizeof(unsigned int));
+    std::array<uint8_t, 12> IV;
+    std::array<uint8_t, 16> MAC;
+    sgx_status_t res = SGX_ERROR_UNEXPECTED;
+
+    predictData_.X.rows = net_->batch;
+    predictData_.X.cols = w*h*c;
+    predictData_.X.vals = (float **)calloc(predictData_.X.rows, sizeof(float *));
+
+    predictData_.y.rows = net_->batch;
+    predictData_.y.cols = n_classes;
+    predictData_.y.vals = (float **)calloc(predictData_.y.rows, sizeof(float *));
+
+    for (int i = 0; i < net_->batch; ++i) {
+      res = ocall_get_records_encrypted(3, start + i, &enc_data[0],
+                                      enc_data.size(),&IV[0],&MAC[0]);
+      if (res !=
+          SGX_SUCCESS /* || (len_i == len_j && len_i = sizeof(trainRecordEncrypted)) */) {
+        LOG_ERROR("ocall get records caused problem! the error is "
+                  "%#010X \n",
+                  res);
+        abort();
+      }
+      auto enc_tuple = std::make_tuple(enc_data, IV, MAC);
+      auto decrypted = cryptoEngine_.decrypt(enc_tuple);
+
+      predictData_.X.vals[i] =
+          (float *)calloc(w*h*c, sizeof(float));
+      std::memcpy(predictData_.X.vals[i], &decrypted[0],
+                  w*h*c * sizeof(float));
+
+      predictData_.y.vals[i] = (float *)calloc(n_classes, sizeof(float));
+      std::memcpy(predictData_.y.vals[i], &decrypted[w*h*c * sizeof(float)],
+                  n_classes * sizeof(float));
+    }
+    predictData_.shallow = 0;
     return true;
   }
   return false;
@@ -367,7 +414,7 @@ bool DNNTrainer::prepareBatchTestPlain(int start) {
     testData_.y.vals = (float **)calloc(testData_.y.rows, sizeof(float *));
 
     for (int i = 0; i < net_->batch; ++i) {
-      res = ocall_get_records_plain(0, start + i, &p_data[0],
+      res = ocall_get_records_plain(2, start + i, &p_data[0],
                                     p_data.size());
       if (res !=
           SGX_SUCCESS /* || (len_i == len_j && len_i = sizeof(trainRecordEncrypted)) */) {
@@ -391,6 +438,44 @@ bool DNNTrainer::prepareBatchTestPlain(int start) {
   return false;
 }
 
+bool DNNTrainer::prepareBatchPredictPlain(int start) {
+  if (start + net_->batch <= predictSize_) {
+    std::vector<uint8_t> p_data(sizeof(float)*(w*h*c + n_classes));
+    sgx_status_t res = SGX_ERROR_UNEXPECTED;
+
+    predictData_.X.rows = net_->batch;
+    predictData_.X.cols = w*h*c;
+    predictData_.X.vals = (float **)calloc(predictData_.X.rows, sizeof(float *));
+
+    predictData_.y.rows = net_->batch;
+    predictData_.y.cols = n_classes;
+    predictData_.y.vals = (float **)calloc(predictData_.y.rows, sizeof(float *));
+
+    for (int i = 0; i < net_->batch; ++i) {
+      res = ocall_get_records_plain(3, start + i, &p_data[0],
+                                    p_data.size());
+      if (res !=
+          SGX_SUCCESS /* || (len_i == len_j && len_i = sizeof(trainRecordEncrypted)) */) {
+        LOG_ERROR("ocall get records caused problem! the error is "
+                  "%#010X \n",
+                  res);
+        abort();
+      }
+      predictData_.X.vals[i] =
+          (float *)calloc(w*h*c, sizeof(float));
+      std::memcpy(predictData_.X.vals[i], &p_data[0],
+                  w*h*c * sizeof(float));
+
+      predictData_.y.vals[i] = (float *)calloc(n_classes, sizeof(float));
+      std::memcpy(predictData_.y.vals[i], &p_data[w*h*c * sizeof(float)],
+                  n_classes * sizeof(float));
+    }
+    predictData_.shallow = 0;
+    return true;
+  }
+  return false;
+}
+
 void DNNTrainer::train(bool is_plain) {
   int start = 0;
   float avg_loss = -1, loss = -1;
@@ -403,8 +488,8 @@ void DNNTrainer::train(bool is_plain) {
   #endif
   while (get_current_batch(net_) < net_->max_batches) {
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-    auto prepared = sec_mode == 0 ? prepareBatchTrainPlain(start)
-                             : sec_mode == 2 ? prepareBatchTrainEncrypted(start):false;
+    auto prepared = secMode == 0 ? prepareBatchTrainPlain(start)
+                             : secMode == 2 ? prepareBatchTrainEncrypted(start):false;
     /* if (!prepared) {
       //intitialSort();
       start = 0;
@@ -459,6 +544,48 @@ void DNNTrainer::train(bool is_plain) {
               test_accuracy);
       }*/
   }
+}
+
+void DNNTrainer::test(bool is_plain) {
+  LOG_ERROR("Not implemented\n")
+  abort();
+}
+
+void DNNTrainer::predict(bool is_plain) {
+  //LOG_ERROR("Not implemented\n")
+  //abort();
+  //int start = 0;
+  for(int curr = 0; curr < predictSize_;curr+=net_->batch) {
+     auto prepared = secMode == 0 ? prepareBatchPredictPlain(curr)
+                             : secMode == 2 ? prepareBatchPredictEncrypted(curr):false;
+      if (!prepared) {
+        break;
+      }
+      //start++;
+      matrix pred = network_predict_data(net_, predictData_);
+      std::string out_str("");
+      for(int i = 0; i < pred.rows; ++i){
+        out_str += "predicting of item number: " + std::to_string(curr+i) + " :";
+          for(int j = 0; j < pred.cols; ++j){
+              out_str += "\t"+std::to_string(pred.vals[i][j]);
+          }
+        out_str += "\n";
+      }
+      LOG_INFO("%s",out_str.c_str());
+  }
+}
+
+bool DNNTrainer::loadWeightsPlain() {
+  load_weights(net_);
+  return true;
+}
+bool DNNTrainer::loadWeightsEncrypted() {
+  #ifdef USE_SGX_LAYERWISE
+  LOG_ERROR("This part not yet implemented for layerwise!\n")
+  abort();
+  #endif
+  load_weights_encrypted(net_);
+  return true;
 }
 
 void DNNTrainer::intitialSort() {

@@ -48,6 +48,18 @@ data_params test_pub_params;
 std::vector<trainRecordSerialized> plain_test_dataset;
 std::vector<trainRecordEncrypted> encrypted_test_dataset;
 
+data_params predict_pub_params;
+std::vector<trainRecordSerialized> plain_predict_dataset;
+std::vector<trainRecordEncrypted> encrypted_predict_dataset;
+
+std::vector<uint8_t> plain_weights;
+
+std::vector<uint8_t> encrypted_weights;
+std::vector<uint8_t> iv_weights;
+std::vector<uint8_t> tag_weights;
+
+json configs;
+
 // std::unordered_map<std::string, timeTracker> grand_timer;
 std::map<std::string, timeTracker> grand_timer;
 std::map<std::string, double> duration_map;
@@ -301,54 +313,83 @@ void ocall_set_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
 void ocall_get_records_encrypted(int train_or_test, size_t i,
                                  unsigned char *tr_record_i, size_t len_i,
                                  unsigned char *_iv, unsigned char *_tag) {
+  // 1: train
+  // 2: test
+  // 3: predict
   if (train_or_test == 1) { // train
     std::memcpy(tr_record_i, &(encrypted_dataset[i].encData[0]), len_i);
     std::memcpy(_iv, (encrypted_dataset[i].IV), AES_GCM_IV_SIZE);
     std::memcpy(_tag, (encrypted_dataset[i].MAC), AES_GCM_TAG_SIZE);
-  } else {
+  } else if (train_or_test == 2) {
     std::memcpy(tr_record_i, &(encrypted_test_dataset[i].encData[0]), len_i);
     std::memcpy(_iv, (encrypted_test_dataset[i].IV), AES_GCM_IV_SIZE);
     std::memcpy(_tag, (encrypted_test_dataset[i].MAC), AES_GCM_TAG_SIZE);
+  } else if (train_or_test == 3) {
+    std::memcpy(tr_record_i, &(encrypted_predict_dataset[i].encData[0]), len_i);
+    std::memcpy(_iv, (encrypted_predict_dataset[i].IV), AES_GCM_IV_SIZE);
+    std::memcpy(_tag, (encrypted_predict_dataset[i].MAC), AES_GCM_TAG_SIZE);
   }
 }
 
 void ocall_set_records_encrypted(int train_or_test, size_t i,
                                  unsigned char *tr_record_i, size_t len_i,
                                  unsigned char *_iv, unsigned char *_tag) {
+  // 1: train
+  // 2: test
+  // 3: predict
   if (train_or_test == 1) { // train
     std::memcpy(&(encrypted_dataset[i].encData[0]), tr_record_i, len_i);
     std::memcpy((encrypted_dataset[i].IV), _iv, AES_GCM_IV_SIZE);
     std::memcpy((encrypted_dataset[i].MAC), _tag, AES_GCM_TAG_SIZE);
-  } else {
+  } else if (train_or_test == 2) {
     std::memcpy(&(encrypted_test_dataset[i].encData[0]), tr_record_i, len_i);
     std::memcpy((encrypted_test_dataset[i].IV), _iv, AES_GCM_IV_SIZE);
     std::memcpy((encrypted_test_dataset[i].MAC), _tag, AES_GCM_TAG_SIZE);
+  } else if (train_or_test == 3) {
+    std::memcpy(&(encrypted_predict_dataset[i].encData[0]), tr_record_i, len_i);
+    std::memcpy((encrypted_predict_dataset[i].IV), _iv, AES_GCM_IV_SIZE);
+    std::memcpy((encrypted_predict_dataset[i].MAC), _tag, AES_GCM_TAG_SIZE);
   }
 }
 
 void ocall_get_records_plain(int train_or_test, size_t i,
                              unsigned char *tr_record_i, size_t len_i) {
+  // 1: train
+  // 2: test
+  // 3: predict
   if (train_or_test == 1) { // train
     std::memcpy(tr_record_i, &(plain_dataset[i].data[0]),
                 sizeof(float) * plain_dataset[i].data.size());
     std::memcpy(tr_record_i + sizeof(float) * plain_dataset[i].data.size(),
                 &(plain_dataset[i].label[0]),
                 sizeof(float) * plain_dataset[i].label.size());
-  } else {
+  } else if (train_or_test == 2) {
     std::memcpy(tr_record_i, &(plain_test_dataset[i].data[0]),
                 sizeof(float) * plain_test_dataset[i].data.size());
     std::memcpy(tr_record_i + sizeof(float) * plain_test_dataset[i].data.size(),
                 &(plain_test_dataset[i].label[0]),
                 sizeof(float) * plain_test_dataset[i].label.size());
+  } else if (train_or_test == 3) {
+    std::memcpy(tr_record_i, &(plain_predict_dataset[i].data[0]),
+                sizeof(float) * plain_predict_dataset[i].data.size());
+    std::memcpy(tr_record_i +
+                    sizeof(float) * plain_predict_dataset[i].data.size(),
+                &(plain_predict_dataset[i].label[0]),
+                sizeof(float) * plain_predict_dataset[i].label.size());
   }
 }
 
 void ocall_set_records_plain(int train_or_test, size_t i,
                              unsigned char *tr_record_i, size_t len_i) {
+  // 1: train
+  // 2: test
+  // 3: predict
   if (train_or_test == 1) { // train
     std::memcpy(&(plain_dataset[i]), tr_record_i, len_i);
-  } else {
+  } else if (train_or_test == 2) {
     std::memcpy(&(plain_test_dataset[i]), tr_record_i, len_i);
+  } else if (train_or_test == 3) {
+    std::memcpy(&(plain_predict_dataset[i]), tr_record_i, len_i);
   }
 }
 
@@ -422,6 +463,54 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
             *real_len);
 }
 
+void ocall_load_weights_plain(int start, unsigned char *weight_arr,
+                              size_t weight_len) {
+  static bool first_call = true;
+  if (first_call) {
+    first_call = false;
+    std::string weights_file_str = configs["weights_load_file"];
+    plain_weights = read_file_binary(weights_file_str.c_str());
+  }
+  std::memcpy(weight_arr,&plain_weights[start],weight_len);
+}
+
+void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
+                                  size_t weight_len, unsigned char *weights_iv,
+                                  unsigned char *weights_mac, int final_round) {
+  static bool first_call = true;
+  static std::vector<std::string> enc_weight_files_order;
+  static std::string enc_weights_file_dir;
+  static size_t current_w = 0;
+  static std::vector<uint8_t>* curr_enc_weights = nullptr;
+  if (first_call) {
+    first_call = false;
+    enc_weights_file_dir = configs["enc_weights_load_dir"];
+    std::string enc_weights_order_file = configs["enc_weights_order_file"];
+    enc_weights_order_file = enc_weights_file_dir + enc_weights_order_file;
+    enc_weight_files_order = read_file_text(enc_weights_order_file.c_str());
+  }
+  if (!curr_enc_weights) {
+    curr_enc_weights = new std::vector<uint8_t>();
+    std::string temp_str = enc_weights_file_dir + enc_weight_files_order[current_w]+std::string(".enc");
+    *curr_enc_weights = read_file_binary(temp_str.c_str());
+  }
+  
+  std::memcpy(weight_arr,&((*curr_enc_weights)[start]),weight_len);
+  
+  if (final_round) {
+    std::string temp_str = enc_weights_file_dir + enc_weight_files_order[current_w]+std::string(".iv");
+    iv_weights = read_file_binary(temp_str.c_str());
+    std::memcpy(weights_iv, &iv_weights[0], AES_GCM_IV_SIZE);
+    temp_str = enc_weights_file_dir + enc_weight_files_order[current_w]+std::string(".tag");
+    tag_weights = read_file_binary(temp_str.c_str());
+    std::memcpy(weights_mac, &tag_weights[0], AES_GCM_TAG_SIZE);
+    current_w++;
+    delete curr_enc_weights;
+    curr_enc_weights = nullptr;
+  }
+  
+}
+
 void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) {
   /* if (buff_id == 1) {
     auto aaa = 0;
@@ -447,49 +536,61 @@ void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start, uint32_t end,
 
 void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
                                       size_t address_of_C) {
-  std::future<sgx_status_t> returns[AVAIL_THREADS];
+  #ifdef USE_GEMM_THREADING
   int q = M / AVAIL_THREADS;
   int r = M % AVAIL_THREADS;
+  int usable_threads = q == 0 ? 1 : AVAIL_THREADS;
+  std::future<sgx_status_t> returns[usable_threads];
   int curr_M = 0;
-  for (int i = 0; i < AVAIL_THREADS; ++i) {
+  for (int i = 0; i < usable_threads; ++i) {
     int M_size = q;
     if (r > 0) {
       M_size += r;
       r = 0;
     }
-    returns[i] = std::async(&ecall_handle_gemm_cpu_first_mult, global_eid,
-                            curr_M, M_size, N, BETA, ldc, address_of_C);
+    returns[i] = std::async(std::launch::async, &ecall_handle_gemm_cpu_first_mult, global_eid,
+                            curr_M, curr_M+M_size, N, BETA, ldc, address_of_C);
     curr_M += M_size;
+    if (q == 0) {
+      break;
+    }
   }
-  for (int i = 0; i < AVAIL_THREADS; ++i) {
+  for (int i = 0; i < usable_threads; ++i) {
     auto res = returns[i].get();
     CHECK_SGX_SUCCESS(
         res, "call to ecall_handle_gemm_cpu_first_mult caused problem!!");
   }
+  #endif
 }
 
 void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA,
                            size_t addr_A, int lda, size_t addr_B, int ldb,
                            size_t addr_C, int ldc) {
-  std::future<sgx_status_t> returns[AVAIL_THREADS];
+  #ifdef USE_GEMM_THREADING
   int q = M / AVAIL_THREADS;
   int r = M % AVAIL_THREADS;
+  int usable_threads = q == 0 ? 1 : AVAIL_THREADS;
+  std::future<sgx_status_t> returns[usable_threads];
   int curr_M = 0;
-  for (int i = 0; i < AVAIL_THREADS; ++i) {
+  for (int i = 0; i < usable_threads; ++i) {
     int M_size = q;
     if (r > 0) {
       M_size += r;
       r = 0;
     }
     returns[i] =
-        std::async(&ecall_handle_gemm_all, global_eid, curr_M, TA, TB, M_size,
+        std::async(std::launch::async, &ecall_handle_gemm_all, global_eid, curr_M, TA, TB, curr_M+M_size,
                    N, K, ALPHA, addr_A, lda, addr_B, ldb, addr_C, ldc);
     curr_M += M_size;
+    if (q == 0) {
+      break;
+    }
   }
-  for (int i = 0; i < AVAIL_THREADS; ++i) {
+  for (int i = 0; i < usable_threads; ++i) {
     auto res = returns[i].get();
     CHECK_SGX_SUCCESS(res, "call to ecall_handle_gemm_all caused problem!!");
   }
+  #endif
 }
 
 void print_timers() {
@@ -506,7 +607,7 @@ json process_json_config(const std::string &f_path) {
   json_in >> j;
   return j;
 }
-json configs;
+
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[]) {
   (void)(argc);
@@ -518,9 +619,10 @@ int SGX_CDECL main(int argc, char *argv[]) {
   configs = process_json_config(std::string(argv[1]));
   LOG_INFO("The loaded config file is:\n%s\n", configs.dump(2).c_str());
 
-  initialize_data(tr_pub_params, test_pub_params, plain_dataset,
-                  encrypted_dataset, plain_test_dataset, encrypted_test_dataset,
-                  crypto_engine);
+  initialize_data(tr_pub_params, test_pub_params, predict_pub_params,
+                  plain_dataset, encrypted_dataset, plain_test_dataset,
+                  encrypted_test_dataset, plain_predict_dataset,
+                  encrypted_predict_dataset, crypto_engine);
 
   LOG_INFO("Size of plain data is: %fMB\n",
            (double)(plain_dataset.size() * sizeof(plain_dataset[0])) /
@@ -542,10 +644,11 @@ int SGX_CDECL main(int argc, char *argv[]) {
   std::string task = configs["task"];
   std::string sec_mode = configs["security"];
   ret = ecall_enclave_init(
-      global_eid, network_arch_string.c_str(), task.c_str(),sec_mode.c_str(),
+      global_eid, network_arch_string.c_str(), task.c_str(), sec_mode.c_str(),
       configs["data_config"]["dims"][0], configs["data_config"]["dims"][1],
       configs["data_config"]["dims"][2], configs["data_config"]["num_classes"],
-      configs["data_config"]["trainSize"], configs["data_config"]["testSize"]);
+      configs["data_config"]["trainSize"], configs["data_config"]["testSize"],
+      configs["data_config"]["predictSize"]);
   if (ret != SGX_SUCCESS) {
     LOG_ERROR("ecall init enclave caused problem! Error code is %#010\n", ret);
     abort();
@@ -567,7 +670,8 @@ int SGX_CDECL main(int argc, char *argv[]) {
       global_eid, sizeof(plain_dataset[0].data), sizeof(plain_dataset[0].label),
       plain_dataset.size());
   CHECK_SGX_SUCCESS(
-      ret, "ecall to init plaintext image dataset blocking wa unsuccessful!\n"); */
+      ret, "ecall to init plaintext image dataset blocking wa unsuccessful!\n");
+*/
 
   /* random_id_assign(encrypted_dataset);
 
@@ -589,14 +693,27 @@ int SGX_CDECL main(int argc, char *argv[]) {
   }
   LOG_DEBUG("check for sorting finished successfully\n"); */
 
-  LOG_DEBUG("starting the training...\n");
-  ret = ecall_start_training(global_eid);
-  if (ret != SGX_SUCCESS) {
-    LOG_ERROR("ecall start training caused problem! Error code is %#010X\n",
-              ret);
+  if (task.compare(std::string("train")) == 0) {
+    LOG_DEBUG("starting the training...\n");
+    ret = ecall_start_training(global_eid);
+    if (ret != SGX_SUCCESS) {
+      LOG_ERROR("ecall start training caused problem! Error code is %#010X\n",
+                ret);
+      abort();
+    }
+    LOG_DEBUG("finished the training\n");
+  } else if (task.compare(std::string("test")) == 0) {
+    LOG_ERROR("TEST NOT IMPLEMENTED\n")
     abort();
+  } else if (task.compare(std::string("predict")) == 0) {
+    LOG_DEBUG("starting the prediction...\n");
+    ret = ecall_start_predicting(global_eid);
+    if (ret != SGX_SUCCESS) {
+      LOG_ERROR("ecall start predicting caused problem! Error code is %#010X\n",
+                ret);
+      abort();
+    }
   }
-  LOG_DEBUG("finished the training\n");
 
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);

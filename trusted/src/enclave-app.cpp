@@ -51,7 +51,7 @@ int printf(const char *fmt, ...) {
 }
 
 void ecall_enclave_init(const char *net_conf_file,const char *task,const char* sec_mode, int width, 
-                     int height, int channels, int num_classes, int train_size, int test_size) {
+                     int height, int channels, int num_classes, int train_size, int test_size,int predict_size) {
   LOG_TRACE("entered enclave_init!\n");
   int s_mode = -1;
   if (strcmp(sec_mode, "plain") == 0) {
@@ -66,7 +66,13 @@ void ecall_enclave_init(const char *net_conf_file,const char *task,const char* s
     LOG_ERROR("Wrong security mode option!\n")
     abort();
   }
-  trainer = new sgt::darknet::DNNTrainer(net_conf_file, "", "",s_mode,width,height,channels,num_classes,train_size,test_size);
+  if (strcmp(task, "train")) {
+    global_training = true;
+  }
+  else {
+    global_training = false;
+  }
+  trainer = new sgt::darknet::DNNTrainer(net_conf_file, "", "",s_mode,width,height,channels,num_classes,train_size,test_size,predict_size);
 
   sgx_status_t result = SGX_ERROR_UNEXPECTED;
   uint64_t seed1;
@@ -317,6 +323,22 @@ void ecall_start_training() {
   trainer->train(false);
 #endif
   LOG_TRACE("finished in %s\n", __func__);
+}
+
+void ecall_start_predicting() {
+  LOG_TRACE("entered in %s\n", __func__)
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  bool res = trainer->loadNetworkConfig();
+  LOG_DEBUG("network config file loaded\n")
+  if (trainer->secMode == 0) {
+    trainer->loadWeightsPlain();
+  } else if (trainer->secMode == 2) {
+    trainer->loadWeightsEncrypted();
+  }
+  
+  LOG_DEBUG("weights loaded\n")
+  trainer->predict(false);
+  LOG_TRACE("finished in %s\n", __func__)
 }
 
 void ecall_handle_gemm_cpu_first_mult(int starter_M, int M, int N, float BETA,

@@ -3,7 +3,7 @@
     <ISVSVN>0</ISVSVN>
     <StackMaxSize>0x40000</StackMaxSize>
     <!-- <HeapMaxSize>0x7F00000</HeapMaxSize> -->
-    <HeapMaxSize>0x5800000</HeapMaxSize>
+    <HeapMaxSize>>0x5C00000</HeapMaxSize>
     <!-- <HeapMaxSize>0xFF00000</HeapMaxSize> -->
     <TCSNum>8</TCSNum>
     <TCSMinPool>2</TCSMinPool>

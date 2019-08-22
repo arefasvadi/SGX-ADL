@@ -16,6 +16,8 @@
 #undef OPENMP
 #undef CUDNN
 
+#include "enclave_t.h"
+
 #ifdef USE_SGX_LAYERWISE
 #undef USE_SGX_BLOCKING
 #endif
@@ -30,13 +32,16 @@
 
 #if defined (USE_SGX) && defined (USE_SGX_LAYERWISE)
 #include "SpecialBuffer.hpp"
+#include <vector>
 #endif
+
 
 #include "../../third_party/darknet/include/darknet.h"
 #include "pcg_basic.h"
 extern int printf(const char *fmt, ...);
 
 static pcg32_random_t gen;
+static bool global_training;
 
 void set_random_seed(uint64_t s1, uint64_t s2);
 int rand();
