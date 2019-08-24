@@ -11,8 +11,8 @@ enclave {
               public void ecall_check_for_sort_correctness();
               public void ecall_start_training();
               public void ecall_start_predicting();
-              public void ecall_singal_convolution(int size1,int size2);
-              public void ecall_matrix_mult(int row1,int col1,int row2,int col2);
+              //public void ecall_singal_convolution(int size1,int size2);
+              //public void ecall_matrix_mult(int row1,int col1,int row2,int col2);
               public void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
               public void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
               

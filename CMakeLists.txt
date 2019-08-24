@@ -26,7 +26,7 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -218,10 +218,10 @@ set(Enclave_Cpp_Files
   "${Trusted_Home}/src/enclave-app.cpp"
   "${Trusted_Home}/src/DNNConfigIO.cpp" 
   "${Trusted_Home}/src/DNNTrainer.cpp" 
-  "${Trusted_Home}/src/BlockHeader.cpp" 
-  "${Trusted_Home}/src/IBlockable.cpp" 
+  #"${Trusted_Home}/src/BlockHeader.cpp" 
+  #"${Trusted_Home}/src/IBlockable.cpp" 
   "${Trusted_Home}/src/util.cpp" 
-  "${Trusted_Home}/src/tests.cpp"
+  #"${Trusted_Home}/src/tests.cpp"
   "${Trusted_Home}/src/SpecialBufferCommon.cpp"
   )
 add_enclave_library(

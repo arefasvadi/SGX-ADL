@@ -3,7 +3,9 @@
 #include "darknet-addons.h"
 #include "enclave_t.h"
 #include "util.h"
+#if defined(USE_SGX) && defined (USE_SGX_BLOCKING)
 #include <BlockEngine.hpp>
+#endif
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
@@ -31,10 +33,12 @@ sgt::darknet::DNNTrainer *trainer = nullptr;
 
 int gpu_index = -1;
 
+#if defined(USE_SGX) && defined (USE_SGX_BLOCKING)
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_x;
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_y;
 static std::shared_ptr<sgt::BlockedBuffer<float, 1>> plain_ds_1d_x;
 static std::shared_ptr<sgt::BlockedBuffer<float, 1>> plain_ds_1d_y;
+#endif
 
 int total_items = 0;
 int single_len_x = 0;
