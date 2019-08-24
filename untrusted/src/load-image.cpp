@@ -101,6 +101,37 @@ bool encrypt_train_test_data(sgx::untrusted::CryptoEngine<uint8_t> &crypto_engin
   return true;
 }
 
+void handle_idash_encrypted(data_params &predict_pub_params,
+                            std::vector<trainRecordEncrypted> &predict_encrypted_dataset) {
+
+  std::string pred_file = configs["data_config"]["enc_predict_path"];
+  const int TOTAL_PRED_RECORDS = configs["data_config"]["predictSize"];
+  predict_pub_params.total_records = TOTAL_PRED_RECORDS;
+  auto enc_preds_file_names = read_file_text(pred_file.c_str());
+  if (enc_preds_file_names.size() != predict_pub_params.total_records) {
+    LOG_ERROR("the number of files in %s is different from predicSize in json file : %d vs %d\n",pred_file.c_str(),
+      enc_preds_file_names.size(),predict_pub_params.total_records);
+    abort();
+  }
+  predict_encrypted_dataset.resize(predict_pub_params.total_records);
+  std::string iv_f = "";
+  std::string tag_f = "";
+  std::string enc_f = "";
+  for (int i=0;i<enc_preds_file_names.size();++i) {
+    enc_f = enc_preds_file_names[i] + ".enc";
+    iv_f = enc_preds_file_names[i] + ".iv";
+    tag_f = enc_preds_file_names[i] + ".tag";
+    predict_encrypted_dataset[i].encData = read_file_binary(enc_f.c_str());
+    
+    auto iv_ = read_file_binary(iv_f.c_str());
+    std::memcpy(predict_encrypted_dataset[i].IV, &iv_[0], AES_GCM_IV_SIZE);
+
+    auto tag_ = read_file_binary(tag_f.c_str());
+    std::memcpy(predict_encrypted_dataset[i].MAC, &tag_[0], AES_GCM_TAG_SIZE);
+  }
+  
+}
+
 void initialize_train_params(data_params &param) {
   param.label_path = configs["data_config"]["labels_path"];
   param.data_paths = configs["data_config"]["train_path"];
@@ -204,6 +235,10 @@ void initialize_data(data_params &tr_pub_params, data_params &test_pub_params, d
   }
   else if (task.compare(std::string("predict")) == 0) {
     initialize_predict_params(predict_pub_params);
+    if (configs["data_config"]["is_idash"] && sec.compare(std::string("privacy_integrity")) == 0) {
+      handle_idash_encrypted(predict_pub_params, predict_encrypted_dataset);
+      return;
+    }
     load_train_test_data(predict_pub_params);
     serialize_train_test_data(predict_pub_params, predict_plain_dataset);
     if (sec.compare(std::string("privacy_integrity")) == 0) {
@@ -280,7 +315,7 @@ void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {
 
 
 std::vector<uint8_t> read_file_binary(const char* file_name) {
-    std::ifstream file(file_name, std::ios::out | std::ios::binary);
+    std::ifstream file(file_name, std::ios::in | std::ios::binary);
     file.unsetf(std::ios::skipws);
     std::streampos fileSize;
     file.seekg(0, std::ios::end);
@@ -304,7 +339,7 @@ bool write_file_binary(const char* file_name, const std::vector<uint8_t>& conten
 }
 
 std::vector<std::string> read_file_text(const char* file_name) {
-  std::ifstream file(file_name, std::ios::out | std::ios::binary);
+  std::ifstream file(file_name, std::ios::in | std::ios::binary);
   std::vector<std::string> contents;
   copy(std::istream_iterator<std::string>(file),
          std::istream_iterator<std::string>(),

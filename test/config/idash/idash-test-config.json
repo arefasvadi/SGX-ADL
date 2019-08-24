@@ -1,0 +1,27 @@
+{
+    "security": "privacy_integrity",
+    "task": "predict",
+    "network_config": "../test/config/idash/idash.cfg",
+    "data_config": {
+        "train_path": "",
+        "test_path": "",
+        "predict_path": "../test/config/idash/records/predict.list",
+        "enc_predict_path":"../test/config/idash/records_encrypted/predict_encrypted.list",
+        "labels_path": "../test/config/idash/labels.txt",
+        "dims": [12634,1,1],
+        "num_classes":1,
+        "data_type": "float32",
+        "is_image":false,
+        "is_idash":true,
+        "trainSize": 0,
+        "testSize": 0,
+        "predictSize": 102
+    },
+    "weights_save_file": "../test/config/idash/saved-darknet-idash-weights.bin",
+    "enc_weights_save_dir": "../test/config/idash/weights_encrypted/",
+    "weights_load_file": "../test/config/idash/darknet-idash-weights.bin",
+    "enc_weights_load_dir": "../test/config/idash/weights_encrypted/",
+    "enc_weights_order_file":"w-order-lists.txt",
+    "enc_preds_dir":"../test/config/idash/preds_encrypted/",
+    "backup_path": "../test/config/idash/"
+}

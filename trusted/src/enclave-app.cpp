@@ -329,15 +329,16 @@ void ecall_start_predicting() {
   LOG_TRACE("entered in %s\n", __func__)
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   bool res = trainer->loadNetworkConfig();
-  LOG_DEBUG("network config file loaded\n")
+  LOG_INFO("network config file loaded\n")
   if (trainer->secMode == 0) {
     trainer->loadWeightsPlain();
   } else if (trainer->secMode == 2) {
     trainer->loadWeightsEncrypted();
   }
   
-  LOG_DEBUG("weights loaded\n")
+  LOG_INFO("weights loaded\n")
   trainer->predict(false);
+  LOG_INFO("predictions Done!\n")
   LOG_TRACE("finished in %s\n", __func__)
 }
 

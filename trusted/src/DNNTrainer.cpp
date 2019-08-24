@@ -1,5 +1,6 @@
 #include "DNNTrainer.h"
 #include <string>
+#include "sgx_trts.h"
 
 namespace sgx {
 namespace trusted {
@@ -32,6 +33,8 @@ DNNTrainer::DNNTrainer(const std::string &config_file_path,
   trainSize_ = train_size;
   testSize_ = test_size;
   predictSize_ = predict_size;
+
+  predResults_.resize(predictSize_*n_classes);
 }
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
@@ -563,16 +566,52 @@ void DNNTrainer::predict(bool is_plain) {
       }
       //start++;
       matrix pred = network_predict_data(net_, predictData_);
+      #if LOG_LEVEL == LOG_LEVEL_DEBUG_BEYOND
       std::string out_str("");
+      #endif
       for(int i = 0; i < pred.rows; ++i){
+        #if LOG_LEVEL == LOG_LEVEL_DEBUG_BEYOND
         out_str += "predicting of item number: " + std::to_string(curr+i) + " :";
-          for(int j = 0; j < pred.cols; ++j){
-              out_str += "\t"+std::to_string(pred.vals[i][j]);
-          }
+        #endif
+        for(int j = 0; j < pred.cols; ++j){
+            predResults_[(curr+i)*n_classes + j] = pred.vals[i][j];
+            #if LOG_LEVEL == LOG_LEVEL_DEBUG_BEYOND
+            out_str += "\t"+std::to_string(pred.vals[i][j]);
+            #endif
+        }
+        #if LOG_LEVEL == LOG_LEVEL_DEBUG_BEYOND
         out_str += "\n";
+        #endif
       }
-      LOG_INFO("%s",out_str.c_str());
+      LOG_DEBUG("%s",out_str.c_str());
+      
   }
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t> encrypted_res(predResults_.size()*sizeof(float));
+  uint8_t KEY[AES_GCM_KEY_SIZE] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}; 
+  uint8_t IV[AES_GCM_IV_SIZE];
+  
+  ret = sgx_read_rand((unsigned char *)&IV[0], AES_GCM_IV_SIZE);
+  CHECK_SGX_SUCCESS(ret, "rad rand caused problems\n")
+
+  uint8_t TAG[AES_GCM_TAG_SIZE];
+  ret = sgx_rijndael128GCM_encrypt((const sgx_aes_gcm_128bit_key_t *)KEY, (const uint8_t *)&predResults_[0], predResults_.size()*sizeof(float),
+  &encrypted_res[0], &IV[0],AES_GCM_IV_SIZE, NULL, 0,
+  (sgx_aes_gcm_128bit_tag_t *)&TAG[0]);
+  CHECK_SGX_SUCCESS(ret, "encryption failed\n");
+
+  // LOG_DEBUG("key -> is %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
+  //   KEY[0],KEY[1],KEY[2],KEY[3],KEY[4],KEY[5],KEY[6],KEY[7],KEY[8],KEY[9],KEY[10],KEY[11],
+  //   KEY[12],KEY[13],KEY[14],KEY[15]);
+  // LOG_DEBUG("iv -> is %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
+  //   IV[0],IV[1],IV[2],IV[3],IV[4],IV[5],IV[6],IV[7],IV[8],IV[9],IV[10],IV[11]);
+  // LOG_DEBUG("tag -> is %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
+  //   TAG[0],TAG[1],TAG[2],TAG[3],TAG[4],TAG[5],TAG[6],TAG[7],TAG[8],TAG[9],TAG[10],TAG[11],
+  //   TAG[12],TAG[13],TAG[14],TAG[15]);
+
+  ret = ocall_store_preds_encrypted(&encrypted_res[0], encrypted_res.size(), &IV[0], &TAG[0]);
+  CHECK_SGX_SUCCESS(ret, "storing final results failed\n");
+
 }
 
 bool DNNTrainer::loadWeightsPlain() {

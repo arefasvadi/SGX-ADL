@@ -534,6 +534,32 @@ void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start, uint32_t end,
               temp_buff_len);
 }
 
+void ocall_store_preds_encrypted(unsigned char* enc_buff,size_t len, unsigned char* enc_iv, 
+                                 unsigned char* enc_mac) {
+  static int counter = 0;
+  static std::string enc_preds_path = configs["enc_preds_dir"];
+  
+  std::vector<uint8_t> contents_enc,iv,mac;
+  
+  std::string f_name = enc_preds_path + std::to_string(counter) + std::string(".enc");
+  contents_enc.resize(len);
+  std::memcpy(&contents_enc[0], enc_buff, len);
+  write_file_binary(f_name.c_str(), contents_enc);
+  
+  f_name = enc_preds_path + std::to_string(counter) + std::string(".iv");
+  iv.resize(AES_GCM_IV_SIZE);
+  std::memcpy(&iv[0], enc_iv, AES_GCM_IV_SIZE);
+  write_file_binary(f_name.c_str(), iv);
+  
+  f_name = enc_preds_path + std::to_string(counter) + std::string(".tag");
+  mac.resize(AES_GCM_TAG_SIZE);
+  std::memcpy(&mac[0], enc_mac, AES_GCM_TAG_SIZE);
+  write_file_binary(f_name.c_str(), mac);
+
+  counter++;
+  
+}
+
 void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
                                       size_t address_of_C) {
   #ifdef USE_GEMM_THREADING

@@ -71,6 +71,7 @@ private:
   bool prepareBatchPredictPlain(int start);
   sgt::CryptoEngine<uint8_t> cryptoEngine_;
   std::unique_ptr<DNNConfigIO> configIO_;
+  std::vector<float> predResults_;
   
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
   network_blocked *net_blcoked_ = nullptr;

@@ -31,7 +31,6 @@ set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 find_package(Threads REQUIRED)
-find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(OpenSSL REQUIRED)
 #find_library(SSL_LIB libssl.a REQUIRED)
 #find_library(CRYPTO_LIB libcrypto.a REQUIRED)
@@ -279,4 +278,4 @@ set(App_Cpp_Files
   "${Untrusted_Home}"
   "${Untrusted_Home}/include"
   "third_party/darknet/include")
-  target_link_libraries(${Untrusted_Name} nlohmann_json::nlohmann_json OpenSSL::Crypto OpenSSL::SSL Threads::Threads)
+  target_link_libraries(${Untrusted_Name} OpenSSL::Crypto OpenSSL::SSL Threads::Threads)

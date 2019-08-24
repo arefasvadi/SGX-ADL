@@ -53,5 +53,6 @@ enclave {
               void ocall_load_weights_plain(int start,[out,size=weight_len] unsigned char* weight_arr,size_t weight_len);
               void ocall_load_weights_encrypted(int start,[out,size=weight_len] unsigned char* weight_arr, size_t weight_len, [out, size = 12] unsigned char* weights_iv,
                      [out, size = 16] unsigned char* weights_mac,int final_round);
+              void ocall_store_preds_encrypted([in, size=len] unsigned char* enc_buff,size_t len,[in, size = 12] unsigned char* enc_iv, [in, size = 16] unsigned char* enc_mac);
             };
 };
