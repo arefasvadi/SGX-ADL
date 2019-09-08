@@ -129,6 +129,7 @@ if(SGX_FOUND)
         target_link_libraries(${target} "${SGX_COMMON_CFLAGS} \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
+            -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
             -Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tkey_exchange -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
             -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \

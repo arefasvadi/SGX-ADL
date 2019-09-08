@@ -56,3 +56,15 @@ python/backdoor_data_poisoning/test-stat-cdf-bar.png
 python/backdoor_data_poisoning/p-v-cdf-step.png
 
 python/backdoor_data_poisoning/p-v-cdf-bar.png
+
+test/config/idash/__pycache__/
+
+test/config/idash/weight.hdf5
+
+test/config/idash/TAG_weights.tag
+
+test/config/idash/IV_weights.iv
+
+test/config/idash/darknet-idash-weights.bin
+
+test/config/idash/darknet-idash-weights.bin.enc

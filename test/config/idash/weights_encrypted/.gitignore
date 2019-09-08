@@ -1,0 +1,4 @@
+*.enc
+*.iv
+*.tag
+*.txt
