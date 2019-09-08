@@ -41,7 +41,7 @@
 extern int printf(const char *fmt, ...);
 
 static pcg32_random_t gen;
-static bool global_training;
+extern bool global_training;
 
 void set_random_seed(uint64_t s1, uint64_t s2);
 int rand();

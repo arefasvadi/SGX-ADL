@@ -5,7 +5,7 @@
 //#define DO_BLOCK_INPUT
 
 // later remove this to CMAKE
-#define LOG_LEVEL LOG_LEVEL_INFO_BEYOND
+#define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
 
 #define USE_GEMM_THREADING

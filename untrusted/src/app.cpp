@@ -471,7 +471,7 @@ void ocall_load_weights_plain(int start, unsigned char *weight_arr,
     std::string weights_file_str = configs["weights_load_file"];
     plain_weights = read_file_binary(weights_file_str.c_str());
   }
-  std::memcpy(weight_arr,&plain_weights[start],weight_len);
+  std::memcpy(weight_arr, &plain_weights[start], weight_len);
 }
 
 void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
@@ -481,7 +481,7 @@ void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
   static std::vector<std::string> enc_weight_files_order;
   static std::string enc_weights_file_dir;
   static size_t current_w = 0;
-  static std::vector<uint8_t>* curr_enc_weights = nullptr;
+  static std::vector<uint8_t> *curr_enc_weights = nullptr;
   if (first_call) {
     first_call = false;
     enc_weights_file_dir = configs["enc_weights_load_dir"];
@@ -491,24 +491,28 @@ void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
   }
   if (!curr_enc_weights) {
     curr_enc_weights = new std::vector<uint8_t>();
-    std::string temp_str = enc_weights_file_dir + enc_weight_files_order[current_w]+std::string(".enc");
+    std::string temp_str = enc_weights_file_dir +
+                           enc_weight_files_order[current_w] +
+                           std::string(".enc");
     *curr_enc_weights = read_file_binary(temp_str.c_str());
   }
-  
-  std::memcpy(weight_arr,&((*curr_enc_weights)[start]),weight_len);
-  
+
+  std::memcpy(weight_arr, &((*curr_enc_weights)[start]), weight_len);
+
   if (final_round) {
-    std::string temp_str = enc_weights_file_dir + enc_weight_files_order[current_w]+std::string(".iv");
+    std::string temp_str = enc_weights_file_dir +
+                           enc_weight_files_order[current_w] +
+                           std::string(".iv");
     iv_weights = read_file_binary(temp_str.c_str());
     std::memcpy(weights_iv, &iv_weights[0], AES_GCM_IV_SIZE);
-    temp_str = enc_weights_file_dir + enc_weight_files_order[current_w]+std::string(".tag");
+    temp_str = enc_weights_file_dir + enc_weight_files_order[current_w] +
+               std::string(".tag");
     tag_weights = read_file_binary(temp_str.c_str());
     std::memcpy(weights_mac, &tag_weights[0], AES_GCM_TAG_SIZE);
     current_w++;
     delete curr_enc_weights;
     curr_enc_weights = nullptr;
   }
-  
 }
 
 void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) {
@@ -534,35 +538,36 @@ void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start, uint32_t end,
               temp_buff_len);
 }
 
-void ocall_store_preds_encrypted(unsigned char* enc_buff,size_t len, unsigned char* enc_iv, 
-                                 unsigned char* enc_mac) {
+void ocall_store_preds_encrypted(unsigned char *enc_buff, size_t len,
+                                 unsigned char *enc_iv,
+                                 unsigned char *enc_mac) {
   static int counter = 0;
   static std::string enc_preds_path = configs["enc_preds_dir"];
-  
-  std::vector<uint8_t> contents_enc,iv,mac;
-  
-  std::string f_name = enc_preds_path + std::to_string(counter) + std::string(".enc");
+
+  std::vector<uint8_t> contents_enc, iv, mac;
+
+  std::string f_name =
+      enc_preds_path + std::to_string(counter) + std::string(".enc");
   contents_enc.resize(len);
   std::memcpy(&contents_enc[0], enc_buff, len);
   write_file_binary(f_name.c_str(), contents_enc);
-  
+
   f_name = enc_preds_path + std::to_string(counter) + std::string(".iv");
   iv.resize(AES_GCM_IV_SIZE);
   std::memcpy(&iv[0], enc_iv, AES_GCM_IV_SIZE);
   write_file_binary(f_name.c_str(), iv);
-  
+
   f_name = enc_preds_path + std::to_string(counter) + std::string(".tag");
   mac.resize(AES_GCM_TAG_SIZE);
   std::memcpy(&mac[0], enc_mac, AES_GCM_TAG_SIZE);
   write_file_binary(f_name.c_str(), mac);
 
   counter++;
-  
 }
 
 void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
                                       size_t address_of_C) {
-  #ifdef USE_GEMM_THREADING
+#ifdef USE_GEMM_THREADING
   int q = M / AVAIL_THREADS;
   int r = M % AVAIL_THREADS;
   int usable_threads = q == 0 ? 1 : AVAIL_THREADS;
@@ -574,8 +579,9 @@ void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
       M_size += r;
       r = 0;
     }
-    returns[i] = std::async(std::launch::async, &ecall_handle_gemm_cpu_first_mult, global_eid,
-                            curr_M, curr_M+M_size, N, BETA, ldc, address_of_C);
+    returns[i] = std::async(
+        std::launch::async, &ecall_handle_gemm_cpu_first_mult, global_eid,
+        curr_M, curr_M + M_size, N, BETA, ldc, address_of_C);
     curr_M += M_size;
     if (q == 0) {
       break;
@@ -586,13 +592,13 @@ void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
     CHECK_SGX_SUCCESS(
         res, "call to ecall_handle_gemm_cpu_first_mult caused problem!!");
   }
-  #endif
+#endif
 }
 
 void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA,
                            size_t addr_A, int lda, size_t addr_B, int ldb,
                            size_t addr_C, int ldc) {
-  #ifdef USE_GEMM_THREADING
+#ifdef USE_GEMM_THREADING
   int q = M / AVAIL_THREADS;
   int r = M % AVAIL_THREADS;
   int usable_threads = q == 0 ? 1 : AVAIL_THREADS;
@@ -604,9 +610,9 @@ void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA,
       M_size += r;
       r = 0;
     }
-    returns[i] =
-        std::async(std::launch::async, &ecall_handle_gemm_all, global_eid, curr_M, TA, TB, curr_M+M_size,
-                   N, K, ALPHA, addr_A, lda, addr_B, ldb, addr_C, ldc);
+    returns[i] = std::async(std::launch::async, &ecall_handle_gemm_all,
+                            global_eid, curr_M, TA, TB, curr_M + M_size, N, K,
+                            ALPHA, addr_A, lda, addr_B, ldb, addr_C, ldc);
     curr_M += M_size;
     if (q == 0) {
       break;
@@ -616,7 +622,51 @@ void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA,
     auto res = returns[i].get();
     CHECK_SGX_SUCCESS(res, "call to ecall_handle_gemm_all caused problem!!");
   }
-  #endif
+#endif
+}
+
+uint8_t *lbtest_iv = nullptr;
+uint8_t *lbtest_tag = nullptr;
+uint8_t *lbtest_enc = nullptr;
+void ocall_test_long_buffer_encrypt_store(int first, int final,
+                                          size_t complete_len,
+                                          unsigned char *enc, size_t enc_len,
+                                          unsigned char *IV,
+                                          unsigned char *TAG) {
+  static size_t curr = 0;
+  if (first) {
+    lbtest_iv = new uint8_t[AES_GCM_IV_SIZE];
+    lbtest_enc = new uint8_t[complete_len];
+    if (lbtest_enc == NULL) {
+      LOG_ERROR("Could not allocate memory for encrypted buffer");
+    }
+    memcpy(lbtest_iv, IV, AES_GCM_IV_SIZE);
+  }
+
+  if (final) {
+    lbtest_tag = new uint8_t[AES_GCM_TAG_SIZE];
+    memcpy(lbtest_tag, TAG, AES_GCM_TAG_SIZE);
+  } else {
+    memcpy(lbtest_enc + curr, enc, enc_len);
+    curr += enc_len;
+  }
+}
+
+void ocall_test_long_buffer_decrypt_retrieve(int first, size_t index,
+                                             unsigned char *enc, size_t enc_len,
+                                             unsigned char *IV,
+                                             unsigned char *TAG) {
+  //
+  if (first) {
+    std::memcpy(IV, lbtest_iv, AES_GCM_IV_SIZE);
+    // just checking if tag comparison works
+    //lbtest_tag[0] = ~lbtest_tag[0];
+    std::memcpy(TAG, lbtest_tag, AES_GCM_TAG_SIZE);
+
+  }
+  else {
+    std::memcpy(enc, lbtest_enc+index, enc_len);
+  }
 }
 
 void print_timers() {
@@ -625,6 +675,21 @@ void print_timers() {
     LOG_WARN("++ Item %s took about %f seconds\n", s.first.c_str(),
              s.second / 1000000.0)
   }
+}
+
+void test_long_buffer() {
+  const size_t comp_len =523*ONE_MB;
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+
+  ret = ecall_test_long_buffer_encrypt(global_eid,comp_len);
+  CHECK_SGX_SUCCESS(ret,"ecall for long buffer enc caused problem\n")
+  ret = ecall_test_long_buffer_decrypt(global_eid,comp_len);
+  CHECK_SGX_SUCCESS(ret,"ecall for long buffer dec caused problem\n")
+
+  delete[] lbtest_iv;
+  delete[] lbtest_enc;
+  delete[] lbtest_tag;
+
 }
 
 json process_json_config(const std::string &f_path) {
@@ -638,12 +703,18 @@ json process_json_config(const std::string &f_path) {
 int SGX_CDECL main(int argc, char *argv[]) {
   (void)(argc);
   (void)(argv);
+
+  
+
   if (argc < 2) {
     LOG_ERROR("You need to specify the json config file\n");
     abort();
   }
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   configs = process_json_config(std::string(argv[1]));
   LOG_INFO("The loaded config file is:\n%s\n", configs.dump(2).c_str());
+  
+  
 
   initialize_data(tr_pub_params, test_pub_params, predict_pub_params,
                   plain_dataset, encrypted_dataset, plain_test_dataset,
@@ -658,14 +729,14 @@ int SGX_CDECL main(int argc, char *argv[]) {
            (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
                (1 << 20));
 
+  
   /* Initialize the enclave */
   if (initialize_enclave() < 0) {
     LOG_ERROR("Something went wrong. Enter a character before exit ...\n");
     getchar();
     return -1;
   }
-
-  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  
   std::string network_arch_string = configs["network_config"];
   std::string task = configs["task"];
   std::string sec_mode = configs["security"];

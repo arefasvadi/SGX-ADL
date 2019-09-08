@@ -3,9 +3,10 @@
 #include "darknet-addons.h"
 #include "enclave_t.h"
 #include "util.h"
-#if defined(USE_SGX) && defined (USE_SGX_BLOCKING)
+#if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 #include <BlockEngine.hpp>
 #endif
+#include "ipp/ippcp.h"
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
@@ -30,10 +31,11 @@ namespace sgt = ::sgx::trusted;
             "", ""); */
 
 sgt::darknet::DNNTrainer *trainer = nullptr;
+bool global_training = false;
 
 int gpu_index = -1;
 
-#if defined(USE_SGX) && defined (USE_SGX_BLOCKING)
+#if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_x;
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_y;
 static std::shared_ptr<sgt::BlockedBuffer<float, 1>> plain_ds_1d_x;
@@ -54,8 +56,222 @@ int printf(const char *fmt, ...) {
   return 0;
 }
 
-void ecall_enclave_init(const char *net_conf_file,const char *task,const char* sec_mode, int width, 
-                     int height, int channels, int num_classes, int train_size, int test_size,int predict_size) {
+/*!
+ * Helper function to compare expected and actual function return statuses and
+ * display an error mesage if those are different.
+ *
+ * \param[in] Function name to display
+ * \param[in] Expected status
+ * \param[in] Actual status
+ *
+ * \return zero if statuses are not equal, otherwise - non-zero value
+ */
+static int checkStatus(const char *funcName, IppStatus expectedStatus,
+                       IppStatus status) {
+  if (expectedStatus != status) {
+    LOG_ERROR("%s: unexpected return status\n", funcName);
+    LOG_ERROR("Expected: %s\n", ippcpGetStatusString(expectedStatus));
+    LOG_ERROR("Received: %s\n", ippcpGetStatusString(status));
+    return 0;
+  }
+  return 1;
+}
+
+/*
+This test function tries to encrypt a big buffer of size complete_len bytes
+ */
+void ecall_test_long_buffer_encrypt(size_t complete_len) {
+  if (complete_len % sizeof(float) != 0) {
+    LOG_ERROR("complete_len must be divisible by size of float\n")
+    abort();
+  }
+  float current = 0.0;
+  float sum = 0.0;
+  const size_t buffersize = 64 * ONE_KB;
+  IppStatus status = ippStsNoErr;
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  IppsAES_GCMState *pAES = 0;
+  int ctxSize = 0;
+  uint8_t key[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+  uint8_t iv[AES_GCM_IV_SIZE];
+  uint8_t mac[AES_GCM_TAG_SIZE];
+
+  status = ippsAES_GCMGetSize(&ctxSize);
+  if (!checkStatus("ippsAES_GCMGetSize", ippStsNoErr, status)) {
+    abort();
+  }
+  pAES = (IppsAES_GCMState *)(new Ipp8u[ctxSize]);
+  if (NULL == pAES) {
+    LOG_ERROR("ERROR: Cannot allocate memory (%d bytes) for AES context\n",
+              ctxSize);
+    abort();
+  }
+  status = ippsAES_GCMInit(key, AES_GCM_KEY_SIZE, pAES, ctxSize);
+  if (!checkStatus("ippsAES_GCMInit", ippStsNoErr, status)) {
+    abort();
+  }
+  ret = sgx_read_rand(iv, AES_GCM_IV_SIZE);
+  CHECK_SGX_SUCCESS(ret, "could not get random iv\n")
+  status = ippsAES_GCMStart(iv, AES_GCM_IV_SIZE, NULL, 0, pAES);
+  if (!checkStatus("ippsAES_GCMStart", ippStsNoErr, status)) {
+    abort();
+  }
+  size_t q = complete_len / buffersize;
+  size_t r = complete_len % buffersize;
+
+  std::vector<float> nums(buffersize / sizeof(float));
+  std::vector<uint8_t> enc_nums(buffersize);
+  int first = 1;
+  for (size_t i = 0; i < q; ++i) {
+    for (size_t j = 0; j < nums.size(); ++j) {
+      nums[j] = current;
+      sum += current;
+      current += 0.0000000001;
+    }
+    status = ippsAES_GCMEncrypt((const uint8_t *)&nums[0],
+                                (uint8_t *)&enc_nums[0], buffersize, pAES);
+    if (!checkStatus("ippsAES_GCMEncrypt", ippStsNoErr, status)) {
+      abort();
+    }
+    if (first) {
+      // ocall with mac
+      ret = ocall_test_long_buffer_encrypt_store(
+          1, 0, complete_len, &enc_nums[0], buffersize, iv, NULL);
+      CHECK_SGX_SUCCESS(ret, "sending encrypted buffer caused problem")
+      first = 0;
+    } else {
+      ret = ocall_test_long_buffer_encrypt_store(
+          0, 0, complete_len, &enc_nums[0], buffersize, NULL, NULL);
+      CHECK_SGX_SUCCESS(ret, "sending encrypted buffer caused problem")
+    }
+  }
+
+  if (r > 0) {
+    for (size_t j = 0; j < r / sizeof(float); ++j) {
+      nums[j] = current;
+      sum += current;
+      current += 0.0000000001;
+    }
+    status = ippsAES_GCMEncrypt((const uint8_t *)&nums[0],
+                                (uint8_t *)&enc_nums[0], r, pAES);
+    if (!checkStatus("ippsAES_GCMEncrypt", ippStsNoErr, status)) {
+      abort();
+    }
+    if (first) {
+      // ocall with mac
+      ret = ocall_test_long_buffer_encrypt_store(1, 0, complete_len,
+                                                 &enc_nums[0], r, iv, NULL);
+      CHECK_SGX_SUCCESS(ret, "sending encrypted buffer caused problem")
+      first = 0;
+    } else {
+      ret = ocall_test_long_buffer_encrypt_store(0, 0, complete_len,
+                                                 &enc_nums[0], r, NULL, NULL);
+      CHECK_SGX_SUCCESS(ret, "sending encrypted buffer caused problem")
+    }
+  }
+
+  // write mac
+  status = ippsAES_GCMGetTag(mac, AES_GCM_TAG_SIZE, pAES);
+  if (!checkStatus("ippsAES_GCMGetTag", ippStsNoErr, status)) {
+    abort();
+  }
+  ret = ocall_test_long_buffer_encrypt_store(0, 1, complete_len, NULL, 0, NULL,
+                                             mac);
+  CHECK_SGX_SUCCESS(ret, "sending tag buffer caused problem")
+  LOG_DEBUG("The sum for encryoted floats is: %f\n", sum);
+  memset(pAES, 0, ctxSize);
+  delete[] pAES;
+}
+
+void ecall_test_long_buffer_decrypt(size_t complete_len) {
+  if (complete_len % sizeof(float) != 0) {
+    LOG_ERROR("complete_len must be divisible by size of float\n")
+    abort();
+  }
+  float sum = 0.0;
+  const size_t buffersize = 64 * ONE_KB;
+  IppStatus status = ippStsNoErr;
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  IppsAES_GCMState *pAES = 0;
+  int ctxSize = 0;
+  uint8_t key[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+  uint8_t iv[AES_GCM_IV_SIZE];
+  uint8_t mac[AES_GCM_TAG_SIZE];
+  uint8_t processed_mac[AES_GCM_TAG_SIZE];
+
+  status = ippsAES_GCMGetSize(&ctxSize);
+  if (!checkStatus("ippsAES_GCMGetSize", ippStsNoErr, status)) {
+    abort();
+  }
+  pAES = (IppsAES_GCMState *)(new Ipp8u[ctxSize]);
+  if (NULL == pAES) {
+    LOG_ERROR("ERROR: Cannot allocate memory (%d bytes) for AES context\n",
+              ctxSize);
+    abort();
+  }
+  status = ippsAES_GCMInit(key, AES_GCM_KEY_SIZE, pAES, ctxSize);
+  if (!checkStatus("ippsAES_GCMInit", ippStsNoErr, status)) {
+    abort();
+  }
+
+  ret = ocall_test_long_buffer_decrypt_retrieve(1, 0, NULL, 0, iv, mac);
+  CHECK_SGX_SUCCESS(ret, "retrieve caused problem\n")
+  status = ippsAES_GCMStart(iv, AES_GCM_IV_SIZE, NULL, 0, pAES);
+  if (!checkStatus("ippsAES_GCMStart", ippStsNoErr, status)) {
+    abort();
+  }
+  size_t q = complete_len / buffersize;
+  size_t r = complete_len % buffersize;
+
+  std::vector<float> nums(buffersize / sizeof(float));
+  std::vector<uint8_t> enc_nums(buffersize);
+
+  for (size_t i = 0; i < q; ++i) {
+    ret = ocall_test_long_buffer_decrypt_retrieve(
+        0, i * buffersize, &enc_nums[0], buffersize, NULL, NULL);
+    CHECK_SGX_SUCCESS(ret, "retrieve caused problem\n")
+    status = ippsAES_GCMDecrypt((const uint8_t *)&enc_nums[0],
+                                (uint8_t *)&nums[0], buffersize, pAES);
+    if (!checkStatus("ippsAES_GCMDecrypt", ippStsNoErr, status)) {
+      abort();
+    }
+    for (size_t j = 0; j < nums.size(); ++j) {
+      sum += nums[j];
+    }
+  }
+
+  if (r > 0) {
+    ret = ocall_test_long_buffer_decrypt_retrieve(0, q * buffersize,
+                                                  &enc_nums[0], r, NULL, NULL);
+    CHECK_SGX_SUCCESS(ret, "retrieve caused problem\n")
+    status = ippsAES_GCMDecrypt((const uint8_t *)&enc_nums[0],
+                                (uint8_t *)&nums[0], r, pAES);
+    if (!checkStatus("ippsAES_GCMDecrypt", ippStsNoErr, status)) {
+      abort();
+    }
+    for (size_t j = 0; j < r / sizeof(float); ++j) {
+      sum += nums[j];
+    }
+  }
+
+  // check mac
+  status = ippsAES_GCMGetTag(processed_mac, AES_GCM_TAG_SIZE, pAES);
+  if (!checkStatus("ippsAES_GCMGetTag", ippStsNoErr, status)) {
+    abort();
+  }
+  if (std::memcmp(mac, processed_mac, AES_GCM_TAG_SIZE) != 0) {
+    LOG_ERROR("Computed Tag and provided Tag do not match\n")
+    abort();
+  }
+  LOG_DEBUG("The sum for decrypted floats is: %f\n", sum);
+  memset(pAES, 0, ctxSize);
+  delete[] pAES;
+}
+
+void ecall_enclave_init(const char *net_conf_file, const char *task,
+                        const char *sec_mode, int width, int height,
+                        int channels, int num_classes, int train_size,
+                        int test_size, int predict_size) {
   LOG_TRACE("entered enclave_init!\n");
   int s_mode = -1;
   if (strcmp(sec_mode, "plain") == 0) {
@@ -70,13 +286,14 @@ void ecall_enclave_init(const char *net_conf_file,const char *task,const char* s
     LOG_ERROR("Wrong security mode option!\n")
     abort();
   }
-  if (strcmp(task, "train")) {
+  if (strcmp(task, "train") == 0) {
     global_training = true;
-  }
-  else {
+  } else {
     global_training = false;
   }
-  trainer = new sgt::darknet::DNNTrainer(net_conf_file, "", "",s_mode,width,height,channels,num_classes,train_size,test_size,predict_size);
+  trainer = new sgt::darknet::DNNTrainer(net_conf_file, "", "", s_mode, width,
+                                         height, channels, num_classes,
+                                         train_size, test_size, predict_size);
 
   sgx_status_t result = SGX_ERROR_UNEXPECTED;
   uint64_t seed1;
@@ -103,7 +320,7 @@ void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,
                                        int single_size_y_bytes,
                                        int total_items) {
   LOG_TRACE("entered init ptext image data set blocking\n");
-  
+
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING) && defined(DO_BLOCK_INPUT)
   LOG_ERROR("This part needs change!\n");
   abort();
@@ -160,7 +377,7 @@ void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,
 void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,
                                        int single_size_y_bytes,
                                        int total_items) {
-  
+
   LOG_ERROR("This part needs change!\n");
   abort();
   /* LOG_TRACE("entered init ptext image data set blocking\n");
@@ -215,7 +432,7 @@ void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
   abort();
   LOG_TRACE("entered ecall assign random id\n");
   // printf("called with length %d\n", len);
-  
+
   // trainRecordEncrypted *ptr_records = (trainRecordEncrypted *)tr_records;
   // size_t size = len / sizeof(trainRecordEncrypted);
   // auto &crypto_engine = trainer->getCryptoEngine();
@@ -231,8 +448,8 @@ void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
 
   //   auto enc_tuple = std::make_tuple(encData, IV, MAC);
   //   auto decrypted = crypto_engine.decrypt(enc_tuple);
-  //   trainRecordSerialized *ptr_record = (trainRecordSerialized *)&decrypted[0];
-  //   ptr_record->shuffleID = (unsigned int)rand();
+  //   trainRecordSerialized *ptr_record = (trainRecordSerialized
+  //   *)&decrypted[0]; ptr_record->shuffleID = (unsigned int)rand();
 
   //   auto encrypted = crypto_engine.encrypt(decrypted);
   //   encData = std::get<0>(encrypted);
@@ -243,20 +460,19 @@ void ecall_assign_random_id(unsigned char *tr_records, size_t len) {
   //   MAC = std::get<2>(encrypted);
   //   std::memcpy(&(ptr_records[i].MAC[0]), &MAC[0], 16);
 
-    
-    // std::vector<uint8_t> encDatak(sizeof(trainRecordSerialized));
-    // std::memcpy(&encDatak[0], &(ptr_records[i].encData),
-    // sizeof(trainRecordSerialized));
-    // std::array<uint8_t, 12> IVk;
-    // std::memcpy(&IVk[0], &(ptr_records[i].IV[0]) , 12);
-    // std::array<uint8_t, 16> MACk;
-    // std::memcpy(&MACk[0], &(ptr_records[i].MAC[0]), 16);
+  // std::vector<uint8_t> encDatak(sizeof(trainRecordSerialized));
+  // std::memcpy(&encDatak[0], &(ptr_records[i].encData),
+  // sizeof(trainRecordSerialized));
+  // std::array<uint8_t, 12> IVk;
+  // std::memcpy(&IVk[0], &(ptr_records[i].IV[0]) , 12);
+  // std::array<uint8_t, 16> MACk;
+  // std::memcpy(&MACk[0], &(ptr_records[i].MAC[0]), 16);
 
-    // auto enc_tuplek = std::make_tuple(encDatak, IVk, MACk);
-    // auto decryptedk = crypto_engine.decrypt(enc_tuplek);
-    // printf("waiting for illegal!\n");
+  // auto enc_tuplek = std::make_tuple(encDatak, IVk, MACk);
+  // auto decryptedk = crypto_engine.decrypt(enc_tuplek);
+  // printf("waiting for illegal!\n");
 
-    LOG_TRACE("finished ecall assign random id\n");
+  LOG_TRACE("finished ecall assign random id\n");
   //}
 }
 
@@ -339,7 +555,7 @@ void ecall_start_predicting() {
   } else if (trainer->secMode == 2) {
     trainer->loadWeightsEncrypted();
   }
-  
+
   LOG_INFO("weights loaded\n")
   trainer->predict(false);
   LOG_INFO("predictions Done!\n")
@@ -364,53 +580,50 @@ void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K,
   float *B = (float *)addr_B;
   float *C = (float *)addr_C;
   if (!TA && !TB) {
-    //gemm_nn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
-    int i,j,k;
-    for(i = starter_M; i < M; ++i){
-        for(k = 0; k < K; ++k){
-            register float A_PART = ALPHA*A[i*lda+k];
-            for(j = 0; j < N; ++j){
-                C[i*ldc+j] += A_PART*B[k*ldb+j];
-            }
+    // gemm_nn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i, j, k;
+    for (i = starter_M; i < M; ++i) {
+      for (k = 0; k < K; ++k) {
+        register float A_PART = ALPHA * A[i * lda + k];
+        for (j = 0; j < N; ++j) {
+          C[i * ldc + j] += A_PART * B[k * ldb + j];
         }
+      }
     }
-  }
-  else if (TA && !TB) {
-    //gemm_tn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
-    int i,j,k;
-    for(i = starter_M; i < M; ++i){
-        for(k = 0; k < K; ++k){
-            register float A_PART = ALPHA*A[k*lda+i];
-            for(j = 0; j < N; ++j){
-                C[i*ldc+j] += A_PART*B[k*ldb+j];
-            }
+  } else if (TA && !TB) {
+    // gemm_tn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i, j, k;
+    for (i = starter_M; i < M; ++i) {
+      for (k = 0; k < K; ++k) {
+        register float A_PART = ALPHA * A[k * lda + i];
+        for (j = 0; j < N; ++j) {
+          C[i * ldc + j] += A_PART * B[k * ldb + j];
         }
+      }
     }
-  }
-  else if (!TA && TB) {
-    //gemm_nt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
-    int i,j,k;
-    for(i = starter_M; i < M; ++i){
-        for(j = 0; j < N; ++j){
-            register float sum = 0;
-            for(k = 0; k < K; ++k){
-                sum += ALPHA*A[i*lda+k]*B[j*ldb + k];
-            }
-            C[i*ldc+j] += sum;
+  } else if (!TA && TB) {
+    // gemm_nt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i, j, k;
+    for (i = starter_M; i < M; ++i) {
+      for (j = 0; j < N; ++j) {
+        register float sum = 0;
+        for (k = 0; k < K; ++k) {
+          sum += ALPHA * A[i * lda + k] * B[j * ldb + k];
         }
+        C[i * ldc + j] += sum;
+      }
     }
-  }
-  else {
-    //gemm_tt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
-    int i,j,k;
-    for(i = starter_M; i < M; ++i){
-        for(j = 0; j < N; ++j){
-            register float sum = 0;
-            for(k = 0; k < K; ++k){
-                sum += ALPHA*A[i+k*lda]*B[k+j*ldb];
-            }
-            C[i*ldc+j] += sum;
+  } else {
+    // gemm_tt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
+    int i, j, k;
+    for (i = starter_M; i < M; ++i) {
+      for (j = 0; j < N; ++j) {
+        register float sum = 0;
+        for (k = 0; k < K; ++k) {
+          sum += ALPHA * A[i + k * lda] * B[k + j * ldb];
         }
+        C[i * ldc + j] += sum;
+      }
     }
   }
 }
