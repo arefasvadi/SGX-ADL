@@ -27,6 +27,8 @@
 
 #define BLOCKING_TOTAL_ITEMS_IN_CACHE (1 * ONE_KB)
 
+#define SGX_LAYERWISE_MAX_LAYER_SIZE (30*ONE_MB)
+
 // Later define with enums and constexpr if
 // possible values CACHE_FIFO, CACHE_LRU
 #define CACHE_LRU
