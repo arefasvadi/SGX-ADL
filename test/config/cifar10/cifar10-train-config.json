@@ -1,7 +1,8 @@
 {
-    "security": "privacy_integrity",
+    "security": "plain",
     "task": "train",
     "network_config": "../test/config/cifar10/cifar_small.cfg",
+    "GPU_SGX_verify":false,
     "data_config": {
         "train_path": "../test/config/cifar10/train.list",
         "test_path": "../test/config/cifar10/test.list",
@@ -11,7 +12,8 @@
         "data_type": "float32",
         "is_image":true,
         "trainSize": 50000,
-        "testSize": 10000
+        "testSize": 10000,
+        "predictSize": 0
     },
     "weights_save_file": "../test/config/cifar10/cifar-small-weights.bin",
     "weights_load_file": "../test/config/cifar10/cifar-small-weights.bin",

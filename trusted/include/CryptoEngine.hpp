@@ -18,7 +18,7 @@ namespace trusted {
 // TODO: maybe in future this class should be written with templates for wider
 // support.
 // TODO: make sure the class is non-copiable and non-movable
-// TODO: IV should is not secure, do not use for production code
+// TODO: IV is not secure, do not use for production code
 namespace std = ::std;
 template <typename T = uint8_t> class CryptoEngine {
 public:

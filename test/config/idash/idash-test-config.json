@@ -17,6 +17,7 @@
         "testSize": 0,
         "predictSize": 102
     },
+    "weights_file": "../test/config/idash/saved-darknet-idash-weights.bin",
     "weights_save_file": "../test/config/idash/saved-darknet-idash-weights.bin",
     "enc_weights_save_dir": "../test/config/idash/weights_encrypted/",
     "weights_load_file": "../test/config/idash/darknet-idash-weights.bin",

@@ -23,9 +23,8 @@
 
 #include "CryptoEngine.hpp"
 #include "app.h"
-#include "enclave_u.h"
-#include "sgx_uae_service.h"
-#include "sgx_urts.h"
+#include "Channel/IChannel.h"
+
 
 using json = nlohmann::json;
 
@@ -58,14 +57,16 @@ std::vector<uint8_t> encrypted_weights;
 std::vector<uint8_t> iv_weights;
 std::vector<uint8_t> tag_weights;
 
-json configs;
-
+// json configs;
+RunConfig run_config;
 // std::unordered_map<std::string, timeTracker> grand_timer;
 std::map<std::string, timeTracker> grand_timer;
 std::map<std::string, double> duration_map;
 
 std::unordered_map<uint32_t, std::vector<unsigned char>> layerwise_contents;
 std::unordered_map<int64_t, std::vector<unsigned char>> all_blocks;
+
+std::unordered_map<IChannelBase::IChannelIDType,std::unique_ptr<IChannelBase>> channel_registery;
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
@@ -268,6 +269,10 @@ int initialize_enclave(void) {
   return 0;
 }
 
+sgx_status_t dest_enclave(const sgx_enclave_id_t enclave_id) {
+  sgx_destroy_enclave(global_eid);
+}
+
 /* OCall functions */
 void ocall_print_string(const char *str) {
   /* Proxy/Bridge will check the length and null-terminate
@@ -468,7 +473,7 @@ void ocall_load_weights_plain(int start, unsigned char *weight_arr,
   static bool first_call = true;
   if (first_call) {
     first_call = false;
-    std::string weights_file_str = configs["weights_load_file"];
+    std::string weights_file_str = std::string(run_config.finalized_weights_file_path);
     plain_weights = read_file_binary(weights_file_str.c_str());
   }
   std::memcpy(weight_arr, &plain_weights[start], weight_len);
@@ -477,42 +482,15 @@ void ocall_load_weights_plain(int start, unsigned char *weight_arr,
 void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
                                   size_t weight_len, unsigned char *weights_iv,
                                   unsigned char *weights_mac, int final_round) {
-  static bool first_call = true;
-  static std::vector<std::string> enc_weight_files_order;
-  static std::string enc_weights_file_dir;
-  static size_t current_w = 0;
-  static std::vector<uint8_t> *curr_enc_weights = nullptr;
+  LOG_ERROR("ocall load weights encrypted not entirely implemented!\n");
+  abort();
+  /*static bool first_call = true;
   if (first_call) {
     first_call = false;
-    enc_weights_file_dir = configs["enc_weights_load_dir"];
-    std::string enc_weights_order_file = configs["enc_weights_order_file"];
-    enc_weights_order_file = enc_weights_file_dir + enc_weights_order_file;
-    enc_weight_files_order = read_file_text(enc_weights_order_file.c_str());
+    std::string weights_file_str = std::string(run_config.finalized_weights_file_path);
+    plain_weights = read_file_binary(weights_file_str.c_str());
   }
-  if (!curr_enc_weights) {
-    curr_enc_weights = new std::vector<uint8_t>();
-    std::string temp_str = enc_weights_file_dir +
-                           enc_weight_files_order[current_w] +
-                           std::string(".enc");
-    *curr_enc_weights = read_file_binary(temp_str.c_str());
-  }
-
-  std::memcpy(weight_arr, &((*curr_enc_weights)[start]), weight_len);
-
-  if (final_round) {
-    std::string temp_str = enc_weights_file_dir +
-                           enc_weight_files_order[current_w] +
-                           std::string(".iv");
-    iv_weights = read_file_binary(temp_str.c_str());
-    std::memcpy(weights_iv, &iv_weights[0], AES_GCM_IV_SIZE);
-    temp_str = enc_weights_file_dir + enc_weight_files_order[current_w] +
-               std::string(".tag");
-    tag_weights = read_file_binary(temp_str.c_str());
-    std::memcpy(weights_mac, &tag_weights[0], AES_GCM_TAG_SIZE);
-    current_w++;
-    delete curr_enc_weights;
-    curr_enc_weights = nullptr;
-  }
+  std::memcpy(weight_arr, &plain_weights[start], weight_len);*/
 }
 
 void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) {
@@ -542,10 +520,11 @@ void ocall_store_preds_encrypted(unsigned char *enc_buff, size_t len,
                                  unsigned char *enc_iv,
                                  unsigned char *enc_mac) {
   static int counter = 0;
-  static std::string enc_preds_path = configs["enc_preds_dir"];
+  static std::string enc_preds_path = run_config.predict_file_path;
 
   std::vector<uint8_t> contents_enc, iv, mac;
-
+  LOG_ERROR("This function needs reimplementing\n");
+  abort();
   std::string f_name =
       enc_preds_path + std::to_string(counter) + std::string(".enc");
   contents_enc.resize(len);
@@ -568,26 +547,66 @@ void ocall_store_preds_encrypted(unsigned char *enc_buff, size_t len,
 void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
                                       size_t address_of_C) {
 #ifdef USE_GEMM_THREADING
-  int q = M / AVAIL_THREADS;
-  int r = M % AVAIL_THREADS;
-  int usable_threads = q == 0 ? 1 : AVAIL_THREADS;
-  std::future<sgx_status_t> returns[usable_threads];
-  int curr_M = 0;
-  for (int i = 0; i < usable_threads; ++i) {
-    int M_size = q;
-    if (r > 0) {
-      M_size += r;
-      r = 0;
+  int qm = 0, rm = 0, qn = 0, rn = 0;
+  int available_threads = (AVAIL_THREADS);
+  const int efficiency_per_thread = 512;
+  if (M * N / available_threads < efficiency_per_thread) {
+    int needed_threads = M * N / efficiency_per_thread;
+    if (needed_threads == 0) {
+      available_threads = 1;
+    } else {
+      available_threads = needed_threads;
     }
-    returns[i] = std::async(
-        std::launch::async, &ecall_handle_gemm_cpu_first_mult, global_eid,
-        curr_M, curr_M + M_size, N, BETA, ldc, address_of_C);
+  }
+  int row_threads = (available_threads / 2) + (available_threads % 2);
+  int col_threads = (available_threads / row_threads);
+  if (M < N) {
+    int temp = row_threads;
+    row_threads = col_threads;
+    col_threads = temp;
+  }
+  qm = M / (row_threads);
+  rm = M % (row_threads);
+  qn = N / (col_threads);
+  rn = N % (col_threads);
+
+  int usable_threads_row = qm == 0 ? 1 : row_threads;
+  int usable_threads_col = qn == 0 ? 1 : col_threads;
+
+  // LOG_DEBUG("gemm_cpu_first called with
+  // M:%d,N:%d,available_threads=%d,qm=%d,rm=%d,qn=%d,rn=%d,row_threads=%d,col_threads=%d,usable_row=%d,usable_col=%d\n",M,N,available_threads,qm,rm,qn,rn,row_threads,col_threads,usable_threads_row,usable_threads_col)
+
+  std::future<sgx_status_t> returns[usable_threads_row * usable_threads_col];
+  int curr_M = 0;
+  for (int i = 0; i < usable_threads_row; ++i) {
+    int M_size = qm;
+    if (rm > 0) {
+      M_size += rm;
+      rm = 0;
+    }
+    int rn_temp = rn;
+    int curr_N = 0;
+    for (int j = 0; j < usable_threads_col; ++j) {
+      int N_size = qn;
+      if (rn_temp > 0) {
+        N_size += rn_temp;
+        rn_temp = 0;
+      }
+      returns[i * usable_threads_col + j] =
+          std::async(std::launch::async, &ecall_handle_gemm_cpu_first_mult,
+                     global_eid, curr_M, curr_N, curr_M + M_size,
+                     curr_N + N_size, BETA, ldc, address_of_C);
+      curr_N += N_size;
+      if (qn == 0) {
+        break;
+      }
+    }
     curr_M += M_size;
-    if (q == 0) {
+    if (qm == 0) {
       break;
     }
   }
-  for (int i = 0; i < usable_threads; ++i) {
+  for (int i = 0; i < usable_threads_row * usable_threads_col; ++i) {
     auto res = returns[i].get();
     CHECK_SGX_SUCCESS(
         res, "call to ecall_handle_gemm_cpu_first_mult caused problem!!");
@@ -599,26 +618,66 @@ void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA,
                            size_t addr_A, int lda, size_t addr_B, int ldb,
                            size_t addr_C, int ldc) {
 #ifdef USE_GEMM_THREADING
-  int q = M / AVAIL_THREADS;
-  int r = M % AVAIL_THREADS;
-  int usable_threads = q == 0 ? 1 : AVAIL_THREADS;
-  std::future<sgx_status_t> returns[usable_threads];
-  int curr_M = 0;
-  for (int i = 0; i < usable_threads; ++i) {
-    int M_size = q;
-    if (r > 0) {
-      M_size += r;
-      r = 0;
+  int qm = 0, rm = 0, qn = 0, rn = 0;
+  int available_threads = (AVAIL_THREADS);
+  const int efficiency_per_thread = 512;
+  if (M * N / available_threads < efficiency_per_thread) {
+    int needed_threads = M * N / efficiency_per_thread;
+    if (needed_threads == 0) {
+      available_threads = 1;
+    } else {
+      available_threads = needed_threads;
     }
-    returns[i] = std::async(std::launch::async, &ecall_handle_gemm_all,
-                            global_eid, curr_M, TA, TB, curr_M + M_size, N, K,
-                            ALPHA, addr_A, lda, addr_B, ldb, addr_C, ldc);
+  }
+  int row_threads = (available_threads / 2) + (available_threads % 2);
+  int col_threads = (available_threads / row_threads);
+  if (M < N) {
+    int temp = row_threads;
+    row_threads = col_threads;
+    col_threads = temp;
+  }
+  qm = M / (row_threads);
+  rm = M % (row_threads);
+  qn = N / (col_threads);
+  rn = N % (col_threads);
+
+  int usable_threads_row = qm == 0 ? 1 : row_threads;
+  int usable_threads_col = qn == 0 ? 1 : col_threads;
+
+  // LOG_DEBUG("gemm_cpu_all called with
+  // M:%d,N:%d,available_threads=%d,qm=%d,rm=%d,qn=%d,rn=%d,row_threads=%d,col_threads=%d,usable_row=%d,usable_col=%d\n",M,N,available_threads,qm,rm,qn,rn,row_threads,col_threads,usable_threads_row,usable_threads_col)
+
+  std::future<sgx_status_t> returns[usable_threads_row * usable_threads_col];
+  int curr_M = 0;
+  for (int i = 0; i < usable_threads_row; ++i) {
+    int M_size = qm;
+    if (rm > 0) {
+      M_size += rm;
+      rm = 0;
+    }
+    int rn_temp = rn;
+    int curr_N = 0;
+    for (int j = 0; j < usable_threads_col; ++j) {
+      int N_size = qn;
+      if (rn_temp > 0) {
+        N_size += rn_temp;
+        rn_temp = 0;
+      }
+      returns[i * usable_threads_col + j] =
+          std::async(std::launch::async, &ecall_handle_gemm_all, global_eid,
+                     curr_M, curr_N, TA, TB, curr_M + M_size, curr_N + N_size,
+                     K, ALPHA, addr_A, lda, addr_B, ldb, addr_C, ldc);
+      curr_N += N_size;
+      if (qn == 0) {
+        break;
+      }
+    }
     curr_M += M_size;
-    if (q == 0) {
+    if (qm == 0) {
       break;
     }
   }
-  for (int i = 0; i < usable_threads; ++i) {
+  for (int i = 0; i < usable_threads_row * usable_threads_col; ++i) {
     auto res = returns[i].get();
     CHECK_SGX_SUCCESS(res, "call to ecall_handle_gemm_all caused problem!!");
   }
@@ -660,12 +719,11 @@ void ocall_test_long_buffer_decrypt_retrieve(int first, size_t index,
   if (first) {
     std::memcpy(IV, lbtest_iv, AES_GCM_IV_SIZE);
     // just checking if tag comparison works
-    //lbtest_tag[0] = ~lbtest_tag[0];
+    // lbtest_tag[0] = ~lbtest_tag[0];
     std::memcpy(TAG, lbtest_tag, AES_GCM_TAG_SIZE);
 
-  }
-  else {
-    std::memcpy(enc, lbtest_enc+index, enc_len);
+  } else {
+    std::memcpy(enc, lbtest_enc + index, enc_len);
   }
 }
 
@@ -678,143 +736,171 @@ void print_timers() {
 }
 
 void test_long_buffer() {
-  const size_t comp_len =523*ONE_MB;
+  const size_t comp_len = 523 * ONE_MB;
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-  ret = ecall_test_long_buffer_encrypt(global_eid,comp_len);
-  CHECK_SGX_SUCCESS(ret,"ecall for long buffer enc caused problem\n")
-  ret = ecall_test_long_buffer_decrypt(global_eid,comp_len);
-  CHECK_SGX_SUCCESS(ret,"ecall for long buffer dec caused problem\n")
+  ret = ecall_test_long_buffer_encrypt(global_eid, comp_len);
+  CHECK_SGX_SUCCESS(ret, "ecall for long buffer enc caused problem\n")
+  ret = ecall_test_long_buffer_decrypt(global_eid, comp_len);
+  CHECK_SGX_SUCCESS(ret, "ecall for long buffer dec caused problem\n")
 
   delete[] lbtest_iv;
   delete[] lbtest_enc;
   delete[] lbtest_tag;
-
 }
 
-json process_json_config(const std::string &f_path) {
+void ocall_setup_channel(uint64_t chan_id,int channel_type) {
+  auto new_channel = IChannelBase::GetNewChannel((IChannelBase::ChannelType)chan_id, true, chan_id);
+  channel_registery[chan_id] = std::move(new_channel);
+}
+
+void ocall_tearup_channel(uint64_t chan_id) {
+   channel_registery.erase(chan_id);
+}
+
+void ocall_send_to_channel(uint64_t chan_id, unsigned char* buff, size_t len) {
+  LOG_DEBUG("Channel %u received a buffer with %u bytes from enclave!\n",chan_id,len);
+}
+
+void ocall_receive_from_channel(uint64_t chan_id,unsigned char* buff, size_t len) {
+  LOG_DEBUG("Channel %u is about to send a buffer with %u bytes to enclave!\n",chan_id,len);
+}
+
+
+RunConfig process_json_config(const std::string &f_path) {
   std::ifstream json_in(f_path);
-  json j;
-  json_in >> j;
-  return j;
-}
-
-/* Application entry */
-int SGX_CDECL main(int argc, char *argv[]) {
-  (void)(argc);
-  (void)(argv);
-
+  json configs;
+  json_in >> configs;
+  LOG_DEBUG("The loaded config file is:\n%s\n", configs.dump(2).c_str());
+  RunConfig run_config = {};
   
-
-  if (argc < 2) {
-    LOG_ERROR("You need to specify the json config file\n");
+  bool GPU_SGX_verify = false;
+  if (configs.find("GPU_SGX_verify") != configs.end()) {
+    GPU_SGX_verify = configs["GPU_SGX_verify"];
+  }
+  if (configs.find("task") == configs.end()) {
+    LOG_ERROR("You need to define the DNNTask\n");
     abort();
   }
-  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-  configs = process_json_config(std::string(argv[1]));
-  LOG_INFO("The loaded config file is:\n%s\n", configs.dump(2).c_str());
   
-  
-
-  initialize_data(tr_pub_params, test_pub_params, predict_pub_params,
-                  plain_dataset, encrypted_dataset, plain_test_dataset,
-                  encrypted_test_dataset, plain_predict_dataset,
-                  encrypted_predict_dataset, crypto_engine);
-
-  LOG_INFO("Size of plain data is: %fMB\n",
-           (double)(plain_dataset.size() * sizeof(plain_dataset[0])) /
-               (1 << 20));
-
-  LOG_INFO("Size of encrypted data is: %fMB\n",
-           (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
-               (1 << 20));
-
-  
-  /* Initialize the enclave */
-  if (initialize_enclave() < 0) {
-    LOG_ERROR("Something went wrong. Enter a character before exit ...\n");
-    getchar();
-    return -1;
-  }
-  
-  std::string network_arch_string = configs["network_config"];
   std::string task = configs["task"];
-  std::string sec_mode = configs["security"];
-  ret = ecall_enclave_init(
-      global_eid, network_arch_string.c_str(), task.c_str(), sec_mode.c_str(),
-      configs["data_config"]["dims"][0], configs["data_config"]["dims"][1],
-      configs["data_config"]["dims"][2], configs["data_config"]["num_classes"],
-      configs["data_config"]["trainSize"], configs["data_config"]["testSize"],
-      configs["data_config"]["predictSize"]);
-  if (ret != SGX_SUCCESS) {
-    LOG_ERROR("ecall init enclave caused problem! Error code is %#010\n", ret);
-    abort();
-  }
-
-  /* ret = ecall_singal_convolution(global_eid, 20000000, 10000);
-  if (ret != SGX_SUCCESS) {
-    printf("ecall for signal conv caused problem! Error code is %#010\n", ret);
-    abort();
-  } */
-
-  /* ret = ecall_matrix_mult(global_eid,1000,1000,1000,1000);
-  if (ret != SGX_SUCCESS) {
-    printf("ecall for matrix multiplication caused problem! Error code is
-  %#010\n", ret); abort();
-  } */
-
-  /* ret = ecall_init_ptext_imgds_blocking2D(
-      global_eid, sizeof(plain_dataset[0].data), sizeof(plain_dataset[0].label),
-      plain_dataset.size());
-  CHECK_SGX_SUCCESS(
-      ret, "ecall to init plaintext image dataset blocking wa unsuccessful!\n");
-*/
-
-  /* random_id_assign(encrypted_dataset);
-
-  ret = ecall_initial_sort(global_eid);
-  if (ret != SGX_SUCCESS) {
-    LOG_ERROR(
-        "ecall initial sort enclave caused problem! Error code is %#010X\n ",
-        ret);
-    abort();
-  }
-
-  LOG_DEBUG("check for sorting started\n");
-  ret = ecall_check_for_sort_correctness(global_eid);
-  if (ret != SGX_SUCCESS) {
-    LOG_ERROR("ecall checking sort correctness caused problem! Error code is "
-              "%#010X\n ",
-              ret);
-    abort();
-  }
-  LOG_DEBUG("check for sorting finished successfully\n"); */
-
   if (task.compare(std::string("train")) == 0) {
-    LOG_DEBUG("starting the training...\n");
-    ret = ecall_start_training(global_eid);
-    if (ret != SGX_SUCCESS) {
-      LOG_ERROR("ecall start training caused problem! Error code is %#010X\n",
-                ret);
-      abort();
+    if (GPU_SGX_verify) {
+      run_config.common_config.task = DNNTaskType::TASK_TRAIN_GPU_VERIFY_SGX;
+    } else {
+      run_config.common_config.task = DNNTaskType::TASK_TRAIN_SGX;
     }
-    LOG_DEBUG("finished the training\n");
   } else if (task.compare(std::string("test")) == 0) {
-    LOG_ERROR("TEST NOT IMPLEMENTED\n")
-    abort();
+    if (GPU_SGX_verify) {
+      run_config.common_config.task = DNNTaskType::TASK_TEST_GPU_VERIFY_SGX;
+    } else {
+      run_config.common_config.task = DNNTaskType::TASK_TEST_SGX;
+    }
   } else if (task.compare(std::string("predict")) == 0) {
-    LOG_DEBUG("starting the prediction...\n");
-    ret = ecall_start_predicting(global_eid);
-    if (ret != SGX_SUCCESS) {
-      LOG_ERROR("ecall start predicting caused problem! Error code is %#010X\n",
-                ret);
-      abort();
+    if (GPU_SGX_verify) {
+      run_config.common_config.task = DNNTaskType::TASK_INFER_GPU_VERIFY_SGX;
+    } else {
+      run_config.common_config.task = DNNTaskType::TASK_INFER_SGX;
     }
   }
 
-  /* Destroy the enclave */
-  sgx_destroy_enclave(global_eid);
+  if (configs.find("network_config") == configs.end()) {
+    LOG_ERROR("You need to define the network_config field\n");
+    abort();
+  }
+  std::string network_arch_string = configs["network_config"];
+  if (network_arch_string.size() > 255) {
+    LOG_ERROR("network_config file path must not be more than 255 characters\n");
+    abort();
+  }
+  strcpy(run_config.common_config.network_arch_file, network_arch_string.c_str());
 
-  print_timers();
-  return 0;
+  if (configs.find("security") == configs.end()) {
+    LOG_ERROR("You need to define the security field\n");
+    abort();
+  }
+  std::string sec_mode = configs["security"];
+  if (sec_mode.compare("plain") == 0) {
+    run_config.common_config.sec_strategy = SecStrategyType::SEC_PLAIN;
+  } else if (sec_mode.compare("integrity") == 0) {
+    run_config.common_config.sec_strategy = SecStrategyType::SEC_INTEGRITY;
+  } else if (sec_mode.compare("privacy") == 0) {
+    run_config.common_config.sec_strategy = SecStrategyType::SEC_PRIVACY;
+  } else if (sec_mode.compare("privacy_integrity") == 0) {
+    run_config.common_config.sec_strategy = SecStrategyType::SEC_PRIVACY_INTEGRITY;
+  }
+
+  if (configs.find("data_config") == configs.end()) {
+    LOG_ERROR("You need to define the data_config field\n");
+    abort();
+  }
+  if (configs["data_config"].find("dims") == configs["data_config"].end()) {
+    LOG_ERROR("You need to define the dims field\n");
+    abort();
+  }
+  run_config.common_config.input_shape.width = configs["data_config"]["dims"][0];
+  run_config.common_config.input_shape.height = configs["data_config"]["dims"][1];
+  run_config.common_config.input_shape.channels = configs["data_config"]["dims"][2];
+  
+  if (configs["data_config"].find("num_classes") == configs["data_config"].end()) {
+    LOG_ERROR("You need to define the num_classes field\n");
+    abort();
+  }
+  run_config.common_config.output_shape.num_classes = configs["data_config"]["num_classes"];
+
+  if (configs["data_config"].find("trainSize") == configs["data_config"].end()) {
+    LOG_ERROR("You need to define the trainSize field\n");
+    abort();
+  }
+  if (configs["data_config"].find("testSize") == configs["data_config"].end()) {
+    LOG_ERROR("You need to define the testSize field\n");
+    abort();
+  }
+  if (configs["data_config"].find("predictSize") == configs["data_config"].end()) {
+    LOG_ERROR("You need to define the predictSize field\n");
+    abort();
+  }
+  run_config.common_config.train_size = configs["data_config"]["trainSize"];
+  run_config.common_config.test_size = configs["data_config"]["testSize"];
+  run_config.common_config.predict_size = configs["data_config"]["predictSize"];
+  
+  if (configs["data_config"].find("is_image") != configs["data_config"].end()) {
+    run_config.is_image = configs["data_config"]["is_image"];
+  }
+  if (configs["data_config"].find("is_idash") != configs["data_config"].end()) {
+    run_config.is_idash = configs["data_config"]["is_idash"];
+  }
+
+  if (configs["data_config"].find("train_path") != configs["data_config"].end()) {    
+    std::string train_path = configs["data_config"]["train_path"];
+    strcpy(run_config.train_file_path, train_path.c_str());
+  }
+
+  if (configs["data_config"].find("test_path") != configs["data_config"].end()) {    
+    std::string test_path = configs["data_config"]["test_path"];
+    strcpy(run_config.test_file_path, test_path.c_str());
+  }
+
+  if (configs["data_config"].find("predict_path") != configs["data_config"].end()) {    
+    std::string predict_path = configs["data_config"]["predict_path"];
+    strcpy(run_config.predict_file_path, predict_path.c_str());
+  }
+
+  if (configs["data_config"].find("labels_path") != configs["data_config"].end()) {    
+    std::string labels_path = configs["data_config"]["labels_path"];
+    strcpy(run_config.labels_file_path, labels_path.c_str());
+  }
+
+  if (configs.find("backup_path") != configs.end()) {    
+    std::string backup_path = configs["backup_path"];
+    strcpy(run_config.backups_dir_path, backup_path.c_str());
+  }
+
+  if (configs.find("weights_file") != configs.end()) {    
+    std::string weights_path = configs["weights_file"];
+    strcpy(run_config.finalized_weights_file_path, weights_path.c_str());
+  }
+  
+
+  return run_config;
 }

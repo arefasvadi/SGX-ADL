@@ -16,42 +16,34 @@ namespace darknet {
 namespace sgt = ::sgx::trusted;
 namespace std = ::std;
 
-enum class DNNTask {
-  NO_TASK,
-  TRAIN,
-  VALIDATION,
-  TEST,
-  PREDICTION
-};
+enum class DNNTask { NO_TASK, TRAIN, VALIDATION, TEST, PREDICTION };
 
 class DNNTrainer {
 public:
-  explicit DNNTrainer(const std::string &config_file_path,
+  explicit DNNTrainer(const char *config_file_path,
                       const std::string &param_dir_path,
-                      const std::string &data_dir_path,int security_mode,int width, 
-                     int height, int channels,int num_classes, int train_size, int test_size,int predict_size);
+                      const std::string &data_dir_path,
+                      SecStrategyType security_mode, int width, int height,
+                      int channels, int num_classes, int train_size,
+                      int test_size, int predict_size);
 
   bool loadNetworkConfig();
-  bool loadWeightsPlain();
-  bool loadWeightsEncrypted();
+  bool loadWeights();
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
   bool loadNetworkConfigBlocked();
   void trainBlocked();
-  void loadTrainDataBlocked(
-      std::shared_ptr<sgt::BlockedBuffer<float, 2>> XBlocked_,
-      std::shared_ptr<sgt::BlockedBuffer<float, 2>> YBlocked_);
+  void
+  loadTrainDataBlocked(std::shared_ptr<sgt::BlockedBuffer<float, 2>> XBlocked_,
+                       std::shared_ptr<sgt::BlockedBuffer<float, 2>> YBlocked_);
   bool prepareBatchTrainBlocked(int start);
   bool prepareBatchTrainBlockedDirect();
 #endif
-  inline sgt::CryptoEngine<uint8_t> &getCryptoEngine() {
-    return cryptoEngine_;
-  };
+  sgt::CryptoEngine<uint8_t> &getCryptoEngine();
   void intitialSort();
-  void train(bool is_plain = false);
-  void test(bool is_plain = false);
-  void predict(bool is_plain = false);
-  
+  void train();
+  void test();
+  void predict();
 
   int trainSize_;
   int testSize_;
@@ -60,8 +52,8 @@ public:
   int h;
   int c;
   int n_classes;
-  int secMode = -1;
-  //DNNTask currTask_;
+  SecStrategyType secMode;
+  // DNNTask currTask_;
 private:
   bool prepareBatchTrainEncrypted(int start);
   bool prepareBatchTrainPlain(int start);
@@ -69,16 +61,18 @@ private:
   bool prepareBatchTestPlain(int start);
   bool prepareBatchPredictEncrypted(int start);
   bool prepareBatchPredictPlain(int start);
+  bool loadWeightsPlain();
+  bool loadWeightsEncrypted();
   sgt::CryptoEngine<uint8_t> cryptoEngine_;
   std::unique_ptr<DNNConfigIO> configIO_;
   std::vector<float> predResults_;
-  
+
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
   network_blocked *net_blcoked_ = nullptr;
   std::shared_ptr<sgt::BlockedBuffer<float, 2>> trainXBlocked_;
   std::shared_ptr<sgt::BlockedBuffer<float, 2>> trainYBlocked_;
 #elif defined(USE_SGX)
-  
+
 #endif
   data trainData_ = {0};
   data testData_ = {0};

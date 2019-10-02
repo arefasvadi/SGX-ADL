@@ -13,6 +13,7 @@ namespace std = ::std;
 template <typename T> class SpecialBuffer:public  SpecialBufferCommon{
 public:
   explicit SpecialBuffer(const uint32_t size);
+  virtual ~SpecialBuffer()=default;
   std::vector<T> getItemsInRange(const uint32_t start, const uint32_t end);
   void setItemsInRange(const uint32_t start, const uint32_t end,
                        std::vector<T> &content);
@@ -100,7 +101,8 @@ void SpecialBuffer<T>::setItemsInRange(const uint32_t start, const uint32_t end,
         (unsigned char *)&(content[q * interim_buff_len]), (r) * sizeof(T));
     CHECK_SGX_SUCCESS(succ, "Problem Caused by Set Buffer LayerWise");
   }
-  //std::memset(&content[0], 0, content.size()*sizeof(T));
+  //content.clear();
+  //content.shrink_to_fit();
 }
 
 template class SpecialBuffer<float>;

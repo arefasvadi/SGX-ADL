@@ -1,11 +1,17 @@
 enclave {
 
-    //include "../include/common.h"
+    //include "../include/common-structures.h"
     // from "TrustedLibrary/Libcxx.edl" import *;
     from "sgx_tstdc.edl" import *;
     trusted {
-       public void ecall_enclave_init([in, string]const char* net_conf_file,[in, string]const char* task,[in, string]const char* sec_mode,int width, 
-              int height, int channels, int num_classes, int train_size, int test_size, int predict_size); 
+
+       public void ecall_setup_channel(uint64_t chan_id,int channel_type);
+       public void ecall_tearup_channel(uint64_t chan_id);
+       public void ecall_send_to_channel(uint64_t chan_id,[in,size=len] unsigned char* buff, size_t len);
+       public void ecall_receive_from_channel(uint64_t chan_id,[out,size=len] unsigned char* buff, size_t len);
+
+
+       public void ecall_enclave_init([in, size=len] unsigned char* common_run_config, size_t len); 
        public void ecall_assign_random_id([in,out, size=len] unsigned char* tr_records, size_t len); 
        public void ecall_initial_sort(); 
        public void ecall_check_for_sort_correctness();
@@ -16,14 +22,20 @@ enclave {
        public void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
        public void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
        
-       public void ecall_handle_gemm_cpu_first_mult(int starter_M, int M,int N,float BETA,int ldc,size_t address_of_C);
-       public void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K, float ALPHA, size_t addr_A, int lda, size_t addr_B, int ldb, size_t addr_C, int ldc);
+       public void ecall_handle_gemm_cpu_first_mult(int starter_M,int starter_N, int M,int N,float BETA,int ldc,size_t address_of_C);
+       public void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M, int N, int K, float ALPHA, size_t addr_A, int lda, size_t addr_B, int ldb, size_t addr_C, int ldc);
 
        public void ecall_test_long_buffer_encrypt(size_t complete_len);
        
        public void ecall_test_long_buffer_decrypt(size_t complete_len);
     };
     untrusted {
+
+       void ocall_setup_channel(uint64_t chan_id,int channel_type);
+       void ocall_tearup_channel(uint64_t chan_id);
+       void ocall_send_to_channel(uint64_t chan_id,[in,size=len] unsigned char* buff, size_t len);
+       void ocall_receive_from_channel(uint64_t chan_id,[out,size=len] unsigned char* buff, size_t len);
+
        void ocall_load_net_config(
               [in, size = path_len] const unsigned char* path,
               size_t path_len,
@@ -47,7 +59,7 @@ enclave {
        void ocall_write_block(int64_t block_id,size_t index, [in,size=len] unsigned char* buff,size_t len);
        void ocall_read_block(int64_t block_id,size_t index, [out,size=len] unsigned char* buff,size_t len);
 
-       void ocall_handle_gemm_cpu_first_mult(int M,int N,float BETA, int ldc, size_t address_of_C); //allow (ecall_handle_gemm_cpu_first_mult,ecall_start_training);
+       void ocall_handle_gemm_cpu_first_mult(int M,int N,float BETA, int ldc, size_t address_of_C);
        void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA, size_t addr_A, int lda, size_t addr_B, int ldb, size_t addr_C, int ldc);
        
        void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size);

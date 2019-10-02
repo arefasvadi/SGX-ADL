@@ -1,5 +1,5 @@
 {
-    "security": "privacy_integrity",
+    "security": "plain",
     "task": "train",
     "network_config": "../test/config/imagenet_sample/resnet152.cfg",
     "data_config": {
@@ -11,9 +11,10 @@
         "data_type": "float32",
         "is_image":true,
         "trainSize": 50000,
-        "testSize": 0
+        "testSize": 0,
+        "predictSize": 0
     },
-    "weights_save_file": "../test/config/imagenet_sample/vgg16-weights.bin",
-    "weights_load_file": "../test/config/imagenet_sample/vgg16-weights.bin",
-    "backup_path": "../test/config/cifar10/"
+    "weights_save_file": "../test/config/imagenet_sample/resnet152-weights.bin",
+    "weights_load_file": "../test/config/imagenet_sample/resnet152-weights.bin",
+    "backup_path": "../test/config/imagenet_sample/resnet152/"
 }

@@ -16,5 +16,5 @@
     },
     "weights_save_file": "../test/config/imagenet_sample/vgg16-weights.bin",
     "weights_load_file": "../test/config/imagenet_sample/vgg16-weights.bin",
-    "backup_path": "../test/config/cifar10/"
+    "backup_path": "../test/config/imagenet_sample/vgg16"
 }

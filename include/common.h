@@ -1,6 +1,8 @@
 #pragma once
 // #include <stdint.h>
+#ifdef USE_SGX
 #include "sgx_error.h"
+#endif
 
 //#define DO_BLOCK_INPUT
 
@@ -8,11 +10,13 @@
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
 
+#ifdef USE_SGX
 #define USE_GEMM_THREADING
+#endif
 
 #ifdef USE_GEMM_THREADING
 #ifndef AVAIL_THREADS
-  #define AVAIL_THREADS 7
+  #define AVAIL_THREADS 6
 #endif
 #endif
 
@@ -27,7 +31,7 @@
 
 #define BLOCKING_TOTAL_ITEMS_IN_CACHE (1 * ONE_KB)
 
-#define SGX_LAYERWISE_MAX_LAYER_SIZE (30*ONE_MB)
+#define SGX_LAYERWISE_MAX_LAYER_SIZE (40*ONE_MB)
 
 // Later define with enums and constexpr if
 // possible values CACHE_FIFO, CACHE_LRU
@@ -160,9 +164,3 @@
 #ifndef ALL_INDICES_AT_DIMENSION
 #define ALL_INDICES_AT_DIMENSION -1
 #endif
-
-enum SecStrategy {
-  PLAIN,
-  INTEGRITY,
-  CONFIDENTIALITY_INTEGRITY,
-};

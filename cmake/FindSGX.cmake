@@ -126,7 +126,7 @@ if(SGX_FOUND)
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${ENCLAVE_CXX_FLAGS})
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-        target_link_libraries(${target} "${SGX_COMMON_CFLAGS} \
+        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
             -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
@@ -166,7 +166,7 @@ if(SGX_FOUND)
             add_dependencies(${target} ${TLIB})
         endforeach()
 
-        target_link_libraries(${target} "${SGX_COMMON_CFLAGS} \
+        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
             -Wl,--start-group ${TLIB_LIST} -lsgx_tstdc -lsgx_tcxx -lsgx_tkey_exchange -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
@@ -253,7 +253,7 @@ if(SGX_FOUND)
         add_library(${target} ${mode} ${SGX_SRCS} ${EDL_U_SRCS})
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS})
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-        target_link_libraries(${target} "${SGX_COMMON_CFLAGS} \
+        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
                                          -L${SGX_LIBRARY_PATH} \
                                          -l${SGX_URTS_LIB} \
                                          -l${SGX_USVC_LIB} \
@@ -299,7 +299,7 @@ if(SGX_FOUND)
         add_executable(${target} ${SGX_SRCS} ${EDL_U_SRCS})
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS})
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-        target_link_libraries(${target} "${SGX_COMMON_CFLAGS} \
+        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
                                          -L${SGX_LIBRARY_PATH} \
                                          -l${SGX_URTS_LIB} \
                                          -l${SGX_USVC_LIB} \

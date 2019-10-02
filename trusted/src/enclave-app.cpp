@@ -6,6 +6,7 @@
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 #include <BlockEngine.hpp>
 #endif
+#include "Channel/IChannel.h"
 #include "ipp/ippcp.h"
 #include <cassert>
 #include <cstdarg>
@@ -16,6 +17,8 @@
 #include <sgx_trts.h>
 #include <string>
 #include <tuple>
+#include <unordered_map>
+
 /*
  * printf:
  *   Invokes OCALL to display the enclave buffer to the terminal.
@@ -34,6 +37,9 @@ sgt::darknet::DNNTrainer *trainer = nullptr;
 bool global_training = false;
 
 int gpu_index = -1;
+CommonRunConfig comm_run_config = {};
+std::unordered_map<IChannelBase::IChannelIDType, std::unique_ptr<IChannelBase>>
+    channel_registery;
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_x;
@@ -75,6 +81,27 @@ static int checkStatus(const char *funcName, IppStatus expectedStatus,
     return 0;
   }
   return 1;
+}
+
+void ecall_setup_channel(uint64_t chan_id, int channel_type) {
+  auto new_channel = IChannelBase::GetNewChannel(
+      (IChannelBase::ChannelType)chan_id, true, chan_id);
+  channel_registery[chan_id] = std::move(new_channel);
+}
+
+void ecall_tearup_channel(uint64_t chan_id) {
+  channel_registery.erase(chan_id);
+}
+
+void ecall_send_to_channel(uint64_t chan_id, unsigned char *buff, size_t len) {
+  LOG_DEBUG("Channel %u received a buffer with %u bytes from outised!\n",
+            chan_id, len);
+}
+
+void ecall_receive_from_channel(uint64_t chan_id, unsigned char *buff,
+                                size_t len) {
+  LOG_DEBUG("Channel %u is about to send a buffer with %u bytes to outside!\n",
+            chan_id, len);
 }
 
 /*
@@ -268,32 +295,19 @@ void ecall_test_long_buffer_decrypt(size_t complete_len) {
   delete[] pAES;
 }
 
-void ecall_enclave_init(const char *net_conf_file, const char *task,
-                        const char *sec_mode, int width, int height,
-                        int channels, int num_classes, int train_size,
-                        int test_size, int predict_size) {
+void ecall_enclave_init(unsigned char *common_run_config, size_t len) {
   LOG_TRACE("entered enclave_init!\n");
-  int s_mode = -1;
-  if (strcmp(sec_mode, "plain") == 0) {
-    s_mode = 0;
-  } else if (strcmp(sec_mode, "integrity") == 0) {
-    s_mode = 1;
-    LOG_ERROR("Not implemented!\n")
-    abort();
-  } else if (strcmp(sec_mode, "privacy_integrity") == 0) {
-    s_mode = 2;
-  } else {
-    LOG_ERROR("Wrong security mode option!\n")
-    abort();
+  if (len != sizeof(CommonRunConfig)) {
+    LOG_ERROR("size of common_run_config is not what expected!");
   }
-  if (strcmp(task, "train") == 0) {
-    global_training = true;
-  } else {
-    global_training = false;
-  }
-  trainer = new sgt::darknet::DNNTrainer(net_conf_file, "", "", s_mode, width,
-                                         height, channels, num_classes,
-                                         train_size, test_size, predict_size);
+  comm_run_config = *((CommonRunConfig *)common_run_config);
+
+  trainer = new sgt::darknet::DNNTrainer(
+      comm_run_config.network_arch_file, "", "", comm_run_config.sec_strategy,
+      comm_run_config.input_shape.width, comm_run_config.input_shape.height,
+      comm_run_config.input_shape.channels,
+      comm_run_config.output_shape.num_classes, comm_run_config.train_size,
+      comm_run_config.test_size, comm_run_config.predict_size);
 
   sgx_status_t result = SGX_ERROR_UNEXPECTED;
   uint64_t seed1;
@@ -528,7 +542,7 @@ void ecall_initial_sort() {
 void ecall_start_training() {
   LOG_TRACE("entered in %s\n", __func__)
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-
+  global_training = true;
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
   bool res = trainer->loadNetworkConfigBlocked();
   LOG_DEBUG("blocked network config file loaded\n")
@@ -539,8 +553,8 @@ void ecall_start_training() {
 #else
 
   bool res = trainer->loadNetworkConfig();
-  LOG_DEBUG("network config file loaded\n")
-  trainer->train(false);
+  LOG_DEBUG("network config file loaded\n");
+  trainer->train();
 #endif
   LOG_TRACE("finished in %s\n", __func__);
 }
@@ -550,32 +564,28 @@ void ecall_start_predicting() {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   bool res = trainer->loadNetworkConfig();
   LOG_INFO("network config file loaded\n")
-  if (trainer->secMode == 0) {
-    trainer->loadWeightsPlain();
-  } else if (trainer->secMode == 2) {
-    trainer->loadWeightsEncrypted();
-  }
-
+  trainer->loadWeights();
   LOG_INFO("weights loaded\n")
-  trainer->predict(false);
+  trainer->predict();
   LOG_INFO("predictions Done!\n")
   LOG_TRACE("finished in %s\n", __func__)
 }
 
-void ecall_handle_gemm_cpu_first_mult(int starter_M, int M, int N, float BETA,
-                                      int ldc, size_t new_address_of_C) {
+void ecall_handle_gemm_cpu_first_mult(int starter_M, int starter_N, int M,
+                                      int N, float BETA, int ldc,
+                                      size_t new_address_of_C) {
   float *C = (float *)new_address_of_C;
   int i, j;
   for (i = starter_M; i < M; ++i) {
-    for (j = 0; j < N; ++j) {
+    for (j = starter_N; j < N; ++j) {
       C[i * ldc + j] *= BETA;
     }
   }
 }
 
-void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K,
-                           float ALPHA, size_t addr_A, int lda, size_t addr_B,
-                           int ldb, size_t addr_C, int ldc) {
+void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M,
+                           int N, int K, float ALPHA, size_t addr_A, int lda,
+                           size_t addr_B, int ldb, size_t addr_C, int ldc) {
   float *A = (float *)addr_A;
   float *B = (float *)addr_B;
   float *C = (float *)addr_C;
@@ -585,7 +595,7 @@ void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K,
     for (i = starter_M; i < M; ++i) {
       for (k = 0; k < K; ++k) {
         register float A_PART = ALPHA * A[i * lda + k];
-        for (j = 0; j < N; ++j) {
+        for (j = starter_N; j < N; ++j) {
           C[i * ldc + j] += A_PART * B[k * ldb + j];
         }
       }
@@ -596,7 +606,7 @@ void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K,
     for (i = starter_M; i < M; ++i) {
       for (k = 0; k < K; ++k) {
         register float A_PART = ALPHA * A[k * lda + i];
-        for (j = 0; j < N; ++j) {
+        for (j = starter_N; j < N; ++j) {
           C[i * ldc + j] += A_PART * B[k * ldb + j];
         }
       }
@@ -605,7 +615,7 @@ void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K,
     // gemm_nt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
     int i, j, k;
     for (i = starter_M; i < M; ++i) {
-      for (j = 0; j < N; ++j) {
+      for (j = starter_N; j < N; ++j) {
         register float sum = 0;
         for (k = 0; k < K; ++k) {
           sum += ALPHA * A[i * lda + k] * B[j * ldb + k];
@@ -617,7 +627,7 @@ void ecall_handle_gemm_all(int starter_M, int TA, int TB, int M, int N, int K,
     // gemm_tt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
     int i, j, k;
     for (i = starter_M; i < M; ++i) {
-      for (j = 0; j < N; ++j) {
+      for (j = starter_N; j < N; ++j) {
         register float sum = 0;
         for (k = 0; k < K; ++k) {
           sum += ALPHA * A[i + k * lda] * B[k + j * ldb];

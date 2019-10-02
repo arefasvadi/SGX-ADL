@@ -4,15 +4,10 @@
 #include "common.h"
 #include <vector>
 #include <nlohmann/json.hpp>
+
 using json = nlohmann::json;
+#include "darknet.h"
 
-
-#undef USE_SGX
-#include "../../third_party/darknet/include/darknet.h"
-matrix load_image_paths(char **paths, int n, int w, int h);
-matrix load_labels_paths(char **paths, int n, char **labels, int k,
-                         tree *hierarchy);
-data load_data_idash(char **paths, int n);
 #if defined(__cplusplus)
 extern "C" {
 #endif
