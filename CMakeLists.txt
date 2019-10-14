@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 project(SGX_ADL LANGUAGES C CXX CUDA)
 
+#set(CMAKE_CXX_CLANG_TIDY 
+#  clang-tidy;
+  #-header-filter=.;
+#  -checks=*,readability-*;)
+
 set(CUSTOM_ENABLE_DEBUGING ON)
 
 set(CUSTOM_ENABLE_LAYERWISE ON)
@@ -227,14 +232,15 @@ set(Enclave_Cpp_Files
   "${Trusted_Home}/src/enclave-app.cpp"
   "${Trusted_Home}/src/DNNConfigIO.cpp" 
   "${Trusted_Home}/src/DNNTrainer.cpp" 
-  "src/Channel/IChannel.cpp"
-  "src/Channel/IChannelTwoWay.cpp"
-  "src/Channel/SimpleTwoWayChannel.cpp"
   #"${Trusted_Home}/src/BlockHeader.cpp" 
   #"${Trusted_Home}/src/IBlockable.cpp" 
   "${Trusted_Home}/src/util.cpp" 
   #"${Trusted_Home}/src/tests.cpp"
   "${Trusted_Home}/src/SpecialBufferCommon.cpp"
+  ${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
+  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
+  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
+  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
   )
   
 add_enclave_library(
@@ -322,11 +328,15 @@ target_compile_definitions(DARKNET_U_GPU PRIVATE)
 # target_link_libraries(U_gtest PRIVATE Threads::Threads)
 
 set(App_Cpp_Files
-  "${Untrusted_Home}/src/app.cpp"
-  "${Untrusted_Home}/src/load-image.cpp"
-  "src/Channel/IChannel.cpp"
-  "src/Channel/IChannelTwoWay.cpp"
-  "src/Channel/SimpleTwoWayChannel.cpp"
+  ${Untrusted_Home}/src/app.cpp
+  ${Untrusted_Home}/src/load-image.cpp
+  ${CMAKE_SOURCE_DIR}/src/Record/IRecord.cpp
+  ${CMAKE_SOURCE_DIR}/src/Record/ImageRecord.cpp
+  ${CMAKE_SOURCE_DIR}/src/Record/ImageWithLabelRecord.cpp
+  ${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
+  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
+  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
+  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
   )
 
 add_untrusted_library(
@@ -347,6 +357,14 @@ ${CUDA_INCLUDE_DIRS}
 )
 target_link_libraries(${Untrusted_Lib_Name} PRIVATE DARKNET_U_GPU OpenSSL::Crypto OpenSSL::SSL Threads::Threads)
 
+#  clang-tidy;
+  #-header-filter=.;
+#  -checks=*,readability-*;
+set_property(TARGET ${Untrusted_Lib_Name} 
+             PROPERTY 
+                #CXX_CLANG_TIDY  "clang-tidy; -checks=*,readability-*;"
+                CXX_CPPCHECK "cppcheck")
+
 add_untrusted_executable(
   ${Untrusted_Name}
   SRCS 
@@ -359,11 +377,20 @@ add_untrusted_executable(
 target_link_libraries(${Untrusted_Name} PRIVATE ${Untrusted_Lib_Name})
 
 
-set(TEST_SRC_FILES "./test/unittests/SGXADL-tests.cpp")
+set(TEST_SRC_FILES 
+  "./test/unittests/SGXADL-tests.cpp"
+  "./test/unittests/SGXADL-GeneralEnclave_test.cpp"
+  "./test/unittests/Record-tests.cpp"
+)
 add_executable(SGXALDUnitTests ${TEST_SRC_FILES})
+# set_property(TARGET SGXALDUnitTests
+#              PROPERTY 
+#                 #CXX_CLANG_TIDY  "clang-tidy; -checks=*,readability-*;"
+#                 CXX_CPPCHECK "cppcheck; --enable=all; --std=c++14;")
 target_include_directories(SGXALDUnitTests PRIVATE ${GTEST_INCLUDE_DIRS} ${SGX_INCLUDE_DIR})
 target_link_libraries(SGXALDUnitTests PRIVATE ${GTEST_BOTH_LIBRARIES} ${Untrusted_Lib_Name} Threads::Threads)
 add_test(gtest_unittests SGXALDUnitTests)
+#set_property(TARGET SGXALDUnitTests PROPERTY CXX_CLANG_TIDY "clang-tidy; -checks=*,readability-*;")
 
 # Just to see the generated dependencies
 # add_custom_target(graphviz ALL

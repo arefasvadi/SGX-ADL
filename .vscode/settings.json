@@ -13,5 +13,12 @@
         "map": "cpp",
         "array": "cpp"
     },
+    "ccls.index.multiVersion": 1,
+    "ccls.highlighting.bold.templateParameters": false,
+    "ccls.highlighting.bold.typeAliases": false,
+    "ccls.highlighting.bold.types": false,
+    "ccls.highlighting.bold.namespaces": false,
+    "ccls.highlighting.bold.enumConstants": false,
+    "ccls.highlighting.bold.enums": false,
     //"cmake.copyCompileCommands": "${workspaceRoot}/"
 }

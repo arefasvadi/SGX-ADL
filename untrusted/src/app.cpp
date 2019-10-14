@@ -1,3 +1,4 @@
+#include "app.h"
 #include <algorithm>
 #include <assert.h>
 #include <chrono>
@@ -21,10 +22,16 @@
 
 #define MAX_PATH FILENAME_MAX
 
+#include "Channel/BasicChannel.hpp"
+#include "Channel/IChannel.hpp"
 #include "CryptoEngine.hpp"
-#include "app.h"
-#include "Channel/IChannel.h"
+#include "Record/ImageRecord.h"
+#include "Record/ImageWithLabelRecord.h"
 
+
+//sgx::common::ImageRecord* imr = new sgx::common::ImageRecord(2,6,8);
+//std::unique_ptr<sgx::common::ImageRecord> tempImg(new sgx::common::ImageRecord(2,6,8));
+//std::unique_ptr<sgx::common::ImageWLabelRecord> tempImgLabel(new sgx::common::ImageWLabelRecord(10,std::move(tempImg)));
 
 using json = nlohmann::json;
 
@@ -65,8 +72,6 @@ std::map<std::string, double> duration_map;
 
 std::unordered_map<uint32_t, std::vector<unsigned char>> layerwise_contents;
 std::unordered_map<int64_t, std::vector<unsigned char>> all_blocks;
-
-std::unordered_map<IChannelBase::IChannelIDType,std::unique_ptr<IChannelBase>> channel_registery;
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
@@ -270,7 +275,7 @@ int initialize_enclave(void) {
 }
 
 sgx_status_t dest_enclave(const sgx_enclave_id_t enclave_id) {
-  sgx_destroy_enclave(global_eid);
+  return sgx_destroy_enclave(global_eid);
 }
 
 /* OCall functions */
@@ -473,7 +478,8 @@ void ocall_load_weights_plain(int start, unsigned char *weight_arr,
   static bool first_call = true;
   if (first_call) {
     first_call = false;
-    std::string weights_file_str = std::string(run_config.finalized_weights_file_path);
+    std::string weights_file_str =
+        std::string(run_config.finalized_weights_file_path);
     plain_weights = read_file_binary(weights_file_str.c_str());
   }
   std::memcpy(weight_arr, &plain_weights[start], weight_len);
@@ -487,8 +493,9 @@ void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
   /*static bool first_call = true;
   if (first_call) {
     first_call = false;
-    std::string weights_file_str = std::string(run_config.finalized_weights_file_path);
-    plain_weights = read_file_binary(weights_file_str.c_str());
+    std::string weights_file_str =
+  std::string(run_config.finalized_weights_file_path); plain_weights =
+  read_file_binary(weights_file_str.c_str());
   }
   std::memcpy(weight_arr, &plain_weights[start], weight_len);*/
 }
@@ -749,23 +756,37 @@ void test_long_buffer() {
   delete[] lbtest_tag;
 }
 
-void ocall_setup_channel(uint64_t chan_id,int channel_type) {
-  auto new_channel = IChannelBase::GetNewChannel((IChannelBase::ChannelType)chan_id, true, chan_id);
-  channel_registery[chan_id] = std::move(new_channel);
+void ocall_setup_channel(uint64_t chan_id, int channel_type) {
+  // TODO: Later try to choose the correct implementation of channel with
+  // templates
+
+  if (channel_type == ChannelType::TwoWay) {
+    BasicChannel<ChannelType::TwoWay>::AddNewChannelToRegistery(
+        std::make_unique<BasicChannel<ChannelType::TwoWay>>(chan_id));
+  }
+  else if (channel_type == ChannelType::OneWayReceiver) {
+    BasicChannel<ChannelType::OneWayReceiver>::AddNewChannelToRegistery(
+        std::make_unique<BasicChannel<ChannelType::OneWayReceiver>>(chan_id));
+  } else if (channel_type == ChannelType::OneWaySender) {
+    BasicChannel<ChannelType::OneWaySender>::AddNewChannelToRegistery(
+        std::make_unique<BasicChannel<ChannelType::OneWaySender>>(chan_id));
+  }
 }
 
 void ocall_tearup_channel(uint64_t chan_id) {
-   channel_registery.erase(chan_id);
+  
 }
 
-void ocall_send_to_channel(uint64_t chan_id, unsigned char* buff, size_t len) {
-  LOG_DEBUG("Channel %u received a buffer with %u bytes from enclave!\n",chan_id,len);
+void ocall_send_to_channel(uint64_t chan_id, unsigned char *buff, size_t len) {
+  LOG_DEBUG("Channel %u received a buffer with %u bytes from enclave!\n",
+            chan_id, len);
 }
 
-void ocall_receive_from_channel(uint64_t chan_id,unsigned char* buff, size_t len) {
-  LOG_DEBUG("Channel %u is about to send a buffer with %u bytes to enclave!\n",chan_id,len);
+void ocall_receive_from_channel(uint64_t chan_id, unsigned char *buff,
+                                size_t len) {
+  LOG_DEBUG("Channel %u is about to send a buffer with %u bytes to enclave!\n",
+            chan_id, len);
 }
-
 
 RunConfig process_json_config(const std::string &f_path) {
   std::ifstream json_in(f_path);
@@ -773,7 +794,7 @@ RunConfig process_json_config(const std::string &f_path) {
   json_in >> configs;
   LOG_DEBUG("The loaded config file is:\n%s\n", configs.dump(2).c_str());
   RunConfig run_config = {};
-  
+
   bool GPU_SGX_verify = false;
   if (configs.find("GPU_SGX_verify") != configs.end()) {
     GPU_SGX_verify = configs["GPU_SGX_verify"];
@@ -782,7 +803,7 @@ RunConfig process_json_config(const std::string &f_path) {
     LOG_ERROR("You need to define the DNNTask\n");
     abort();
   }
-  
+
   std::string task = configs["task"];
   if (task.compare(std::string("train")) == 0) {
     if (GPU_SGX_verify) {
@@ -810,10 +831,12 @@ RunConfig process_json_config(const std::string &f_path) {
   }
   std::string network_arch_string = configs["network_config"];
   if (network_arch_string.size() > 255) {
-    LOG_ERROR("network_config file path must not be more than 255 characters\n");
+    LOG_ERROR(
+        "network_config file path must not be more than 255 characters\n");
     abort();
   }
-  strcpy(run_config.common_config.network_arch_file, network_arch_string.c_str());
+  strcpy(run_config.common_config.network_arch_file,
+         network_arch_string.c_str());
 
   if (configs.find("security") == configs.end()) {
     LOG_ERROR("You need to define the security field\n");
@@ -827,7 +850,8 @@ RunConfig process_json_config(const std::string &f_path) {
   } else if (sec_mode.compare("privacy") == 0) {
     run_config.common_config.sec_strategy = SecStrategyType::SEC_PRIVACY;
   } else if (sec_mode.compare("privacy_integrity") == 0) {
-    run_config.common_config.sec_strategy = SecStrategyType::SEC_PRIVACY_INTEGRITY;
+    run_config.common_config.sec_strategy =
+        SecStrategyType::SEC_PRIVACY_INTEGRITY;
   }
 
   if (configs.find("data_config") == configs.end()) {
@@ -838,17 +862,23 @@ RunConfig process_json_config(const std::string &f_path) {
     LOG_ERROR("You need to define the dims field\n");
     abort();
   }
-  run_config.common_config.input_shape.width = configs["data_config"]["dims"][0];
-  run_config.common_config.input_shape.height = configs["data_config"]["dims"][1];
-  run_config.common_config.input_shape.channels = configs["data_config"]["dims"][2];
-  
-  if (configs["data_config"].find("num_classes") == configs["data_config"].end()) {
+  run_config.common_config.input_shape.width =
+      configs["data_config"]["dims"][0];
+  run_config.common_config.input_shape.height =
+      configs["data_config"]["dims"][1];
+  run_config.common_config.input_shape.channels =
+      configs["data_config"]["dims"][2];
+
+  if (configs["data_config"].find("num_classes") ==
+      configs["data_config"].end()) {
     LOG_ERROR("You need to define the num_classes field\n");
     abort();
   }
-  run_config.common_config.output_shape.num_classes = configs["data_config"]["num_classes"];
+  run_config.common_config.output_shape.num_classes =
+      configs["data_config"]["num_classes"];
 
-  if (configs["data_config"].find("trainSize") == configs["data_config"].end()) {
+  if (configs["data_config"].find("trainSize") ==
+      configs["data_config"].end()) {
     LOG_ERROR("You need to define the trainSize field\n");
     abort();
   }
@@ -856,14 +886,15 @@ RunConfig process_json_config(const std::string &f_path) {
     LOG_ERROR("You need to define the testSize field\n");
     abort();
   }
-  if (configs["data_config"].find("predictSize") == configs["data_config"].end()) {
+  if (configs["data_config"].find("predictSize") ==
+      configs["data_config"].end()) {
     LOG_ERROR("You need to define the predictSize field\n");
     abort();
   }
   run_config.common_config.train_size = configs["data_config"]["trainSize"];
   run_config.common_config.test_size = configs["data_config"]["testSize"];
   run_config.common_config.predict_size = configs["data_config"]["predictSize"];
-  
+
   if (configs["data_config"].find("is_image") != configs["data_config"].end()) {
     run_config.is_image = configs["data_config"]["is_image"];
   }
@@ -871,36 +902,39 @@ RunConfig process_json_config(const std::string &f_path) {
     run_config.is_idash = configs["data_config"]["is_idash"];
   }
 
-  if (configs["data_config"].find("train_path") != configs["data_config"].end()) {    
+  if (configs["data_config"].find("train_path") !=
+      configs["data_config"].end()) {
     std::string train_path = configs["data_config"]["train_path"];
     strcpy(run_config.train_file_path, train_path.c_str());
   }
 
-  if (configs["data_config"].find("test_path") != configs["data_config"].end()) {    
+  if (configs["data_config"].find("test_path") !=
+      configs["data_config"].end()) {
     std::string test_path = configs["data_config"]["test_path"];
     strcpy(run_config.test_file_path, test_path.c_str());
   }
 
-  if (configs["data_config"].find("predict_path") != configs["data_config"].end()) {    
+  if (configs["data_config"].find("predict_path") !=
+      configs["data_config"].end()) {
     std::string predict_path = configs["data_config"]["predict_path"];
     strcpy(run_config.predict_file_path, predict_path.c_str());
   }
 
-  if (configs["data_config"].find("labels_path") != configs["data_config"].end()) {    
+  if (configs["data_config"].find("labels_path") !=
+      configs["data_config"].end()) {
     std::string labels_path = configs["data_config"]["labels_path"];
     strcpy(run_config.labels_file_path, labels_path.c_str());
   }
 
-  if (configs.find("backup_path") != configs.end()) {    
+  if (configs.find("backup_path") != configs.end()) {
     std::string backup_path = configs["backup_path"];
     strcpy(run_config.backups_dir_path, backup_path.c_str());
   }
 
-  if (configs.find("weights_file") != configs.end()) {    
+  if (configs.find("weights_file") != configs.end()) {
     std::string weights_path = configs["weights_file"];
     strcpy(run_config.finalized_weights_file_path, weights_path.c_str());
   }
-  
 
   return run_config;
 }

@@ -7,8 +7,8 @@ enclave {
 
        public void ecall_setup_channel(uint64_t chan_id,int channel_type);
        public void ecall_tearup_channel(uint64_t chan_id);
-       public void ecall_send_to_channel(uint64_t chan_id,[in,size=len] unsigned char* buff, size_t len);
-       public void ecall_receive_from_channel(uint64_t chan_id,[out,size=len] unsigned char* buff, size_t len);
+       public void ecall_send_to_channel(uint64_t chan_id,[out,size=len] unsigned char* buff, size_t len);
+       public void ecall_receive_from_channel(uint64_t chan_id,[in,size=len] unsigned char* buff, size_t len);
 
 
        public void ecall_enclave_init([in, size=len] unsigned char* common_run_config, size_t len); 
@@ -33,8 +33,8 @@ enclave {
 
        void ocall_setup_channel(uint64_t chan_id,int channel_type);
        void ocall_tearup_channel(uint64_t chan_id);
-       void ocall_send_to_channel(uint64_t chan_id,[in,size=len] unsigned char* buff, size_t len);
-       void ocall_receive_from_channel(uint64_t chan_id,[out,size=len] unsigned char* buff, size_t len);
+       void ocall_send_to_channel(uint64_t chan_id,[out,size=len] unsigned char* buff, size_t len);
+       void ocall_receive_from_channel(uint64_t chan_id,[in,size=len] unsigned char* buff, size_t len);
 
        void ocall_load_net_config(
               [in, size = path_len] const unsigned char* path,

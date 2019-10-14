@@ -6,7 +6,8 @@
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 #include <BlockEngine.hpp>
 #endif
-#include "Channel/IChannel.h"
+#include "Channel/BasicChannel.hpp"
+#include "Channel/IChannel.hpp"
 #include "ipp/ippcp.h"
 #include <cassert>
 #include <cstdarg>
@@ -38,8 +39,6 @@ bool global_training = false;
 
 int gpu_index = -1;
 CommonRunConfig comm_run_config = {};
-std::unordered_map<IChannelBase::IChannelIDType, std::unique_ptr<IChannelBase>>
-    channel_registery;
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_x;
@@ -84,14 +83,22 @@ static int checkStatus(const char *funcName, IppStatus expectedStatus,
 }
 
 void ecall_setup_channel(uint64_t chan_id, int channel_type) {
-  auto new_channel = IChannelBase::GetNewChannel(
-      (IChannelBase::ChannelType)chan_id, true, chan_id);
-  channel_registery[chan_id] = std::move(new_channel);
+  if (channel_type == ChannelType::TwoWay) {
+    BasicChannel<ChannelType::TwoWay>::AddNewChannelToRegistery(
+        std::unique_ptr<BasicChannel<ChannelType::TwoWay>>(
+            new BasicChannel<ChannelType::TwoWay>(chan_id)));
+  } else if (channel_type == ChannelType::OneWayReceiver) {
+    BasicChannel<ChannelType::OneWayReceiver>::AddNewChannelToRegistery(
+        std::unique_ptr<BasicChannel<ChannelType::OneWayReceiver>>(
+            new BasicChannel<ChannelType::OneWayReceiver>(chan_id)));
+  } else if (channel_type == ChannelType::OneWaySender) {
+    BasicChannel<ChannelType::OneWaySender>::AddNewChannelToRegistery(
+        std::unique_ptr<BasicChannel<ChannelType::OneWaySender>>(
+            new BasicChannel<ChannelType::OneWaySender>(chan_id)));
+  }
 }
 
-void ecall_tearup_channel(uint64_t chan_id) {
-  channel_registery.erase(chan_id);
-}
+void ecall_tearup_channel(uint64_t chan_id) {}
 
 void ecall_send_to_channel(uint64_t chan_id, unsigned char *buff, size_t len) {
   LOG_DEBUG("Channel %u received a buffer with %u bytes from outised!\n",

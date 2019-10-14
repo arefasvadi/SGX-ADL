@@ -9,14 +9,13 @@
 // later remove this to CMAKE
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
-
 #ifdef USE_SGX
 #define USE_GEMM_THREADING
 #endif
 
 #ifdef USE_GEMM_THREADING
 #ifndef AVAIL_THREADS
-  #define AVAIL_THREADS 6
+#define AVAIL_THREADS 6
 #endif
 #endif
 
@@ -31,7 +30,7 @@
 
 #define BLOCKING_TOTAL_ITEMS_IN_CACHE (1 * ONE_KB)
 
-#define SGX_LAYERWISE_MAX_LAYER_SIZE (40*ONE_MB)
+#define SGX_LAYERWISE_MAX_LAYER_SIZE (40 * ONE_MB)
 
 // Later define with enums and constexpr if
 // possible values CACHE_FIFO, CACHE_LRU
@@ -63,7 +62,7 @@
 #define LOG_LEVEL_WARNING_BEYOND 2002
 #define LOG_LEVEL_INFO_BEYOND 2003
 #define LOG_LEVEL_DEBUG_BEYOND 2004
-#define LOG_LEVEL_ALL 2005 // Including Traces
+#define LOG_LEVEL_ALL 2005  // Including Traces
 
 #ifndef LOG_LEVEL
 #define LOG_LEVEL LOG_LEVEL_NO_LOG
@@ -71,36 +70,36 @@
 
 #define LOG_OUT(...) main_logger(LOG_TYPE_OUT, __FILE__, __LINE__, __VA_ARGS__);
 #if LOG_LEVEL == LOG_LEVEL_ALL
-#define LOG_TRACE(...)                                                         \
+#define LOG_TRACE(...) \
   main_logger(LOG_TYPE_TRACE, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_DEBUG(...)                                                         \
+#define LOG_DEBUG(...) \
   main_logger(LOG_TYPE_DEBUG, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_INFO(...)                                                          \
+#define LOG_INFO(...) \
   main_logger(LOG_TYPE_INFO, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_WARN(...)                                                          \
+#define LOG_WARN(...) \
   main_logger(LOG_TYPE_WARN, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_ERROR(...)                                                         \
+#define LOG_ERROR(...) \
   main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
 
 #elif LOG_LEVEL == LOG_LEVEL_DEBUG_BEYOND
 #define LOG_TRACE(...)
-#define LOG_DEBUG(...)                                                         \
+#define LOG_DEBUG(...) \
   main_logger(LOG_TYPE_DEBUG, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_INFO(...)                                                          \
+#define LOG_INFO(...) \
   main_logger(LOG_TYPE_INFO, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_WARN(...)                                                          \
+#define LOG_WARN(...) \
   main_logger(LOG_TYPE_WARN, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_ERROR(...)                                                         \
+#define LOG_ERROR(...) \
   main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
 
 #elif LOG_LEVEL == LOG_LEVEL_INFO_BEYOND
 #define LOG_TRACE(...)
 #define LOG_DEBUG(...)
-#define LOG_INFO(...)                                                          \
+#define LOG_INFO(...) \
   main_logger(LOG_TYPE_INFO, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_WARN(...)                                                          \
+#define LOG_WARN(...) \
   main_logger(LOG_TYPE_WARN, __FILE__, __LINE__, __VA_ARGS__);
-#define LOG_ERROR(...)                                                         \
+#define LOG_ERROR(...) \
   main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
 
 #elif LOG_LEVEL == LOG_LEVEL_ERROR
@@ -108,7 +107,7 @@
 #define LOG_DEBUG(...)
 #define LOG_INFO(...)
 #define LOG_WARN(...)
-#define LOG_ERROR(...)                                                         \
+#define LOG_ERROR(...) \
   main_logger(LOG_TYPE_ERROR, __FILE__, __LINE__, __VA_ARGS__);
 
 #elif LOG_LEVEL == LOG_LEVEL_NO_LOG
@@ -120,12 +119,72 @@
 
 #endif
 
-#define CHECK_SGX_SUCCESS(RET, MSG)                                            \
-  if ((RET) != (SGX_SUCCESS)) {                                                \
-    LOG_ERROR(MSG "\nerror code: %#010x expected: %#010x\n", (RET),            \
-              (SGX_SUCCESS))                                                   \
-    abort();                                                                   \
+#define CHECK_SGX_SUCCESS(RET, MSG)                                          \
+  if ((RET) != (SGX_SUCCESS)) {                                              \
+    LOG_ERROR(                                                               \
+        MSG "\nerror code: %#010x expected: %#010x\n", (RET), (SGX_SUCCESS)) \
+    abort();                                                                 \
   }
+
+// https://chromium.googlesource.com/chromium/src/base/+/master/macros.h#23
+// Copyright 2014 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+// This file contains macros and macro-like constructs (e.g., templates) that
+// are commonly used throughout Chromium source. (It may also contain things
+// that are closely related to things that are commonly used that belong in this
+// file.)
+
+// Put this in the declarations for a class to be uncopyable.
+#define DISALLOW_COPY(TypeName) TypeName(const TypeName&) = delete
+// Put this in the declarations for a class to be unassignable.
+#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
+// Put this in the declarations for a class to be uncopyable and unassignable.
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  DISALLOW_COPY(TypeName);                 \
+  DISALLOW_ASSIGN(TypeName)
+// A macro to disallow all the implicit constructors, namely the
+// default constructor, copy constructor and operator= functions.
+// This is especially useful for classes containing only static methods.
+#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
+  TypeName() = delete;                           \
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
+// Used to explicitly mark the return value of a function as unused. If you are
+// really sure you don't want to do anything with the return value of a function
+// that has been marked WARN_UNUSED_RESULT, wrap it with this. Example:
+//
+//   std::unique_ptr<MyType> my_var = ...;
+//   if (TakeOwnership(my_var.get()) == SUCCESS)
+//     ignore_result(my_var.release());
+//
+
+#define ALLOW_DEFAULT_COPY(TypeName) TypeName(const TypeName&) = default;
+
+#define ALLOW_DEFAULT_COPYASSIGN(TypeName) \
+  TypeName& operator=(const TypeName&) = default;
+
+#define ALLOW_DEFAULT_COPY_AND_ASSIGN(TypeName) \
+  ALLOW_DEFAULT_COPY(TypeName)                  \
+  ALLOW_DEFAULT_COPYASSIGN(TypeName)
+
+#define ALLOW_DEFAULT_MOVE(TypeName) TypeName(TypeName&&) = default;
+
+#define ALLOW_DEFAULT_MOVEASSIGN(TypeName) \
+  TypeName& operator=(TypeName&&) = default;
+
+#define ALLOW_DEFAULT_MOVE_AND_ASSIGN(TypeName) \
+  ALLOW_DEFAULT_MOVE(TypeName)                  \
+  ALLOW_DEFAULT_MOVEASSIGN(Typename)
+
+#define ALLOW_DEFAULT_MOVE_NOEXCEPT(TypeName) \
+  TypeName(TypeName&&) noexcept = default;
+
+#define ALLOW_DEFAULT_MOVEASSIGN_NOEXCEPT(TypeName) \
+  TypeName& operator=(TypeName&&) noexcept = default;
+
+#define ALLOW_DEFAULT_MOVE_AND_ASSIGN_NOEXCEPT(TypeName) \
+  ALLOW_DEFAULT_MOVE_NOEXCEPT(TypeName)                  \
+  ALLOW_DEFAULT_MOVEASSIGN_NOEXCEPT(TypeName)
 
 #ifndef IMG_WIDTH
 //#define IMG_WIDTH 28 //CIFAR10
