@@ -68,3 +68,9 @@ test/config/idash/IV_weights.iv
 test/config/idash/darknet-idash-weights.bin
 
 test/config/idash/darknet-idash-weights.bin.enc
+
+build_with_make/
+
+SGX-ADL-Compile-Make.log
+
+SGX-ADL-Compile-Ninja.log

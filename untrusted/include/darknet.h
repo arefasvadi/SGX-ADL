@@ -6,13 +6,14 @@
 #undef USE_GEMM_THREADING
 #include "common.h"
 
+#ifndef GPU
 #define GPU
+#endif  // !GPU
 
 #include "../../third_party/darknet/include/darknet.h"
 #include "../../third_party/darknet/src/data.h"
 
-void main_logger(int level, const char *file, int line, const char *format,
-                 ...);
+void
+main_logger(int level, const char *file, int line, const char *format, ...);
 
 extern bool global_training;
-

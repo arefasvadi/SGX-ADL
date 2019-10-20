@@ -1,16 +1,29 @@
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 project(SGX_ADL LANGUAGES C CXX CUDA)
 
-#set(CMAKE_CXX_CLANG_TIDY 
-#  clang-tidy;
-  #-header-filter=.;
-#  -checks=*,readability-*;)
+# adding google test framework
+enable_testing()
+find_package(GTest REQUIRED)
 
-set(CUSTOM_ENABLE_DEBUGING ON)
+list(APPEND CMAKE_MODULE_PATH 
+            ${CMAKE_SOURCE_DIR}/cmake)
 
-set(CUSTOM_ENABLE_LAYERWISE ON)
-#set(CUSTOM_ENABLE_BLOCKING ON)
-#set(CUSTOM_ENABLE_PURE_SGX ON)
+include(Configs)
+include(Utilities)
+
+if (CPPCHECK_ENABLED)
+  find_package(CppCheck)
+endif()
+
+if (CLANG_TIDY_ENABLED)
+  include(ClangTidy)
+  enable_clang_tidy(
+    CHECKS
+      ${CLANG_TIDY_DEFAULT_CHECKS}
+    HEADER_FILTER
+        "${CMAKE_SOURCE_DIR}\/(.*\/)?.*\.h(pp)?$"
+  )
+endif()
 
 if (CUSTOM_ENABLE_PURE_SGX)
   set(CUSTOM_ENABLE_LAYERWISE OFF)
@@ -28,24 +41,18 @@ else()
   message(FATAL_ERROR "DARKNET_SGX_MODE cannot  be set properly!")
 endif()
 
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_VERBOSE_MAKEFILE ON)
 option(CUDA_VERBOSE_BUILD "Create verbose CUDA build" ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CUDA_STANDARD 14)
 
-
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 #find_library(SSL_LIB libssl.a REQUIRED)
 #find_library(CRYPTO_LIB libcrypto.a REQUIRED)
 
-# adding google test framework
-enable_testing()
-find_package(GTest REQUIRED)
+# foonathan memory library
+#add_subdirectory(third_party/memory)
 
 set(Untrusted_Home "${PROJECT_SOURCE_DIR}/untrusted")
 set(Trusted_Home "${PROJECT_SOURCE_DIR}/trusted")
@@ -71,6 +78,11 @@ else()
   set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
 
+message(STATUS "CUSTOM_ENABLE_DEBUGING is ${CUSTOM_ENABLE_DEBUGING}")
+message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
+message(STATUS "SGX_MODE is ${SGX_MODE}")
+
+
 if(SGX_HW AND SGX_MODE STREQUAL "Release")
     set(LDS "${Trusted_Home}/enclave-release.lds")
     set(Trusted_Config_File "${Trusted_Home}/enclave.config.HW-Release.xml")
@@ -84,133 +96,146 @@ find_package(SGX REQUIRED)
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 set(DARKNET_SOURCE_FILES
-"third_party/darknet/src/gemm.cpp"
-"third_party/darknet/src/utils.cpp"
-"third_party/darknet/src/im2col.cpp"
-"third_party/darknet/src/cuda.cpp"
-"third_party/darknet/src/deconvolutional_layer.cpp"
-"third_party/darknet/src/convolutional1D_layer.cpp"
-"third_party/darknet/src/convolutional_layer.cpp"
-"third_party/darknet/src/list.cpp"
-"third_party/darknet/src/image.cpp"
-"third_party/darknet/src/activations.cpp"
-"third_party/darknet/src/col2im.cpp"
-"third_party/darknet/src/blas.cpp"
-"third_party/darknet/src/crop_layer.cpp"
-"third_party/darknet/src/dropout_layer.cpp"
-"third_party/darknet/src/maxpool_layer.cpp"
-"third_party/darknet/src/maxpool1D_layer.cpp"
-"third_party/darknet/src/softmax_layer.cpp"
-"third_party/darknet/src/data.cpp"
-"third_party/darknet/src/matrix.cpp"
-"third_party/darknet/src/network.cpp"
-"third_party/darknet/src/connected_layer.cpp"
-"third_party/darknet/src/cost_layer.cpp"
-"third_party/darknet/src/parser.cpp"
-"third_party/darknet/src/option_list.cpp"
-"third_party/darknet/src/detection_layer.cpp"
-"third_party/darknet/src/route_layer.cpp"
-"third_party/darknet/src/upsample_layer.cpp"
-"third_party/darknet/src/box.cpp"
-"third_party/darknet/src/normalization_layer.cpp"
-"third_party/darknet/src/avgpool_layer.cpp"
-"third_party/darknet/src/avgpoolx_layer.cpp"
-"third_party/darknet/src/avgpoolx1D_layer.cpp"
-"third_party/darknet/src/layer.cpp"
-"third_party/darknet/src/local_layer.cpp"
-"third_party/darknet/src/shortcut_layer.cpp"
-"third_party/darknet/src/logistic_layer.cpp"
-"third_party/darknet/src/activation_layer.cpp"
-"third_party/darknet/src/rnn_layer.cpp"
-"third_party/darknet/src/gru_layer.cpp"
-"third_party/darknet/src/crnn_layer.cpp"
-"third_party/darknet/src/demo.cpp"
-"third_party/darknet/src/batchnorm_layer.cpp"
-"third_party/darknet/src/region_layer.cpp"
-"third_party/darknet/src/reorg_layer.cpp"
-"third_party/darknet/src/tree.cpp"
-"third_party/darknet/src/lstm_layer.cpp"
-"third_party/darknet/src/l2norm_layer.cpp"
-"third_party/darknet/src/yolo_layer.cpp"
+  third_party/darknet/src/gemm.cpp
+  third_party/darknet/src/utils.cpp
+  third_party/darknet/src/im2col.cpp
+  third_party/darknet/src/cuda.cpp
+  third_party/darknet/src/deconvolutional_layer.cpp
+  third_party/darknet/src/convolutional1D_layer.cpp
+  third_party/darknet/src/convolutional_layer.cpp
+  third_party/darknet/src/list.cpp
+  third_party/darknet/src/image.cpp
+  third_party/darknet/src/activations.cpp
+  third_party/darknet/src/col2im.cpp
+  third_party/darknet/src/blas.cpp
+  third_party/darknet/src/crop_layer.cpp
+  third_party/darknet/src/dropout_layer.cpp
+  third_party/darknet/src/maxpool_layer.cpp
+  third_party/darknet/src/maxpool1D_layer.cpp
+  third_party/darknet/src/softmax_layer.cpp
+  third_party/darknet/src/data.cpp
+  third_party/darknet/src/matrix.cpp
+  third_party/darknet/src/network.cpp
+  third_party/darknet/src/connected_layer.cpp
+  third_party/darknet/src/cost_layer.cpp
+  third_party/darknet/src/parser.cpp
+  third_party/darknet/src/option_list.cpp
+  third_party/darknet/src/detection_layer.cpp
+  third_party/darknet/src/route_layer.cpp
+  third_party/darknet/src/upsample_layer.cpp
+  third_party/darknet/src/box.cpp
+  third_party/darknet/src/normalization_layer.cpp
+  third_party/darknet/src/avgpool_layer.cpp
+  third_party/darknet/src/avgpoolx_layer.cpp
+  third_party/darknet/src/avgpoolx1D_layer.cpp
+  third_party/darknet/src/layer.cpp
+  third_party/darknet/src/local_layer.cpp
+  third_party/darknet/src/shortcut_layer.cpp
+  third_party/darknet/src/logistic_layer.cpp
+  third_party/darknet/src/activation_layer.cpp
+  third_party/darknet/src/rnn_layer.cpp
+  third_party/darknet/src/gru_layer.cpp
+  third_party/darknet/src/crnn_layer.cpp
+  third_party/darknet/src/demo.cpp
+  third_party/darknet/src/batchnorm_layer.cpp
+  third_party/darknet/src/region_layer.cpp
+  third_party/darknet/src/reorg_layer.cpp
+  third_party/darknet/src/tree.cpp
+  third_party/darknet/src/lstm_layer.cpp
+  third_party/darknet/src/l2norm_layer.cpp
+  third_party/darknet/src/yolo_layer.cpp
 )
 
 set(DARKNET_SOURCE_FILES_SGX ${DARKNET_SOURCE_FILES})
 list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX
-  "third_party/darknet/src/cuda.cpp"
-  "third_party/darknet/src/deconvolutional_layer.cpp"
-  "third_party/darknet/src/detection_layer.cpp"
-  #"third_party/darknet/src/route_layer.cpp"
-  "third_party/darknet/src/upsample_layer.cpp"
-  "third_party/darknet/src/box.cpp"
-  #"third_party/darknet/src/normalization_layer.cpp"
-  #"third_party/darknet/src/local_layer.cpp"
-  #"third_party/darknet/src/shortcut_layer.cpp"
-  #"third_party/darknet/src/logistic_layer.cpp"
-  "third_party/darknet/src/rnn_layer.cpp"
-  "third_party/darknet/src/gru_layer.cpp"
-  "third_party/darknet/src/crnn_layer.cpp"
-  "third_party/darknet/src/demo.cpp"
-  "third_party/darknet/src/region_layer.cpp"
-  "third_party/darknet/src/reorg_layer.cpp"
-  "third_party/darknet/src/tree.cpp"
-  "third_party/darknet/src/lstm_layer.cpp"
-  "third_party/darknet/src/l2norm_layer.cpp"
-   "third_party/darknet/src/yolo_layer.cpp"
+  third_party/darknet/src/cuda.cpp
+  third_party/darknet/src/deconvolutional_layer.cpp
+  third_party/darknet/src/detection_layer.cpp
+  #third_party/darknet/src/route_layer.cpp
+  third_party/darknet/src/upsample_layer.cpp
+  third_party/darknet/src/box.cpp
+  #third_party/darknet/src/normalization_layer.cpp
+  #third_party/darknet/src/local_layer.cpp
+  #third_party/darknet/src/shortcut_layer.cpp
+  #third_party/darknet/src/logistic_layer.cpp
+  third_party/darknet/src/rnn_layer.cpp
+  third_party/darknet/src/gru_layer.cpp
+  third_party/darknet/src/crnn_layer.cpp
+  third_party/darknet/src/demo.cpp
+  third_party/darknet/src/region_layer.cpp
+  third_party/darknet/src/reorg_layer.cpp
+  third_party/darknet/src/tree.cpp
+  third_party/darknet/src/lstm_layer.cpp
+  third_party/darknet/src/l2norm_layer.cpp
+  third_party/darknet/src/yolo_layer.cpp
 )
 
 set(DARKNET_SOURCE_FILES_SGX_LAYERWISE ${DARKNET_SOURCE_FILES})
 list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_LAYERWISE 
-  "third_party/darknet/src/cuda.cpp"
-  "third_party/darknet/src/deconvolutional_layer.cpp"
-  "third_party/darknet/src/detection_layer.cpp"
-  #"third_party/darknet/src/route_layer.cpp"
-  "third_party/darknet/src/upsample_layer.cpp"
-  "third_party/darknet/src/box.cpp"
-  "third_party/darknet/src/normalization_layer.cpp"
-  "third_party/darknet/src/local_layer.cpp"
-  #"third_party/darknet/src/shortcut_layer.cpp"
-  "third_party/darknet/src/logistic_layer.cpp"
-  "third_party/darknet/src/rnn_layer.cpp"
-  "third_party/darknet/src/gru_layer.cpp"
-  "third_party/darknet/src/crnn_layer.cpp"
-  "third_party/darknet/src/demo.cpp"
-  "third_party/darknet/src/region_layer.cpp"
-  "third_party/darknet/src/reorg_layer.cpp"
-  "third_party/darknet/src/tree.cpp"
-  "third_party/darknet/src/lstm_layer.cpp"
-  "third_party/darknet/src/l2norm_layer.cpp"
-  "third_party/darknet/src/yolo_layer.cpp"
+  third_party/darknet/src/cuda.cpp
+  third_party/darknet/src/deconvolutional_layer.cpp
+  third_party/darknet/src/detection_layer.cpp
+  #third_party/darknet/src/route_layer.cpp
+  third_party/darknet/src/upsample_layer.cpp
+  third_party/darknet/src/box.cpp
+  third_party/darknet/src/normalization_layer.cpp
+  third_party/darknet/src/local_layer.cpp
+  #third_party/darknet/src/shortcut_layer.cpp
+  third_party/darknet/src/logistic_layer.cpp
+  third_party/darknet/src/rnn_layer.cpp
+  third_party/darknet/src/gru_layer.cpp
+  third_party/darknet/src/crnn_layer.cpp
+  third_party/darknet/src/demo.cpp
+  third_party/darknet/src/region_layer.cpp
+  third_party/darknet/src/reorg_layer.cpp
+  third_party/darknet/src/tree.cpp
+  third_party/darknet/src/lstm_layer.cpp
+  third_party/darknet/src/l2norm_layer.cpp
+  third_party/darknet/src/yolo_layer.cpp
 )
 
 set(DARKNET_SOURCE_FILES_SGX_BLOCK ${DARKNET_SOURCE_FILES})
 list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_BLOCK 
-  "third_party/darknet/src/cuda.cpp"
-  "third_party/darknet/src/deconvolutional_layer.cpp"
-  "third_party/darknet/src/detection_layer.cpp"
-  "third_party/darknet/src/route_layer.cpp"
-  "third_party/darknet/src/upsample_layer.cpp"
-  "third_party/darknet/src/box.cpp"
-  #"third_party/darknet/src/normalization_layer.cpp"
-  "third_party/darknet/src/local_layer.cpp"
-  #"third_party/darknet/src/shortcut_layer.cpp"
-  #"third_party/darknet/src/logistic_layer.cpp"
-  "third_party/darknet/src/rnn_layer.cpp"
-  "third_party/darknet/src/gru_layer.cpp"
-  "third_party/darknet/src/crnn_layer.cpp"
-  "third_party/darknet/src/demo.cpp"
-  "third_party/darknet/src/region_layer.cpp"
-  "third_party/darknet/src/reorg_layer.cpp"
-  "third_party/darknet/src/tree.cpp"
-  "third_party/darknet/src/lstm_layer.cpp"
-  "third_party/darknet/src/l2norm_layer.cpp"
-  "third_party/darknet/src/yolo_layer.cpp"
+  third_party/darknet/src/cuda.cpp
+  third_party/darknet/src/deconvolutional_layer.cpp
+  third_party/darknet/src/detection_layer.cpp
+  third_party/darknet/src/route_layer.cpp
+  third_party/darknet/src/upsample_layer.cpp
+  third_party/darknet/src/box.cpp
+  #third_party/darknet/src/normalization_layer.cpp
+  third_party/darknet/src/local_layer.cpp
+  #third_party/darknet/src/shortcut_layer.cpp
+  #third_party/darknet/src/logistic_layer.cpp
+  third_party/darknet/src/rnn_layer.cpp
+  third_party/darknet/src/gru_layer.cpp
+  third_party/darknet/src/crnn_layer.cpp
+  third_party/darknet/src/demo.cpp
+  third_party/darknet/src/region_layer.cpp
+  third_party/darknet/src/reorg_layer.cpp
+  third_party/darknet/src/tree.cpp
+  third_party/darknet/src/lstm_layer.cpp
+  third_party/darknet/src/l2norm_layer.cpp
+  third_party/darknet/src/yolo_layer.cpp
 )
 
+set(DARKNET_T_SOURCES)
+if (CUSTOM_ENABLE_PURE_SGX)
+  set(DARKNET_T_SOURCES ${DARKNET_T_SOURCES} ${DARKNET_SOURCE_FILES_SGX})
+elseif(CUSTOM_ENABLE_LAYERWISE)
+  set(DARKNET_T_SOURCES  ${DARKNET_T_SOURCES} ${DARKNET_SOURCE_FILES_SGX_LAYERWISE})
+elseif(CUSTOM_ENABLE_BLOCKING)
+  set(DARKNET_T_SOURCES  ${DARKNET_T_SOURCES} ${DARKNET_SOURCE_FILES_SGX_BLOCK})
+else()
+  message(FATAL "Should not be here!")
+endif()
+
 add_trusted_library(DARKNET_T 
-  SRCS 
-    $<$<STREQUAL:${DARKNET_SGX_MODE},PURE_SGX>:${DARKNET_SOURCE_FILES_SGX}>
-    $<$<STREQUAL:${DARKNET_SGX_MODE},SGX_LAYERWISE>:${DARKNET_SOURCE_FILES_SGX_LAYERWISE}>
-    $<$<STREQUAL:${DARKNET_SGX_MODE},SGX_BLOCKING>:${DARKNET_SOURCE_FILES_SGX_BLOCK}>
+  SRCS
+  ${DARKNET_T_SOURCES}
+# clang-tidy cmake script has problem with generators
+#    $<$<STREQUAL:${DARKNET_SGX_MODE},PURE_SGX>:${DARKNET_SOURCE_FILES_SGX}>
+#    $<$<STREQUAL:${DARKNET_SGX_MODE},SGX_LAYERWISE>:${DARKNET_SOURCE_FILES_SGX_LAYERWISE}>
+#    $<$<STREQUAL:${DARKNET_SGX_MODE},>:${DARKNET_SOURCE_FILES_SGX_BLOCK}>
     ${Trusted_Home}/src/darknet-addons.cpp 
     ${Trusted_Home}/src/pcg_basic.c
   EDL
@@ -221,22 +246,38 @@ add_trusted_library(DARKNET_T
     ${LDS}
 )
 target_include_directories(DARKNET_T PRIVATE
-  "${CMAKE_SOURCE_DIR}/include"  
-  "${Trusted_Home}"
-  "${Trusted_Home}/include"
+  ${CMAKE_SOURCE_DIR}/include
+  ${Trusted_Home}
+  ${Trusted_Home}/include
 )
-target_compile_definitions(DARKNET_T PRIVATE USE_SGX $<$<BOOL:${CUSTOM_ENABLE_BLOCKING}>:USE_SGX_BLOCKING> $<$<BOOL:${CUSTOM_ENABLE_LAYERWISE}>:USE_SGX_LAYERWISE>)
+set(DARKNET_T_DEFS)
+if(CUSTOM_ENABLE_PURE_SGX)
+  set(DARKNET_T_DEFS)
+elseif(CUSTOM_ENABLE_LAYERWISE)
+  set(DARKNET_T_DEFS ${DARKNET_T_DEFS} -DUSE_SGX_LAYERWISE)
+elseif(CUSTOM_ENABLE_BLOCKING)
+  set(DARKNET_T_DEFS ${DARKNET_T_DEFS} -DUSE_SGX_BLOCKING)
+else()
+  message(FATAL "Should not be here!")
+endif()
+target_compile_definitions(DARKNET_T PRIVATE -DUSE_SGX 
+  #$<$<BOOL:${CUSTOM_ENABLE_BLOCKING}>:USE_SGX_BLOCKING> $<$<BOOL:${CUSTOM_ENABLE_LAYERWISE}>:USE_SGX_LAYERWISE>
+  ${DARKNET_T_DEFS}
+)
+attatch_clang_tidy_to_target(DARKNET_T)
+#clang_tidy_check(DARKNET_T)
+#clang_tidy_check_genex(DARKNET_T)
 
 set(Enclave_Cpp_Files
-  #"${Trusted_Home}/src/bitonic-sort.cpp" 
-  "${Trusted_Home}/src/enclave-app.cpp"
-  "${Trusted_Home}/src/DNNConfigIO.cpp" 
-  "${Trusted_Home}/src/DNNTrainer.cpp" 
-  #"${Trusted_Home}/src/BlockHeader.cpp" 
-  #"${Trusted_Home}/src/IBlockable.cpp" 
-  "${Trusted_Home}/src/util.cpp" 
-  #"${Trusted_Home}/src/tests.cpp"
-  "${Trusted_Home}/src/SpecialBufferCommon.cpp"
+  #${Trusted_Home}/src/bitonic-sort.cpp 
+  ${Trusted_Home}/src/enclave-app.cpp
+  ${Trusted_Home}/src/DNNConfigIO.cpp 
+  ${Trusted_Home}/src/DNNTrainer.cpp 
+  #${Trusted_Home}/src/BlockHeader.cpp 
+  #${Trusted_Home}/src/IBlockable.cpp 
+  ${Trusted_Home}/src/util.cpp 
+  #${Trusted_Home}/src/tests.cpp
+  ${Trusted_Home}/src/SpecialBufferCommon.cpp
   ${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
   ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
   ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
@@ -256,12 +297,18 @@ add_enclave_library(
   LDSCRIPT
     ${LDS}
 )
-target_compile_definitions(${Trusted_Name} PRIVATE USE_SGX $<$<BOOL:${CUSTOM_ENABLE_BLOCKING}>:USE_SGX_BLOCKING> $<$<BOOL:${CUSTOM_ENABLE_LAYERWISE}>:USE_SGX_LAYERWISE>)
+target_compile_definitions(${Trusted_Name} PRIVATE -DUSE_SGX 
+  #$<$<BOOL:${CUSTOM_ENABLE_BLOCKING}>:USE_SGX_BLOCKING> $<$<BOOL:${CUSTOM_ENABLE_LAYERWISE}>:USE_SGX_LAYERWISE>
+  ${DARKNET_T_DEFS}
+)
 target_include_directories(${Trusted_Name} PRIVATE
-  "${CMAKE_SOURCE_DIR}/include"
-  "${Trusted_Home}/"
-  "${Trusted_Home}/include"
+  ${CMAKE_SOURCE_DIR}/include
+  ${Trusted_Home}/
+  ${Trusted_Home}/include
   )
+#clang_tidy_check(${Trusted_Name})
+attatch_clang_tidy_to_target(${Trusted_Name})
+
 enclave_sign(
   ${Trusted_Name}
   KEY 
@@ -290,16 +337,17 @@ set(CMAKE_CUDA_FLAGS "${CUDA_ARCH_FLAGS_SPACE_SEPARATED} ${CUDA_HOST_COMPILER_FL
 message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 
 set(DARKNET_GPU_SOURCE_FILES 
-"third_party/darknet/src/convolutional_kernels.cu"
-"third_party/darknet/src/deconvolutional_kernels.cu"
-"third_party/darknet/src/activation_kernels.cu"
-"third_party/darknet/src/im2col_kernels.cu" 
-"third_party/darknet/src/col2im_kernels.cu" 
-"third_party/darknet/src/blas_kernels.cu" 
-"third_party/darknet/src/crop_layer_kernels.cu" 
-"third_party/darknet/src/dropout_layer_kernels.cu" 
-"third_party/darknet/src/maxpool_layer_kernels.cu" 
-"third_party/darknet/src/avgpool_layer_kernels.cu")
+  third_party/darknet/src/convolutional_kernels.cu
+  third_party/darknet/src/deconvolutional_kernels.cu
+  third_party/darknet/src/activation_kernels.cu
+  third_party/darknet/src/im2col_kernels.cu 
+  third_party/darknet/src/col2im_kernels.cu 
+  third_party/darknet/src/blas_kernels.cu 
+  third_party/darknet/src/crop_layer_kernels.cu 
+  third_party/darknet/src/dropout_layer_kernels.cu 
+  third_party/darknet/src/maxpool_layer_kernels.cu 
+  third_party/darknet/src/avgpool_layer_kernels.cu
+)
 
 add_library(DARKNET_U_GPU STATIC ${DARKNET_GPU_SOURCE_FILES} ${DARKNET_SOURCE_FILES})
 set_target_properties(DARKNET_U_GPU 
@@ -310,22 +358,10 @@ set_target_properties(DARKNET_U_GPU
 target_include_directories(DARKNET_U_GPU PRIVATE ${Untrusted_Home}/include  ${CUDA_INCLUDE_DIRS} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_link_libraries(DARKNET_U_GPU PRIVATE curand cublas cuda)
 target_compile_definitions(DARKNET_U_GPU PRIVATE)
+#clang_tidy_check(DARKNET_U_GPU)
+attatch_clang_tidy_to_target(DARKNET_U_GPU)
 
-# set(CUSTOM_GTEST_SRCS "./third_party/googletest/googletest/src/gtest-all.cc")
-# set(CUSTOM_GTEST_SRCS_INCLUDE_DIR "./third_party/googletest/googletest/include" "./third_party/googletest/googletest")
-# add_untrusted_library(
-#   U_gtest STATIC
-#   SRCS 
-#     ${CUSTOM_GTEST_SRCS}
-#   EDL
-#     ${Trusted_Edl}
-#   EDL_SEARCH_PATHS
-#     ${SGX_SDK}/include
-# )
-# target_include_directories(U_gtest PUBLIC
-#   ${CUSTOM_GTEST_SRCS_INCLUDE_DIR}
-# )
-# target_link_libraries(U_gtest PRIVATE Threads::Threads)
+
 
 set(App_Cpp_Files
   ${Untrusted_Home}/src/app.cpp
@@ -350,47 +386,47 @@ add_untrusted_library(
 )
 
 target_include_directories(${Untrusted_Lib_Name} PUBLIC
-"${CMAKE_SOURCE_DIR}/include"
-"${Untrusted_Home}"
-"${Untrusted_Home}/include"
+${CMAKE_SOURCE_DIR}/include
+${Untrusted_Home}
+${Untrusted_Home}/include
 ${CUDA_INCLUDE_DIRS}
+#${FOONATHAN_MEMORY_INCLUDE_DIR}
 )
-target_link_libraries(${Untrusted_Lib_Name} PRIVATE DARKNET_U_GPU OpenSSL::Crypto OpenSSL::SSL Threads::Threads)
+target_link_libraries(${Untrusted_Lib_Name} PRIVATE DARKNET_U_GPU OpenSSL::Crypto OpenSSL::SSL Threads::Threads 
+  #PUBLIC foonathan_memory
+)
+attatch_clang_tidy_to_target(${Untrusted_Lib_Name})
+#clang_tidy_check(${Untrusted_Lib_Name})
 
-#  clang-tidy;
-  #-header-filter=.;
-#  -checks=*,readability-*;
-set_property(TARGET ${Untrusted_Lib_Name} 
-             PROPERTY 
-                #CXX_CLANG_TIDY  "clang-tidy; -checks=*,readability-*;"
-                CXX_CPPCHECK "cppcheck")
 
 add_untrusted_executable(
   ${Untrusted_Name}
   SRCS 
-      "${Untrusted_Home}/src/main.cpp"
+      ${Untrusted_Home}/src/main.cpp
   EDL
     ${Trusted_Edl}
   EDL_SEARCH_PATHS
     ${SGX_SDK}/include
 )
 target_link_libraries(${Untrusted_Name} PRIVATE ${Untrusted_Lib_Name})
+attatch_clang_tidy_to_target(${Untrusted_Name})
+#clang_tidy_check(${Untrusted_Name})
 
 
 set(TEST_SRC_FILES 
-  "./test/unittests/SGXADL-tests.cpp"
-  "./test/unittests/SGXADL-GeneralEnclave_test.cpp"
-  "./test/unittests/Record-tests.cpp"
+  ./test/unittests/SGXADL-tests.cpp
+  ./test/unittests/SGXADL-GeneralEnclave_test.cpp
+  ./test/unittests/Record-tests.cpp
+  #./test/unittests/memory-pool-tests.cpp
 )
 add_executable(SGXALDUnitTests ${TEST_SRC_FILES})
-# set_property(TARGET SGXALDUnitTests
-#              PROPERTY 
-#                 #CXX_CLANG_TIDY  "clang-tidy; -checks=*,readability-*;"
-#                 CXX_CPPCHECK "cppcheck; --enable=all; --std=c++14;")
-target_include_directories(SGXALDUnitTests PRIVATE ${GTEST_INCLUDE_DIRS} ${SGX_INCLUDE_DIR})
-target_link_libraries(SGXALDUnitTests PRIVATE ${GTEST_BOTH_LIBRARIES} ${Untrusted_Lib_Name} Threads::Threads)
+target_include_directories(SGXALDUnitTests PRIVATE ${GTEST_INCLUDE_DIRS} ${SGX_INCLUDE_DIR} 
+#${FOONATHAN_MEMORY_INCLUDE_DIR}
+)
+target_link_libraries(SGXALDUnitTests PRIVATE ${GTEST_BOTH_LIBRARIES} ${Untrusted_Lib_Name})
+attatch_clang_tidy_to_target(SGXALDUnitTests)
+#clang_tidy_check(SGXALDUnitTests)
 add_test(gtest_unittests SGXALDUnitTests)
-#set_property(TARGET SGXALDUnitTests PROPERTY CXX_CLANG_TIDY "clang-tidy; -checks=*,readability-*;")
 
 # Just to see the generated dependencies
 # add_custom_target(graphviz ALL
