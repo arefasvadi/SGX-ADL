@@ -6,7 +6,7 @@
     <!-- <HeapMaxSize>0x60000000</HeapMaxSize> -->
     <!-- <HeapMaxSize>0x40000000</HeapMaxSize> -->
     <TCSNum>8</TCSNum>
-    <TCSMinPool>2</TCSMinPool>
+    <TCSMinPool>8</TCSMinPool>
     <TCSMaxNum>8</TCSMaxNum>
     <TCSPolicy>1</TCSPolicy>
     <DisableDebug>0</DisableDebug>

@@ -9,11 +9,11 @@
 // later remove this to CMAKE
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
-#ifdef USE_SGX
-#define USE_GEMM_THREADING
+#ifndef USE_GEMM_THREADING_SGX
+#define USE_GEMM_THREADING_SGX
 #endif
 
-#ifdef USE_GEMM_THREADING
+#ifdef USE_GEMM_THREADING_SGX
 #ifndef AVAIL_THREADS
 #define AVAIL_THREADS 6
 #endif

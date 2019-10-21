@@ -601,7 +601,7 @@ void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M,
     int i, j, k;
     for (i = starter_M; i < M; ++i) {
       for (k = 0; k < K; ++k) {
-        register float A_PART = ALPHA * A[i * lda + k];
+        float A_PART = ALPHA * A[i * lda + k];
         for (j = starter_N; j < N; ++j) {
           C[i * ldc + j] += A_PART * B[k * ldb + j];
         }
@@ -612,7 +612,7 @@ void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M,
     int i, j, k;
     for (i = starter_M; i < M; ++i) {
       for (k = 0; k < K; ++k) {
-        register float A_PART = ALPHA * A[k * lda + i];
+        float A_PART = ALPHA * A[k * lda + i];
         for (j = starter_N; j < N; ++j) {
           C[i * ldc + j] += A_PART * B[k * ldb + j];
         }
@@ -623,7 +623,7 @@ void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M,
     int i, j, k;
     for (i = starter_M; i < M; ++i) {
       for (j = starter_N; j < N; ++j) {
-        register float sum = 0;
+        float sum = 0;
         for (k = 0; k < K; ++k) {
           sum += ALPHA * A[i * lda + k] * B[j * ldb + k];
         }
@@ -635,7 +635,7 @@ void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M,
     int i, j, k;
     for (i = starter_M; i < M; ++i) {
       for (j = starter_N; j < N; ++j) {
-        register float sum = 0;
+        float sum = 0;
         for (k = 0; k < K; ++k) {
           sum += ALPHA * A[i + k * lda] * B[k + j * ldb];
         }
