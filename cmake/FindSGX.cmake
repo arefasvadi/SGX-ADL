@@ -1,6 +1,6 @@
 # FindPackage cmake file for Intel SGX SDK
 
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required(VERSION 3.15)
 include(CMakeParseArguments)
 
 set(SGX_FOUND "NO")
@@ -61,7 +61,7 @@ if(SGX_FOUND)
     endif()
 
     if(SGX_MODE STREQUAL "Debug")
-        set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS} -O0 -g -DDEBUG -UNDEBUG -UEDEBUG")
+        set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS} -O0 -g3 -ggdb -DDEBUG -UNDEBUG -UEDEBUG")
     elseif(SGX_MODE STREQUAL "PreRelease")
         set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS} -O3 -UDEBUG -DNDEBUG -DEDEBUG")
     elseif(SGX_MODE STREQUAL "Release")
@@ -97,7 +97,8 @@ if(SGX_FOUND)
                            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
         add_library(${target}-edlobj OBJECT ${EDL_T_C})
-        set_target_properties(${target}-edlobj PROPERTIES COMPILE_FLAGS ${ENCLAVE_C_FLAGS})
+        set_target_properties(${target}-edlobj PROPERTIES COMPILE_FLAGS ${ENCLAVE_C_FLAGS}
+                                                          INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target}-edlobj PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
         set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_t.h")
@@ -123,7 +124,8 @@ if(SGX_FOUND)
         _build_edl_obj(${SGX_EDL} ${SGX_EDL_SEARCH_PATHS} ${SGX_USE_PREFIX})
 
         add_library(${target} STATIC ${SGX_SRCS} $<TARGET_OBJECTS:${target}-edlobj>)
-        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${ENCLAVE_CXX_FLAGS})
+        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${ENCLAVE_CXX_FLAGS}
+                                                    INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
         target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
@@ -157,7 +159,8 @@ if(SGX_FOUND)
         _build_edl_obj(${SGX_EDL} ${SGX_EDL_SEARCH_PATHS} ${SGX_USE_PREFIX})
 
         add_library(${target} SHARED ${SGX_SRCS} $<TARGET_OBJECTS:${target}-edlobj>)
-        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${ENCLAVE_CXX_FLAGS})
+        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${ENCLAVE_CXX_FLAGS}
+                                                    INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
         set(TLIB_LIST "")
@@ -251,7 +254,8 @@ if(SGX_FOUND)
         endforeach()
 
         add_library(${target} ${mode} ${SGX_SRCS} ${EDL_U_SRCS})
-        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS})
+        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS}
+                                        INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
         target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
                                          -L${SGX_LIBRARY_PATH} \
@@ -297,7 +301,8 @@ if(SGX_FOUND)
         endforeach()
 
         add_executable(${target} ${SGX_SRCS} ${EDL_U_SRCS})
-        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS})
+        set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS}
+                                        INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
         target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
                                          -L${SGX_LIBRARY_PATH} \

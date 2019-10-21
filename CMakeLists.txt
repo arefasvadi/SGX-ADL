@@ -1,15 +1,19 @@
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
+
 project(SGX_ADL LANGUAGES C CXX CUDA)
 
-# adding google test framework
-enable_testing()
-find_package(GTest REQUIRED)
+#cmake_policy(SET CMP0069 NEW)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT iporesult)
+message(STATUS "CheckIPOSupported returns: ${iporesult}")
 
 list(APPEND CMAKE_MODULE_PATH 
             ${CMAKE_SOURCE_DIR}/cmake)
-
 include(Configs)
 include(Utilities)
+
+# adding google test framework
+enable_testing()
 
 if (CPPCHECK_ENABLED)
   find_package(CppCheck)
@@ -72,6 +76,7 @@ set(SGX_HW ON)
 if (CUSTOM_ENABLE_DEBUGING)
   set(SGX_MODE "Debug")
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+  
 else()
   set(SGX_MODE "PreRelease")
   #set(SGX_MODE "Release")
@@ -349,9 +354,13 @@ set(DARKNET_GPU_SOURCE_FILES
   third_party/darknet/src/avgpool_layer_kernels.cu
 )
 
-add_library(DARKNET_U_GPU STATIC ${DARKNET_GPU_SOURCE_FILES} ${DARKNET_SOURCE_FILES})
+add_library(DARKNET_U_GPU STATIC ${DARKNET_GPU_SOURCE_FILES}
+                                 #${DARKNET_SOURCE_FILES}
+                                 ${DARKNET_T_SOURCES}
+                                 )
 set_target_properties(DARKNET_U_GPU 
                         PROPERTIES
+                        #INTERPROCEDURAL_OPTIMIZATION TRUE
                         CUDA_SEPERABLE_COMPILATION ON
                         POSITION_INDEPENDENT_CODE ON
                         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
@@ -412,7 +421,7 @@ target_link_libraries(${Untrusted_Name} PRIVATE ${Untrusted_Lib_Name})
 attatch_clang_tidy_to_target(${Untrusted_Name})
 #clang_tidy_check(${Untrusted_Name})
 
-
+find_package(GTest REQUIRED)
 set(TEST_SRC_FILES 
   ./test/unittests/SGXADL-tests.cpp
   ./test/unittests/SGXADL-GeneralEnclave_test.cpp
@@ -423,6 +432,7 @@ add_executable(SGXALDUnitTests ${TEST_SRC_FILES})
 target_include_directories(SGXALDUnitTests PRIVATE ${GTEST_INCLUDE_DIRS} ${SGX_INCLUDE_DIR} 
 #${FOONATHAN_MEMORY_INCLUDE_DIR}
 )
+set_target_properties(SGXALDUnitTests PROPERTIES NTERPROCEDURAL_OPTIMIZATION TRUE)
 target_link_libraries(SGXALDUnitTests PRIVATE ${GTEST_BOTH_LIBRARIES} ${Untrusted_Lib_Name})
 attatch_clang_tidy_to_target(SGXALDUnitTests)
 #clang_tidy_check(SGXALDUnitTests)
