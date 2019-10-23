@@ -18,16 +18,16 @@ namespace sgx {
       public:
       explicit SpecialBuffer(const uint32_t size);
       virtual ~SpecialBuffer() = default;
-      std::vector<T>
+      std::unique_ptr<T[]>
       getItemsInRange(const uint32_t start, const uint32_t end);
-      
+
       // gsl::span<T>
       // getItemsInRangeSpan(const uint32_t start, const uint32_t end);
 
       void
-      setItemsInRange(const uint32_t  start,
-                      const uint32_t  end,
-                      std::vector<T> &content);
+      setItemsInRange(const uint32_t        start,
+                      const uint32_t        end,
+                      std::unique_ptr<T[]> &content);
       // void
       // setItemsInRangeSpan(const uint32_t start,
       //                 const uint32_t end,
@@ -75,16 +75,16 @@ namespace sgx {
     }
 
     template <typename T>
-    std::vector<T>
+    std::unique_ptr<T[]>
     SpecialBuffer<T>::getItemsInRange(const uint32_t start,
                                       const uint32_t end) {
       assert(end > start);
-      sgx_status_t   succ             = SGX_ERROR_UNEXPECTED;
-      const size_t   buff_len         = end - start;
-      const size_t   interim_buff_len = 100 * ONE_KB / sizeof(T);
-      std::vector<T> ret(buff_len, 0);
-      int            q = buff_len / (interim_buff_len);
-      int            r = buff_len % (interim_buff_len);
+      sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
+      const size_t buff_len         = end - start;
+      const size_t interim_buff_len = 100 * ONE_KB / sizeof(T);
+      auto         ret              = std::unique_ptr<T[]>(new T[buff_len]);
+      int          q                = buff_len / (interim_buff_len);
+      int          r                = buff_len % (interim_buff_len);
       for (int i = 0; i < q; ++i) {
         succ = ocall_get_buffer_layerwise(
             id_,
@@ -109,9 +109,9 @@ namespace sgx {
 
     template <typename T>
     void
-    SpecialBuffer<T>::setItemsInRange(const uint32_t  start,
-                                      const uint32_t  end,
-                                      std::vector<T> &content) {
+    SpecialBuffer<T>::setItemsInRange(const uint32_t        start,
+                                      const uint32_t        end,
+                                      std::unique_ptr<T[]> &content) {
       assert(end > start);
       const size_t buff_len         = end - start;
       const size_t interim_buff_len = 100 * ONE_KB / sizeof(T);
