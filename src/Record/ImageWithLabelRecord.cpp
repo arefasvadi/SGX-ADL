@@ -1,7 +1,10 @@
 #include "Record/ImageWithLabelRecord.h"
+
 #include <Visitors/Visitor.h>
+
 #include <cstring>
 #include <string>
+
 #include "Record/ImageRecord.h"
 
 namespace sgx {
@@ -63,7 +66,7 @@ namespace sgx {
     }
 
     void
-    ImageWLabelRecord::unSerializeIntoThis(std::vector<uint8_t> serialized) {
+    ImageWLabelRecord::unSerializeIntoThis(std::vector<uint8_t>&& serialized) {
       if (serialized.size() != getRecordSizeInBytes()) {
         throw std::runtime_error(
             "size of the source and destination for unserializing does not "
@@ -106,7 +109,7 @@ namespace sgx {
       }
     }
 
-    const size_t
+    size_t
     ImageWLabelRecord::getRecordSizeInBytes() const {
       return this->IRecPtr_->getRecordSizeInBytes()
              + (sizeof(float) * label_.size());
@@ -117,12 +120,59 @@ namespace sgx {
       std::string res = IRecPtr_->to_string();
       res += "\n\"label contents\":\n[";
       const auto len = label_.size();
-      for (int i = 0; i < len; ++i) {
+      for (auto i = uint64_t{0}; i < len; ++i) {
         res += std::to_string(label_[i]) + ",";
       }
       res.back() = ']';
       res += "\"";
       return res;
+    }
+
+    std::vector<uint8_t>
+    ImageWLabelRecord::fullySerialize() const {
+      const auto           my_type            = this->myType();
+      auto                 irec_vec           = IRecPtr_->fullySerialize();
+      const size_t         my_content_size    = (sizeof(float) * label_.size());
+      const size_t         image_content_size = irec_vec.size();
+      std::vector<uint8_t> res(sizeof(my_type) + sizeof(size_t)
+                               + my_content_size + image_content_size);
+      res.shrink_to_fit();
+
+      std::memcpy(res.data(), &my_type, sizeof(my_type));
+      std::memcpy(
+          res.data() + sizeof(my_type), &my_content_size, sizeof(size_t));
+      std::memcpy(res.data() + sizeof(my_type) + sizeof(size_t),
+                  label_.data(),
+                  my_content_size);
+      std::memcpy(
+          res.data() + sizeof(my_type) + sizeof(size_t) + my_content_size,
+          irec_vec.data(),
+          image_content_size);
+      return res;
+    }
+
+    void
+    ImageWLabelRecord::fullyUnserialize(
+        std::vector<uint8_t>&& fully_serialized) {
+      RecordTypes* type = (RecordTypes*)fully_serialized.data();
+      if (*type != this->myType()) {
+        throw std::runtime_error("type mismatch\n");
+      }
+      size_t my_content_size = 0;
+      std::memcpy(&my_content_size,
+                  fully_serialized.data() + sizeof(RecordTypes),
+                  sizeof(size_t));
+      label_.resize(my_content_size / sizeof(float));
+      label_.shrink_to_fit();
+      std::memcpy(
+          label_.data(),
+          fully_serialized.data() + sizeof(RecordTypes) + sizeof(size_t),
+          my_content_size);
+
+      IRecPtr_->fullyUnserialize(
+          std::vector<uint8_t>(fully_serialized.begin() + sizeof(RecordTypes)
+                                   + sizeof(size_t) + my_content_size,
+                               fullySerialize().end()));
     }
 
     // ImageWLabelRecord*
@@ -135,7 +185,7 @@ namespace sgx {
       visitor.visit(*this);
     }
 
-    const ImageWLabelRecord::WhoseIndex
+    ImageWLabelRecord::WhoseIndex
     ImageWLabelRecord::getWhoseIndex(const size_t start_ind,
                                      const size_t len) const {
       const size_t decorated_len = this->IRecPtr_->getRecordSizeInBytes();

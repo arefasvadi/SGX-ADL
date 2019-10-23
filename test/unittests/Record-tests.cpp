@@ -82,7 +82,8 @@ namespace {
         ind             = ((size_t)std::rand()) % (serialized.size());
         serialized[ind] = ((uint8_t)std::rand()) % 255;
       }
-      rec.unSerializeIntoThis(serialized);
+      auto serialized_copy(serialized);
+      rec.unSerializeIntoThis(std::move(serialized_copy));
       auto new_serialized = rec.serializeFromThis();
       ASSERT_EQ(serialized.size(), new_serialized.size());
       for (size_t i = 0; i < serialized.size(); ++i) {
@@ -163,7 +164,8 @@ namespace {
         ind             = ((size_t)std::rand()) % (serialized.size());
         serialized[ind] = ((uint8_t)std::rand()) % 255;
       }
-      rec.unSerializeIntoThis(serialized);
+      auto serialized_copy(serialized);
+      rec.unSerializeIntoThis(std::move(serialized_copy));
       auto new_serialized = rec.serializeFromThis();
       ASSERT_EQ(serialized.size(), new_serialized.size());
       for (size_t i = 0; i < serialized.size(); ++i) {

@@ -22,8 +22,8 @@
 
 #define MAX_PATH FILENAME_MAX
 
-#include "Channel/BasicChannel.hpp"
-#include "Channel/IChannel.hpp"
+//#include "Channel/BasicChannel.hpp"
+//#include "Channel/IChannel.hpp"
 #include "CryptoEngine.hpp"
 #include "Record/ImageRecord.h"
 #include "Record/ImageWithLabelRecord.h"
@@ -818,17 +818,18 @@ void ocall_setup_channel(uint64_t chan_id, int channel_type) {
   // TODO: Later try to choose the correct implementation of channel with
   // templates
 
-  if (channel_type == ChannelType::TwoWay) {
-    BasicChannel<ChannelType::TwoWay>::AddNewChannelToRegistery(
-        std::make_unique<BasicChannel<ChannelType::TwoWay>>(chan_id));
-  }
-  else if (channel_type == ChannelType::OneWayReceiver) {
-    BasicChannel<ChannelType::OneWayReceiver>::AddNewChannelToRegistery(
-        std::make_unique<BasicChannel<ChannelType::OneWayReceiver>>(chan_id));
-  } else if (channel_type == ChannelType::OneWaySender) {
-    BasicChannel<ChannelType::OneWaySender>::AddNewChannelToRegistery(
-        std::make_unique<BasicChannel<ChannelType::OneWaySender>>(chan_id));
-  }
+  // if (channel_type == ChannelType::TwoWay) {
+  //   BasicChannel<ChannelType::TwoWay>::AddNewChannelToRegistery(
+  //       std::make_unique<BasicChannel<ChannelType::TwoWay>>(chan_id));
+  // }
+  // else if (channel_type == ChannelType::OneWayReceiver) {
+  //   BasicChannel<ChannelType::OneWayReceiver>::AddNewChannelToRegistery(
+  //       std::make_unique<BasicChannel<ChannelType::OneWayReceiver>>(chan_id));
+  // } else if (channel_type == ChannelType::OneWaySender) {
+  //   BasicChannel<ChannelType::OneWaySender>::AddNewChannelToRegistery(
+  //       std::make_unique<BasicChannel<ChannelType::OneWaySender>>(chan_id));
+  // }
+
 }
 
 void ocall_tearup_channel(uint64_t chan_id) {

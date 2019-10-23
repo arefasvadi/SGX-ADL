@@ -1,27 +1,54 @@
 #pragma once
 #include <vector>
+
 #include "Record/IRecordSet.h"
 
 namespace sgx {
+  namespace untrusted {
 
-  namespace common {
-
-    class VectorRecordSet : virtual public IRecordSet {
+    class VectorRecordSet : public IRecordSet {
       public:
       virtual ~VectorRecordSet() = default;
 
-      virtual const std::unique_ptr<IRecord>&
+      explicit VectorRecordSet(std::string name) : IRecordSet(name){};
+      explicit VectorRecordSet(std::string name, size_t initial_sz);
+
+      virtual const std::unique_ptr<common::IRecord>&
       getItemAt(const size_t i) const override;
 
-      virtual void
-      setItemAt(const size_t                   i,
-                const std::unique_ptr<IRecord> changed_record) const override;
+      virtual std::vector<uint8_t>
+      getItemAtSerialized(const size_t i) const override;
+
+      virtual std::vector<uint8_t>
+      getItemsInRangeSerialized(const size_t i,
+                                const size_t len) const override;
+
+      virtual std::vector<uint8_t>
+      getIndicesSerialized(const std::vector<size_t>& indices) const override;
 
       virtual void
+      setItemAt(const size_t                       i,
+                std::unique_ptr<common::IRecord>&& changed_record) override;
+
+      virtual void
+      setItemAtSerialized(const size_t           i,
+                          std::vector<uint8_t>&& changed_record) override;
+
+      virtual void
+      setItemsInRangeSerialized(
+          const size_t           i,
+          const size_t           len,
+          std::vector<uint8_t>&& changed_records) override;
+
+      virtual void
+      setIndicesSerialized(const std::vector<size_t>& indices,
+                           std::vector<uint8_t>&&     changed_records) override;
+
+      virtual std::unique_ptr<common::IRecord>
       removeAt(const size_t i) override;
 
       virtual void
-      appendNew(const std::unique_ptr<IRecord> new_record) override;
+      appendNew(std::unique_ptr<common::IRecord>&& new_record) override;
 
       virtual void
       persistThisToFile(const std::string& file_path) const override;
@@ -29,13 +56,19 @@ namespace sgx {
       virtual void
       loadFileIntoThis(const std::string& file_path) override;
 
-      virtual const size_t
+      virtual const std::string
+      to_string() const override;
+
+      virtual size_t
       getTotalNumberofElements() const override;
 
+      virtual size_t
+      getRecordSetSizeInBytes() const override;
+
       protected:
-      std::vector<std::unique_ptr<IRecord>> storage_;
+      std::vector<std::unique_ptr<common::IRecord>> storage_;
 
       private:
     };
-  }  // namespace common
+  }  // namespace untrusted
 }  // namespace sgx

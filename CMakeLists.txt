@@ -378,10 +378,13 @@ set(App_Cpp_Files
   ${CMAKE_SOURCE_DIR}/src/Record/IRecord.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/ImageRecord.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/ImageWithLabelRecord.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
+  ${CMAKE_SOURCE_DIR}/src/Record/IRecordSet.cpp
+  ${CMAKE_SOURCE_DIR}/src/Record/VectorRecordSet.cpp
+  ${CMAKE_SOURCE_DIR}/src/Record/VectorRecordSetView.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
   )
 
 add_untrusted_library(

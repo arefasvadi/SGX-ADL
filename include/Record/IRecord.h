@@ -12,9 +12,24 @@
 namespace sgx {
   namespace common {
 
-    class IRecord : virtual public IVisitable {
+    typedef enum class RecordTypes {
+      UNKNOWN_REC = 0,
+      IMAGE_REC = 1000,
+      IMAGE_W_ID_REC = 1100,
+      LABEL_REC = 2000,
+      LABEL_W_ID_REC = 2100,
+      IMAGE_W_LABEL_REC = 3000,
+      IMAGE_W_LABEL_W_ID_REC = 3100,
+
+    } RecordTypes;
+
+    std::string
+    RecordTypeToString(RecordTypes t);
+    RecordTypes
+    stringToRecordType(const std::string& t);
+
+    class IRecord : public IVisitable {
       public:
-      IRecord()          = default;
       virtual ~IRecord() = default;
 
       DISALLOW_COPY_AND_ASSIGN(IRecord);
@@ -29,7 +44,7 @@ namespace sgx {
                         const size_t len) const = 0;
 
       virtual void
-      unSerializeIntoThis(std::vector<uint8_t> serialized)
+      unSerializeIntoThis(std::vector<uint8_t>&& serialized)
           = 0;
 
       virtual void
@@ -38,22 +53,33 @@ namespace sgx {
                           const size_t len)
           = 0;
 
-      virtual const size_t
+      virtual size_t
       getRecordSizeInBytes() const = 0;
 
       virtual const std::string
       to_string() const = 0;
 
+      // for file storage
+      virtual std::vector<uint8_t>
+      fullySerialize() const = 0;
+
+      // for file storage
+      virtual void
+      fullyUnserialize(std::vector<uint8_t>&& fully_serialized) = 0;
+
+      virtual RecordTypes
+      myType() const
+          = 0;
       // std::unique_ptr<IRecord>
       // clone() const;
 
       protected:
+      IRecord() = default;
       // virtual IRecord* clone_impl() const = 0;
-
       private:
     };
 
-    class IRecordDecorator : virtual public IRecord {
+    class IRecordDecorator : public IRecord {
       public:
       virtual ~IRecordDecorator() = default;
       ALLOW_DEFAULT_MOVE_NOEXCEPT(IRecordDecorator);
@@ -80,18 +106,18 @@ namespace sgx {
       private:
     };
 
-    class IRecordWID : virtual public IRecordDecorator {
+    class IRecordWID : public IRecordDecorator {
       public:
       virtual ~IRecordWID() = default;
 
       explicit IRecordWID(const size_t               id,
                           std::unique_ptr<IRecord>&& irec_ptr) :
-          ID_(id),
-          IRecordDecorator(std::move(irec_ptr)){};
+          IRecordDecorator(std::move(irec_ptr)),
+          ID_(id){};
 
       ALLOW_DEFAULT_MOVE_NOEXCEPT(IRecordWID);
 
-      virtual const size_t
+      virtual size_t
       getRecordID() const {
         return ID_;
       };
@@ -101,7 +127,7 @@ namespace sgx {
       size_t ID_;
     };
 
-    class IEncRecord : virtual public IRecordDecorator {
+    class IEncRecord : public IRecordDecorator {
       public:
       virtual ~IEncRecord() = default;
 
@@ -119,7 +145,7 @@ namespace sgx {
       private:
     };
 
-    class IIntegRecord : virtual public IRecordDecorator {
+    class IIntegRecord : public IRecordDecorator {
       public:
       virtual ~IIntegRecord() = default;
 
@@ -137,7 +163,7 @@ namespace sgx {
       private:
     };
 
-    class IAuthRecord : virtual public IRecordDecorator {
+    class IAuthRecord : public IRecordDecorator {
       public:
       virtual ~IAuthRecord() = default;
 
@@ -155,7 +181,7 @@ namespace sgx {
       private:
     };
 
-    class ISignedRecord : virtual public IRecordDecorator {
+    class ISignedRecord : public IRecordDecorator {
       public:
       virtual ~ISignedRecord() = default;
       virtual void
@@ -173,7 +199,6 @@ namespace sgx {
     };
 
     class IEncWAuthRecord :
-        virtual public IRecordDecorator,
         virtual public IEncRecord,
         virtual public IAuthRecord {
       public:
@@ -188,7 +213,6 @@ namespace sgx {
     };
 
     class IEncWSignRecord :
-        virtual public IRecordDecorator,
         virtual public IEncRecord,
         virtual public ISignedRecord {
       public:

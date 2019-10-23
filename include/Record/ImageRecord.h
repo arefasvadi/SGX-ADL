@@ -1,14 +1,17 @@
 #pragma once
-#include "common.h"
-
 #include <vector>
+
 #include "Record/IRecord.h"
+#include "common.h"
 
 namespace sgx {
   namespace common {
+
     class ImageRecord : virtual public IRecord {
       public:
       virtual ~ImageRecord() = default;
+
+      ImageRecord();
       explicit ImageRecord(int width, int height, int channels);
 
       // ALLOW_DEFAULT_COPY_AND_ASSIGN(ImageRecord);
@@ -23,18 +26,29 @@ namespace sgx {
                         const size_t len) const override;
 
       virtual void
-      unSerializeIntoThis(std::vector<uint8_t> serialized) override;
+      unSerializeIntoThis(std::vector<uint8_t>&& serialized) override;
 
       virtual void
       unSerializeIntoThis(uint8_t*     buff,
                           const size_t start_ind,
                           const size_t len) override;
 
-      virtual const size_t
+      virtual size_t
       getRecordSizeInBytes() const override;
 
       virtual const std::string
       to_string() const override;
+
+      virtual std::vector<uint8_t>
+      fullySerialize() const override;
+
+      virtual void
+      fullyUnserialize(std::vector<uint8_t>&& fully_serialized) override;
+
+      virtual RecordTypes
+      myType() const override {
+        return RecordTypes::IMAGE_REC;
+      };
 
       virtual void
       accept(IVisitor& visitor) override;
@@ -47,7 +61,7 @@ namespace sgx {
       std::vector<float> img_;
     };
 
-    class ImageRecordWID : virtual public IRecordWID {
+    class ImageRecordWID : public IRecordWID {
       public:
       explicit ImageRecordWID(const size_t                 id,
                               std::unique_ptr<ImageRecord> irec_ptr) :

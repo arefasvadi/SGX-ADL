@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <vector>
+
 #include "Record/IRecord.h"
 #include "common.h"
 
@@ -33,18 +34,29 @@ namespace sgx {
                         const size_t len) const override;
 
       virtual void
-      unSerializeIntoThis(std::vector<uint8_t> serialized) override;
+      unSerializeIntoThis(std::vector<uint8_t>&& serialized) override;
 
       virtual void
       unSerializeIntoThis(uint8_t*     buff,
                           const size_t start_ind,
                           const size_t len) override;
 
-      virtual const size_t
+      virtual size_t
       getRecordSizeInBytes() const override;
 
       virtual const std::string
       to_string() const override;
+
+      virtual std::vector<uint8_t>
+      fullySerialize() const override;
+
+      virtual void
+      fullyUnserialize(std::vector<uint8_t>&& fully_serialized) override;
+
+      virtual RecordTypes
+      myType() const override {
+        return RecordTypes::IMAGE_W_LABEL_REC;
+      };
 
       // virtual ImageWLabelRecord*
       // clone_impl() const override;
@@ -56,7 +68,7 @@ namespace sgx {
       private:
       enum class WhoseIndex { mine = 0, childs = 1, shared = 2 };
 
-      const WhoseIndex
+      WhoseIndex
                          getWhoseIndex(const size_t start_ind, const size_t len) const;
       std::vector<float> label_;
     };
