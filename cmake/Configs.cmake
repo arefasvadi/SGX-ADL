@@ -1,11 +1,9 @@
-set(CMAKE_C_COMPILER clang CACHE FILEPATH "C Compiler" FORCE)
-set(CMAKE_CXX_COMPILER clang++ CACHE FILEPATH "CXX Compiler" FORCE)
-#set(CMAKE_C_LINK_EXECUTABLE /usr/bin/ld.ldd CACHE FILEPATH "Linker Exe" FORCE)
+message(STATUS "\"SGXADL_ENABLE_CLANG_COMPILER\" is ${SGXADL_ENABLE_CLANG_COMPILER}")
+message(STATUS "\"CMAKE_C_COMPILER\" is ${CMAKE_C_COMPILER}")
+message(STATUS "\"CMAKE_CXX_COMPILER\" is ${CMAKE_CXX_COMPILER}")
 
-set(CPPCHECK_ENABLED  OFF CACHE BOOL "Will use cppcheck to generate reports" FORCE)
-set(CLANG_TIDY_ENABLED  OFF CACHE BOOL "Will use clang-tidy to generate reports" FORCE)
-set(INCLUDE_WHAT_YOU_USE_ENABLED OFF)
-set(LINK_WHAT_YOU_USE_ENABLED ON)
+
+#set(CMAKE_C_LINK_EXECUTABLE /usr/bin/ld.ldd CACHE FILEPATH "Linker Exe" FORCE)
 
 set(CLANG_TIDY_DEFAULT_CHECKS_STR
     -* 
@@ -38,29 +36,17 @@ set(CLANG_TIDY_DEFAULT_CHECKS_STR
     #readability-* -readability-implicit-bool-conversion -readability-magic-numbers
     #zircorn-*
 )
-set(CLANG_TIDY_DEFAULT_CHECKS "${CLANG_TIDY_DEFAULT_CHECKS_STR}" CACHE STRING "Clang-tidy default checks" FORCE)
-set(CPPCHECK_ERROR_EXITCODE_ARG "--error-exitcode=0" CACHE STRING "The exitcode to use if an error is found" FORCE)
-set(CPPCHECK_XML_OUTPUT "${PROJECT_BINARY_DIR}/analysis/cppcheck/cppcheck-analysis.xml" CACHE STRING "" FORCE)
+set(CLANG_TIDY_DEFAULT_CHECKS "${CLANG_TIDY_DEFAULT_CHECKS_STR}")
 
-if (LINK_WHAT_YOU_USE_ENABLED)
-    set(CMAKE_LINK_WHAT_YOU_USE ON CACHE BOOL "" FORCE)
+if ("${SGXADL_MODE}" MATCHES "LAYERWISE")
+    set(CUSTOM_ENABLE_LAYERWISE ON)
+elseif("${SGXADL_MODE}" MATCHES "PURE_SGX")
+    set(CUSTOM_ENABLE_PURE_SGX ON)
+elseif("${SGXADL_MODE}" MATCHES "SGX_BLOCKING")
+    set(CUSTOM_ENABLE_BLOCKING ON)
+    message(DEPRECATION "SGXADL_MODE is \"${SGXADL_MODE}\" -- This feature is deprecated")
 else()
-    set(CMAKE_LINK_WHAT_YOU_USE OFF CACHE BOOL "" FORCE)
+    message(FATAL_ERROR "\$\{\"SGXADL_MODE\"\} : ${SGXADL_MODE} cannot be set properly!")
 endif()
+message(STATUS "\$\{\"SGXADL_MODE\"\} : ${SGXADL_MODE}")
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE BOOL "" FORCE)
-set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "VERBOSITY OF BUILD" FORCE)
-
-if (INCLUDE_WHAT_YOU_USE_ENABLED)
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "/home/aref/projects/iwyu/build/bin/include-what-you-use" CACHE STRING "" FORCE)
-    set(CMAKE_C_INCLUDE_WHAT_YOU_USE "/home/aref/projects/iwyu/build/bin/include-what-you-use" CACHE STRING "" FORCE)
-else()
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "" CACHE STRING "" FORCE)
-    set(CMAKE_C_INCLUDE_WHAT_YOU_USE "" CACHE STRING "" FORCE)
-endif()
-
-set(CUSTOM_ENABLE_DEBUGING ON CACHE BOOL "" FORCE)
-
-set(CUSTOM_ENABLE_LAYERWISE ON)
-#set(CUSTOM_ENABLE_BLOCKING ON)
-#set(CUSTOM_ENABLE_PURE_SGX ON)
