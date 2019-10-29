@@ -1,24 +1,27 @@
 #include "app.h"
-#include <algorithm>
+
 #include <assert.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <future>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <sstream>
-#include <stdio.h>
-#include <string.h>
+#include <thread>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include <future>
-#include <nlohmann/json.hpp>
-#include <pwd.h>
-#include <thread>
-#include <unistd.h>
+#include "Record/VectorRecordSet.h"
 
 #define MAX_PATH FILENAME_MAX
 
@@ -28,35 +31,35 @@
 #include "Record/ImageRecord.h"
 #include "Record/ImageWithLabelRecord.h"
 
-
-//sgx::common::ImageRecord* imr = new sgx::common::ImageRecord(2,6,8);
-//std::unique_ptr<sgx::common::ImageRecord> tempImg(new sgx::common::ImageRecord(2,6,8));
-//std::unique_ptr<sgx::common::ImageWLabelRecord> tempImgLabel(new sgx::common::ImageWLabelRecord(10,std::move(tempImg)));
-
+// sgx::common::ImageRecord* imr = new sgx::common::ImageRecord(2,6,8);
+// std::unique_ptr<sgx::common::ImageRecord> tempImg(new
+// sgx::common::ImageRecord(2,6,8));
+// std::unique_ptr<sgx::common::ImageWLabelRecord> tempImgLabel(new
+// sgx::common::ImageWLabelRecord(10,std::move(tempImg)));
 using json = nlohmann::json;
 
-using timeTracker =
-    std::pair<std::chrono::time_point<std::chrono::high_resolution_clock>,
-              std::chrono::time_point<std::chrono::high_resolution_clock>>;
+using timeTracker
+    = std::pair<std::chrono::time_point<std::chrono::high_resolution_clock>,
+                std::chrono::time_point<std::chrono::high_resolution_clock>>;
 
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid = 0;
 
-sgx::untrusted::CryptoEngine<uint8_t>
-    crypto_engine(sgx::untrusted::CryptoEngine<uint8_t>::Key{
+sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
+    sgx::untrusted::CryptoEngine<uint8_t>::Key{
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
 
-data_params tr_pub_params;
+data_params                        tr_pub_params;
 std::vector<trainRecordSerialized> plain_dataset;
-std::vector<trainRecordEncrypted> encrypted_dataset;
+std::vector<trainRecordEncrypted>  encrypted_dataset;
 
-data_params test_pub_params;
+data_params                        test_pub_params;
 std::vector<trainRecordSerialized> plain_test_dataset;
-std::vector<trainRecordEncrypted> encrypted_test_dataset;
+std::vector<trainRecordEncrypted>  encrypted_test_dataset;
 
-data_params predict_pub_params;
+data_params                        predict_pub_params;
 std::vector<trainRecordSerialized> plain_predict_dataset;
-std::vector<trainRecordEncrypted> encrypted_predict_dataset;
+std::vector<trainRecordEncrypted>  encrypted_predict_dataset;
 
 std::vector<uint8_t> plain_weights;
 
@@ -68,15 +71,15 @@ std::vector<uint8_t> tag_weights;
 RunConfig run_config;
 // std::unordered_map<std::string, timeTracker> grand_timer;
 std::map<std::string, timeTracker> grand_timer;
-std::map<std::string, double> duration_map;
+std::map<std::string, double>      duration_map;
 
 std::unordered_map<uint32_t, std::vector<unsigned char>> layerwise_contents;
-std::unordered_map<int64_t, std::vector<unsigned char>> all_blocks;
+std::unordered_map<int64_t, std::vector<unsigned char>>  all_blocks;
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
-  const char *msg;
-  const char *sug; /* Suggestion */
+  const char * msg;
+  const char * sug; /* Suggestion */
 } sgx_errlist_t;
 
 /* Error code returned by sgx_create_enclave */
@@ -84,13 +87,15 @@ static sgx_errlist_t sgx_errlist[] = {
     {SGX_ERROR_UNEXPECTED, "Unexpected error occurred.", NULL},
     {SGX_ERROR_INVALID_PARAMETER, "Invalid parameter.", NULL},
     {SGX_ERROR_OUT_OF_MEMORY, "Out of memory.", NULL},
-    {SGX_ERROR_ENCLAVE_LOST, "Power transition occurred.",
+    {SGX_ERROR_ENCLAVE_LOST,
+     "Power transition occurred.",
      "Please refer to the sample \"PowerTransition\" for details."},
     {SGX_ERROR_INVALID_ENCLAVE, "Invalid enclave image.", NULL},
     {SGX_ERROR_INVALID_ENCLAVE_ID, "Invalid enclave identification.", NULL},
     {SGX_ERROR_INVALID_SIGNATURE, "Invalid enclave signature.", NULL},
     {SGX_ERROR_OUT_OF_EPC, "Out of EPC memory.", NULL},
-    {SGX_ERROR_NO_DEVICE, "Invalid SGX device.",
+    {SGX_ERROR_NO_DEVICE,
+     "Invalid SGX device.",
      "Please make sure SGX module is enabled in the BIOS, and install SGX "
      "driver afterwards."},
     {SGX_ERROR_MEMORY_MAP_CONFLICT, "Memory map conflicted.", NULL},
@@ -106,7 +111,8 @@ static sgx_errlist_t sgx_errlist[] = {
 };
 
 /* Check error conditions for loading enclave */
-void print_error_message(sgx_status_t ret) {
+void
+print_error_message(sgx_status_t ret) {
   size_t idx = 0;
   size_t ttl = sizeof sgx_errlist / sizeof sgx_errlist[0];
 
@@ -126,57 +132,67 @@ void print_error_message(sgx_status_t ret) {
 // http://coliru.stacked-crooked.com/a/98db840b238d3ce7
 // Returns year/month/day triple in civil calendar
 // Preconditions:  z is number of days since 1970-01-01 and is in the range:
-//                   [numeric_limits<Int>::min(), numeric_limits<Int>::max()-719468].
+//                   [numeric_limits<Int>::min(),
+//                   numeric_limits<Int>::max()-719468].
 template <class Int>
-constexpr std::tuple<Int, unsigned, unsigned> civil_from_days(Int z) noexcept {
-    static_assert(
-	  std::numeric_limits<unsigned>::digits >= 18,
-	  "This algorithm has not been ported to a 16 bit unsigned integer");
-	static_assert(
-	  std::numeric_limits<Int>::digits >= 20,
-	  "This algorithm has not been ported to a 16 bit signed integer");
-	z += 719468;
-	const Int era = (z >= 0 ? z : z - 146096) / 146097;
-	const unsigned doe = static_cast<unsigned>(z - era * 146097); // [0, 146096]
-	const unsigned yoe =
-	  (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;      // [0, 399]
-	const Int y = static_cast<Int>(yoe) + era * 400;
-	const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
-	const unsigned mp = (5 * doy + 2) / 153;                      // [0, 11]
-	const unsigned d = doy - (153 * mp + 2) / 5 + 1;              // [1, 31]
-	const unsigned m = (mp < 10 ? mp + 3 : mp - 9);               // [1, 12]
-	return std::tuple<Int, unsigned, unsigned>(y + (m <= 2), m, d);
+constexpr std::tuple<Int, unsigned, unsigned>
+civil_from_days(Int z) noexcept {
+  static_assert(
+      std::numeric_limits<unsigned>::digits >= 18,
+      "This algorithm has not been ported to a 16 bit unsigned integer");
+  static_assert(
+      std::numeric_limits<Int>::digits >= 20,
+      "This algorithm has not been ported to a 16 bit signed integer");
+  z += 719468;
+  const Int      era = (z >= 0 ? z : z - 146096) / 146097;
+  const unsigned doe = static_cast<unsigned>(z - era * 146097);  // [0, 146096]
+  const unsigned yoe
+      = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;  // [0, 399]
+  const Int      y   = static_cast<Int>(yoe) + era * 400;
+  const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);  // [0, 365]
+  const unsigned mp  = (5 * doy + 2) / 153;                      // [0, 11]
+  const unsigned d   = doy - (153 * mp + 2) / 5 + 1;             // [1, 31]
+  const unsigned m   = (mp < 10 ? mp + 3 : mp - 9);              // [1, 12]
+  return std::tuple<Int, unsigned, unsigned>(y + (m <= 2), m, d);
 }
 
 template <typename Duration = std::chrono::hours>
-void print_time(Duration timezone_adjustment = std::chrono::hours(0)) {
-	using namespace std;
-	using namespace std::chrono;
-	typedef duration<int, ratio_multiply<hours::period, ratio<24>>::type> days;
-	system_clock::time_point now = system_clock::now();
-	system_clock::duration tp = now.time_since_epoch();
+void
+print_time(Duration timezone_adjustment = std::chrono::hours(0)) {
+  using namespace std;
+  using namespace std::chrono;
+  typedef duration<int, ratio_multiply<hours::period, ratio<24>>::type> days;
+  system_clock::time_point now = system_clock::now();
+  system_clock::duration   tp  = now.time_since_epoch();
 
-	tp += timezone_adjustment;
+  tp += timezone_adjustment;
 
-	days d = duration_cast<days>(tp);
-	tp -= d;
-	hours h = duration_cast<hours>(tp);
-	tp -= h;
-	minutes m = duration_cast<minutes>(tp);
-	tp -= m;
-	seconds s = duration_cast<seconds>(tp);
-	tp -= s;
+  days d = duration_cast<days>(tp);
+  tp -= d;
+  hours h = duration_cast<hours>(tp);
+  tp -= h;
+  minutes m = duration_cast<minutes>(tp);
+  tp -= m;
+  seconds s = duration_cast<seconds>(tp);
+  tp -= s;
 
-	auto date = civil_from_days(d.count()); // assumes that system_clock uses
-	                                        // 1970-01-01 0:0:0 UTC as the epoch,
-                                            // and does not count leap seconds.
+  auto date = civil_from_days(d.count());  // assumes that system_clock uses
+                                           // 1970-01-01 0:0:0 UTC as the epoch,
+                                           // and does not count leap seconds.
 
-	std::fprintf(stderr,"[%04u-%02u-%02u %02lu:%02lu:%02llu.%03llu]\n", std::get<0>(date),
-	            std::get<1>(date), std::get<2>(date), h.count(), m.count(),
-	            s.count(), tp/milliseconds(1));
+  std::fprintf(stderr,
+               "[%04u-%02u-%02u %02lu:%02lu:%02llu.%03llu]\n",
+               std::get<0>(date),
+               std::get<1>(date),
+               std::get<2>(date),
+               h.count(),
+               m.count(),
+               s.count(),
+               tp / milliseconds(1));
 }
 
-void print_log(const char *str) {
+void
+print_log(const char *str) {
   // time_t now = time(0);
   // struct tm *ltm = localtime(&now);
   // fprintf(stderr, "%s", asctime(ltm));
@@ -184,143 +200,169 @@ void print_log(const char *str) {
   fprintf(stderr, "%s\n", str);
 }
 
-void main_logger(int level, const char *file, int line, const char *format,
-                 ...) {
-  char buf[BUFSIZ] = {'\0'};
-  char *buf_ptr = buf;
+void
+main_logger(int level, const char *file, int line, const char *format, ...) {
+  char    buf[BUFSIZ] = {'\0'};
+  char *  buf_ptr     = buf;
   va_list ap;
-  size_t size = 0;
+  size_t  size = 0;
   switch (level) {
-  case LOG_TYPE_TRACE:
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_CYAN "-------------------------" ANSI_COLOR_RESET
-                                    "\n");
-    buf_ptr = buf_ptr + size;
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_CYAN "[TRACE] -- %s:%d" ANSI_COLOR_RESET "\n",
-                    file, line);
-    buf_ptr = buf_ptr + size;
+    case LOG_TYPE_TRACE:
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_CYAN
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      buf_ptr = buf_ptr + size;
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_CYAN "[TRACE] -- %s:%d" ANSI_COLOR_RESET "\n",
+                      file,
+                      line);
+      buf_ptr = buf_ptr + size;
 
-    va_start(ap, format);
-    size = vsnprintf(buf_ptr, 4096, format, ap);
-    buf_ptr = buf_ptr + size;
-    va_end(ap);
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_CYAN "-------------------------" ANSI_COLOR_RESET
-                                    "\n");
-    print_log(buf);
-    break;
-  case LOG_TYPE_DEBUG:
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_MAGENTA
-                    "-------------------------" ANSI_COLOR_RESET "\n");
-    buf_ptr = buf_ptr + size;
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_MAGENTA "[DEBUG] -- %s:%d" ANSI_COLOR_RESET "\n",
-                    file, line);
-    buf_ptr = buf_ptr + size;
-    va_start(ap, format);
-    size = vsnprintf(buf_ptr, 4096, format, ap);
-    buf_ptr = buf_ptr + size;
-    va_end(ap);
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_MAGENTA
-                    "-------------------------" ANSI_COLOR_RESET "\n");
-    print_log(buf);
-    break;
+      va_start(ap, format);
+      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      buf_ptr = buf_ptr + size;
+      va_end(ap);
+      size = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_CYAN
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      print_log(buf);
+      break;
+    case LOG_TYPE_DEBUG:
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_MAGENTA
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      buf_ptr = buf_ptr + size;
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_MAGENTA "[DEBUG] -- %s:%d" ANSI_COLOR_RESET
+                                         "\n",
+                      file,
+                      line);
+      buf_ptr = buf_ptr + size;
+      va_start(ap, format);
+      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      buf_ptr = buf_ptr + size;
+      va_end(ap);
+      size = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_MAGENTA
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      print_log(buf);
+      break;
 
-  case LOG_TYPE_INFO:
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_BLUE "-------------------------" ANSI_COLOR_RESET
-                                    "\n");
-    buf_ptr = buf_ptr + size;
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_BLUE "[INFO] -- %s:%d" ANSI_COLOR_RESET "\n",
-                    file, line);
-    buf_ptr = buf_ptr + size;
-    va_start(ap, format);
-    size = vsnprintf(buf_ptr, 4096, format, ap);
-    buf_ptr = buf_ptr + size;
-    va_end(ap);
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_BLUE "-------------------------" ANSI_COLOR_RESET
-                                    "\n");
-    print_log(buf);
-    break;
+    case LOG_TYPE_INFO:
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_BLUE
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      buf_ptr = buf_ptr + size;
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_BLUE "[INFO] -- %s:%d" ANSI_COLOR_RESET "\n",
+                      file,
+                      line);
+      buf_ptr = buf_ptr + size;
+      va_start(ap, format);
+      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      buf_ptr = buf_ptr + size;
+      va_end(ap);
+      size = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_BLUE
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      print_log(buf);
+      break;
 
-  case LOG_TYPE_WARN:
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_YELLOW
-                    "-------------------------" ANSI_COLOR_RESET "\n");
-    buf_ptr = buf_ptr + size;
-    size =
-        snprintf(buf_ptr, 4096,
-                 ANSI_COLOR_YELLOW "[WARNING] -- %s:%d" ANSI_COLOR_RESET "\n",
-                 file, line);
-    buf_ptr = buf_ptr + size;
-    va_start(ap, format);
-    size = vsnprintf(buf_ptr, 4096, format, ap);
-    buf_ptr = buf_ptr + size;
-    va_end(ap);
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_YELLOW
-                    "-------------------------" ANSI_COLOR_RESET "\n");
-    print_log(buf);
-    break;
-  case LOG_TYPE_ERROR:
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_RED "-------------------------" ANSI_COLOR_RESET
-                                   "\n");
-    buf_ptr = buf_ptr + size;
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_RED "[ERROR] -- %s:%d" ANSI_COLOR_RESET "\n",
-                    file, line);
-    buf_ptr = buf_ptr + size;
-    va_start(ap, format);
-    size = vsnprintf(buf_ptr, 4096, format, ap);
-    buf_ptr = buf_ptr + size;
-    va_end(ap);
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_RED "-------------------------" ANSI_COLOR_RESET
-                                   "\n");
-    print_log(buf);
-    break;
-  case LOG_TYPE_OUT:
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_GREEN
-                    "-------------------------" ANSI_COLOR_RESET "\n");
-    buf_ptr = buf_ptr + size;
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_GREEN "[OUT] -- %s:%d" ANSI_COLOR_RESET "\n",
-                    file, line);
-    buf_ptr = buf_ptr + size;
-    va_start(ap, format);
-    size = vsnprintf(buf_ptr, 4096, format, ap);
-    buf_ptr = buf_ptr + size;
-    va_end(ap);
-    size = snprintf(buf_ptr, 4096,
-                    ANSI_COLOR_GREEN
-                    "-------------------------" ANSI_COLOR_RESET "\n");
-    print_log(buf);
-    break;
-  default:
-    break;
+    case LOG_TYPE_WARN:
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_YELLOW
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      buf_ptr = buf_ptr + size;
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_YELLOW "[WARNING] -- %s:%d" ANSI_COLOR_RESET
+                                        "\n",
+                      file,
+                      line);
+      buf_ptr = buf_ptr + size;
+      va_start(ap, format);
+      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      buf_ptr = buf_ptr + size;
+      va_end(ap);
+      size = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_YELLOW
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      print_log(buf);
+      break;
+    case LOG_TYPE_ERROR:
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_RED
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      buf_ptr = buf_ptr + size;
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_RED "[ERROR] -- %s:%d" ANSI_COLOR_RESET "\n",
+                      file,
+                      line);
+      buf_ptr = buf_ptr + size;
+      va_start(ap, format);
+      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      buf_ptr = buf_ptr + size;
+      va_end(ap);
+      size = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_RED
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      print_log(buf);
+      break;
+    case LOG_TYPE_OUT:
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_GREEN
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      buf_ptr = buf_ptr + size;
+      size    = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_GREEN "[OUT] -- %s:%d" ANSI_COLOR_RESET "\n",
+                      file,
+                      line);
+      buf_ptr = buf_ptr + size;
+      va_start(ap, format);
+      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      buf_ptr = buf_ptr + size;
+      va_end(ap);
+      size = snprintf(buf_ptr,
+                      4096,
+                      ANSI_COLOR_GREEN
+                      "-------------------------" ANSI_COLOR_RESET "\n");
+      print_log(buf);
+      break;
+    default:
+      break;
   }
 }
 
 /* Initialize the enclave:
  *   Call sgx_create_enclave to initialize an enclave instance
  */
-int initialize_enclave(void) {
-  sgx_launch_token_t token = {0};
-  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-  int updated = 0;
+int
+initialize_enclave(void) {
+  sgx_launch_token_t token   = {0};
+  sgx_status_t       ret     = SGX_ERROR_UNEXPECTED;
+  int                updated = 0;
 
   /* Call sgx_create_enclave to initialize an enclave instance */
   /* Debug Support: set 2nd parameter to 1 */
   // SGX_DEBUG_FLAG
-  ret = sgx_create_enclave(ENCLAVE_FILENAME, 1, &token, &updated, &global_eid,
-                           NULL);
+  ret = sgx_create_enclave(
+      ENCLAVE_FILENAME, 1, &token, &updated, &global_eid, NULL);
   if (ret != SGX_SUCCESS) {
     LOG_ERROR("Error code is %#010X\n", ret);
     return -1;
@@ -329,44 +371,61 @@ int initialize_enclave(void) {
   return 0;
 }
 
-sgx_status_t dest_enclave(const sgx_enclave_id_t enclave_id) {
+sgx_status_t
+dest_enclave(const sgx_enclave_id_t enclave_id) {
   return sgx_destroy_enclave(global_eid);
 }
 
 /* OCall functions */
-void ocall_print_string(const char *str) {
+void
+ocall_print_string(const char *str) {
   /* Proxy/Bridge will check the length and null-terminate
    * the input string to prevent buffer overflow.
    */
   printf("%s", str);
 }
 
-void ocall_print_log(const char *str) { print_log(str); }
+void
+ocall_print_log(const char *str) {
+  print_log(str);
+}
 
-void ocall_get_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
-                           int j, unsigned char *tr_record_j, size_t len_j) {
+void
+ocall_get_record_sort(int            i,
+                      unsigned char *tr_record_i,
+                      size_t         len_i,
+                      int            j,
+                      unsigned char *tr_record_j,
+                      size_t         len_j) {
   // tr_record_i =(unsigned char*) &encrypted_dataset[i];
-  std::memcpy(tr_record_i, &(encrypted_dataset[i]),
-              sizeof(trainRecordEncrypted));
+  std::memcpy(
+      tr_record_i, &(encrypted_dataset[i]), sizeof(trainRecordEncrypted));
   len_i = sizeof(trainRecordEncrypted);
 
-  std::memcpy(tr_record_j, &(encrypted_dataset[j]),
-              sizeof(trainRecordEncrypted));
+  std::memcpy(
+      tr_record_j, &(encrypted_dataset[j]), sizeof(trainRecordEncrypted));
   // tr_record_j =(unsigned char*) &encrypted_dataset[j];
   len_j = sizeof(trainRecordEncrypted);
 }
 
-void ocall_get_ptext_img(int loc, unsigned char *buff, size_t len) {
-  unsigned char *val_buf =
-      reinterpret_cast<unsigned char *>(&plain_dataset[loc].data[0]);
+void
+ocall_get_ptext_img(int loc, unsigned char *buff, size_t len) {
+  unsigned char *val_buf
+      = reinterpret_cast<unsigned char *>(&plain_dataset[loc].data[0]);
   std::memcpy(buff, val_buf, (plain_dataset[loc].data.size()) * sizeof(float));
   val_buf = reinterpret_cast<unsigned char *>(&plain_dataset[loc].label[0]);
-  std::memcpy(buff + (plain_dataset[loc].data.size()) * sizeof(float), val_buf,
+  std::memcpy(buff + (plain_dataset[loc].data.size()) * sizeof(float),
+              val_buf,
               plain_dataset[loc].label.size() * sizeof(float));
 }
 
-void ocall_set_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
-                           int j, unsigned char *tr_record_j, size_t len_j) {
+void
+ocall_set_record_sort(int            i,
+                      unsigned char *tr_record_i,
+                      size_t         len_i,
+                      int            j,
+                      unsigned char *tr_record_j,
+                      size_t         len_j) {
   LOG_ERROR("This part is not ready yet!\n")
   abort();
   /* trainRecordEncrypted *tr_rec_i = (trainRecordEncrypted *)tr_record_i;
@@ -375,13 +434,17 @@ void ocall_set_record_sort(int i, unsigned char *tr_record_i, size_t len_i,
   encrypted_dataset[j] = *tr_rec_j; */
 }
 
-void ocall_get_records_encrypted(int train_or_test, size_t i,
-                                 unsigned char *tr_record_i, size_t len_i,
-                                 unsigned char *_iv, unsigned char *_tag) {
+void
+ocall_get_records_encrypted(int            train_or_test,
+                            size_t         i,
+                            unsigned char *tr_record_i,
+                            size_t         len_i,
+                            unsigned char *_iv,
+                            unsigned char *_tag) {
   // 1: train
   // 2: test
   // 3: predict
-  if (train_or_test == 1) { // train
+  if (train_or_test == 1) {  // train
     std::memcpy(tr_record_i, &(encrypted_dataset[i].encData[0]), len_i);
     std::memcpy(_iv, (encrypted_dataset[i].IV), AES_GCM_IV_SIZE);
     std::memcpy(_tag, (encrypted_dataset[i].MAC), AES_GCM_TAG_SIZE);
@@ -396,13 +459,17 @@ void ocall_get_records_encrypted(int train_or_test, size_t i,
   }
 }
 
-void ocall_set_records_encrypted(int train_or_test, size_t i,
-                                 unsigned char *tr_record_i, size_t len_i,
-                                 unsigned char *_iv, unsigned char *_tag) {
+void
+ocall_set_records_encrypted(int            train_or_test,
+                            size_t         i,
+                            unsigned char *tr_record_i,
+                            size_t         len_i,
+                            unsigned char *_iv,
+                            unsigned char *_tag) {
   // 1: train
   // 2: test
   // 3: predict
-  if (train_or_test == 1) { // train
+  if (train_or_test == 1) {  // train
     std::memcpy(&(encrypted_dataset[i].encData[0]), tr_record_i, len_i);
     std::memcpy((encrypted_dataset[i].IV), _iv, AES_GCM_IV_SIZE);
     std::memcpy((encrypted_dataset[i].MAC), _tag, AES_GCM_TAG_SIZE);
@@ -417,39 +484,48 @@ void ocall_set_records_encrypted(int train_or_test, size_t i,
   }
 }
 
-void ocall_get_records_plain(int train_or_test, size_t i,
-                             unsigned char *tr_record_i, size_t len_i) {
+void
+ocall_get_records_plain(int            train_or_test,
+                        size_t         i,
+                        unsigned char *tr_record_i,
+                        size_t         len_i) {
   // 1: train
   // 2: test
   // 3: predict
-  if (train_or_test == 1) { // train
-    std::memcpy(tr_record_i, &(plain_dataset[i].data[0]),
+  if (train_or_test == 1) {  // train
+    std::memcpy(tr_record_i,
+                &(plain_dataset[i].data[0]),
                 sizeof(float) * plain_dataset[i].data.size());
     std::memcpy(tr_record_i + sizeof(float) * plain_dataset[i].data.size(),
                 &(plain_dataset[i].label[0]),
                 sizeof(float) * plain_dataset[i].label.size());
   } else if (train_or_test == 2) {
-    std::memcpy(tr_record_i, &(plain_test_dataset[i].data[0]),
+    std::memcpy(tr_record_i,
+                &(plain_test_dataset[i].data[0]),
                 sizeof(float) * plain_test_dataset[i].data.size());
     std::memcpy(tr_record_i + sizeof(float) * plain_test_dataset[i].data.size(),
                 &(plain_test_dataset[i].label[0]),
                 sizeof(float) * plain_test_dataset[i].label.size());
   } else if (train_or_test == 3) {
-    std::memcpy(tr_record_i, &(plain_predict_dataset[i].data[0]),
+    std::memcpy(tr_record_i,
+                &(plain_predict_dataset[i].data[0]),
                 sizeof(float) * plain_predict_dataset[i].data.size());
-    std::memcpy(tr_record_i +
-                    sizeof(float) * plain_predict_dataset[i].data.size(),
-                &(plain_predict_dataset[i].label[0]),
-                sizeof(float) * plain_predict_dataset[i].label.size());
+    std::memcpy(
+        tr_record_i + sizeof(float) * plain_predict_dataset[i].data.size(),
+        &(plain_predict_dataset[i].label[0]),
+        sizeof(float) * plain_predict_dataset[i].label.size());
   }
 }
 
-void ocall_set_records_plain(int train_or_test, size_t i,
-                             unsigned char *tr_record_i, size_t len_i) {
+void
+ocall_set_records_plain(int            train_or_test,
+                        size_t         i,
+                        unsigned char *tr_record_i,
+                        size_t         len_i) {
   // 1: train
   // 2: test
   // 3: predict
-  if (train_or_test == 1) { // train
+  if (train_or_test == 1) {  // train
     std::memcpy(&(plain_dataset[i]), tr_record_i, len_i);
   } else if (train_or_test == 2) {
     std::memcpy(&(plain_test_dataset[i]), tr_record_i, len_i);
@@ -458,17 +534,20 @@ void ocall_set_records_plain(int train_or_test, size_t i,
   }
 }
 
-void ocall_set_timing(const char *time_id, size_t len, int is_it_first_call,
-                      int is_it_last_call) {
+void
+ocall_set_timing(const char *time_id,
+                 size_t      len,
+                 int         is_it_first_call,
+                 int         is_it_last_call) {
   timeTracker temp;
   if (grand_timer.find(std::string(time_id)) != grand_timer.end()) {
     if (is_it_first_call == 1) {
-      temp.first = std::chrono::high_resolution_clock::now();
+      temp.first  = std::chrono::high_resolution_clock::now();
       temp.second = std::chrono::high_resolution_clock::now();
       grand_timer[std::string(time_id)] = temp;
     } else {
-      temp = grand_timer[std::string(time_id)];
-      temp.second = std::chrono::high_resolution_clock::now();
+      temp         = grand_timer[std::string(time_id)];
+      temp.second  = std::chrono::high_resolution_clock::now();
       auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
                          temp.second - temp.first)
                          .count();
@@ -477,32 +556,43 @@ void ocall_set_timing(const char *time_id, size_t len, int is_it_first_call,
       grand_timer[std::string(time_id)] = temp;
     }
   } else {
-    temp.first = std::chrono::high_resolution_clock::now();
+    temp.first  = std::chrono::high_resolution_clock::now();
     temp.second = std::chrono::high_resolution_clock::now();
-    grand_timer[std::string(time_id)] = temp;
+    grand_timer[std::string(time_id)]  = temp;
     duration_map[std::string(time_id)] = 0.0;
   }
 }
 
-void ocall_write_block(int64_t block_id, size_t index, unsigned char *buff,
-                       size_t len) {
+void
+ocall_write_block(int64_t        block_id,
+                  size_t         index,
+                  unsigned char *buff,
+                  size_t         len) {
   std::vector<unsigned char> temp(len, 0);
   std::memcpy(&temp[index], buff, len);
   all_blocks[block_id] = std::move(temp);
 }
 
-void ocall_read_block(int64_t block_id, size_t index, unsigned char *buff,
-                      size_t len) {
+void
+ocall_read_block(int64_t        block_id,
+                 size_t         index,
+                 unsigned char *buff,
+                 size_t         len) {
   // std::vector<unsigned char> temp(all_blocks[block_id]);
   std::memcpy(buff, &(all_blocks[block_id][index]), len);
 }
 
-void ocall_load_net_config(const unsigned char *path, size_t path_len,
-                           char *config, size_t config_len,
-                           unsigned int *real_len, unsigned char *config_iv,
-                           unsigned char *config_mac) {
+void
+ocall_load_net_config(const unsigned char *path,
+                      size_t               path_len,
+                      char *               config,
+                      size_t               config_len,
+                      unsigned int *       real_len,
+                      unsigned char *      config_iv,
+                      unsigned char *      config_mac) {
   LOG_TRACE("ocall_load_net_config started! for file %s with size %zu\n",
-            (char *)path, path_len);
+            (char *)path,
+            path_len);
   std::ifstream f((const char *)path, std::ios::in | std::ios::binary);
 
   if (!f.is_open()) {
@@ -513,9 +603,9 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
                                       std::istreambuf_iterator<char>()};
   f.close();
 
-  const auto encrypted = crypto_engine.encrypt(config_content);
+  const auto encrypted          = crypto_engine.encrypt(config_content);
   const auto config_content_enc = std::get<0>(encrypted);
-  const auto config_content_iv = std::get<1>(encrypted);
+  const auto config_content_iv  = std::get<1>(encrypted);
   const auto config_content_mac = std::get<2>(encrypted);
 
   *real_len = config_content_enc.size();
@@ -523,26 +613,33 @@ void ocall_load_net_config(const unsigned char *path, size_t path_len,
   memcpy(config_iv, config_content_iv.data(), AES_GCM_IV_SIZE);
   memcpy(config_mac, config_content_mac.data(), AES_GCM_TAG_SIZE);
 
-  LOG_TRACE("ocall_load_net_config finished successfully for size of "
-            "%zu bytes!\n",
-            *real_len);
+  LOG_TRACE(
+      "ocall_load_net_config finished successfully for size of "
+      "%zu bytes!\n",
+      *real_len);
 }
 
-void ocall_load_weights_plain(int start, unsigned char *weight_arr,
-                              size_t weight_len) {
+void
+ocall_load_weights_plain(int            start,
+                         unsigned char *weight_arr,
+                         size_t         weight_len) {
   static bool first_call = true;
   if (first_call) {
     first_call = false;
-    std::string weights_file_str =
-        std::string(run_config.finalized_weights_file_path);
+    std::string weights_file_str
+        = std::string(run_config.finalized_weights_file_path);
     plain_weights = read_file_binary(weights_file_str.c_str());
   }
   std::memcpy(weight_arr, &plain_weights[start], weight_len);
 }
 
-void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
-                                  size_t weight_len, unsigned char *weights_iv,
-                                  unsigned char *weights_mac, int final_round) {
+void
+ocall_load_weights_encrypted(int            start,
+                             unsigned char *weight_arr,
+                             size_t         weight_len,
+                             unsigned char *weights_iv,
+                             unsigned char *weights_mac,
+                             int            final_round) {
   LOG_ERROR("ocall load weights encrypted not entirely implemented!\n");
   abort();
   /*static bool first_call = true;
@@ -555,40 +652,49 @@ void ocall_load_weights_encrypted(int start, unsigned char *weight_arr,
   std::memcpy(weight_arr, &plain_weights[start], weight_len);*/
 }
 
-void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) {
+void
+ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) {
   /* if (buff_id == 1) {
     auto aaa = 0;
   } */
   layerwise_contents[buff_id] = std::vector<unsigned char>(buff_size, 0);
 }
 
-void ocall_get_buffer_layerwise(uint32_t buff_id, uint32_t start, uint32_t end,
-                                unsigned char *temp_buff,
-                                size_t temp_buff_len) {
+void
+ocall_get_buffer_layerwise(uint32_t       buff_id,
+                           uint32_t       start,
+                           uint32_t       end,
+                           unsigned char *temp_buff,
+                           size_t         temp_buff_len) {
   assert((end - start) == temp_buff_len);
-  std::memcpy(temp_buff, &((layerwise_contents[buff_id])[start]),
-              temp_buff_len);
+  std::memcpy(
+      temp_buff, &((layerwise_contents[buff_id])[start]), temp_buff_len);
 }
 
-void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start, uint32_t end,
-                                unsigned char *temp_buff,
-                                size_t temp_buff_len) {
+void
+ocall_set_buffer_layerwise(uint32_t       buff_id,
+                           uint32_t       start,
+                           uint32_t       end,
+                           unsigned char *temp_buff,
+                           size_t         temp_buff_len) {
   assert((end - start) == temp_buff_len);
-  std::memcpy(&((layerwise_contents[buff_id])[start]), temp_buff,
-              temp_buff_len);
+  std::memcpy(
+      &((layerwise_contents[buff_id])[start]), temp_buff, temp_buff_len);
 }
 
-void ocall_store_preds_encrypted(unsigned char *enc_buff, size_t len,
-                                 unsigned char *enc_iv,
-                                 unsigned char *enc_mac) {
-  static int counter = 0;
+void
+ocall_store_preds_encrypted(unsigned char *enc_buff,
+                            size_t         len,
+                            unsigned char *enc_iv,
+                            unsigned char *enc_mac) {
+  static int         counter        = 0;
   static std::string enc_preds_path = run_config.predict_file_path;
 
   std::vector<uint8_t> contents_enc, iv, mac;
   LOG_ERROR("This function needs reimplementing\n");
   abort();
-  std::string f_name =
-      enc_preds_path + std::to_string(counter) + std::string(".enc");
+  std::string f_name
+      = enc_preds_path + std::to_string(counter) + std::string(".enc");
   contents_enc.resize(len);
   std::memcpy(&contents_enc[0], enc_buff, len);
   write_file_binary(f_name.c_str(), contents_enc);
@@ -606,70 +712,16 @@ void ocall_store_preds_encrypted(unsigned char *enc_buff, size_t len,
   counter++;
 }
 
-void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
-                                      size_t address_of_C) {
+void
+ocall_handle_gemm_cpu_first_mult(int total_threads) {
 #ifdef USE_GEMM_THREADING_SGX
-  //LOG_DEBUG("ocall_handle_gemm_cpu_first_mult Just got called!\n");
-  int qm = 0, rm = 0, qn = 0, rn = 0;
-  int available_threads = (AVAIL_THREADS);
-  const int efficiency_per_thread = 512;
-  if (M * N / available_threads < efficiency_per_thread) {
-    int needed_threads = M * N / efficiency_per_thread;
-    if (needed_threads == 0) {
-      available_threads = 1;
-    } else {
-      available_threads = needed_threads;
-    }
-  }
-  int row_threads = (available_threads / 2) + (available_threads % 2);
-  int col_threads = (available_threads / row_threads);
-  if (M < N) {
-    int temp = row_threads;
-    row_threads = col_threads;
-    col_threads = temp;
-  }
-  qm = M / (row_threads);
-  rm = M % (row_threads);
-  qn = N / (col_threads);
-  rn = N % (col_threads);
+  std::future<sgx_status_t> returns[total_threads];
 
-  int usable_threads_row = qm == 0 ? 1 : row_threads;
-  int usable_threads_col = qn == 0 ? 1 : col_threads;
-
-  // LOG_DEBUG("gemm_cpu_first called with
-  // M:%d,N:%d,available_threads=%d,qm=%d,rm=%d,qn=%d,rn=%d,row_threads=%d,col_threads=%d,usable_row=%d,usable_col=%d\n",M,N,available_threads,qm,rm,qn,rn,row_threads,col_threads,usable_threads_row,usable_threads_col)
-
-  std::future<sgx_status_t> returns[usable_threads_row * usable_threads_col];
-  int curr_M = 0;
-  for (int i = 0; i < usable_threads_row; ++i) {
-    int M_size = qm;
-    if (rm > 0) {
-      M_size += rm;
-      rm = 0;
-    }
-    int rn_temp = rn;
-    int curr_N = 0;
-    for (int j = 0; j < usable_threads_col; ++j) {
-      int N_size = qn;
-      if (rn_temp > 0) {
-        N_size += rn_temp;
-        rn_temp = 0;
-      }
-      returns[i * usable_threads_col + j] =
-          std::async(std::launch::async, &ecall_handle_gemm_cpu_first_mult,
-                     global_eid, curr_M, curr_N, curr_M + M_size,
-                     curr_N + N_size, BETA, ldc, address_of_C);
-      curr_N += N_size;
-      if (qn == 0) {
-        break;
-      }
-    }
-    curr_M += M_size;
-    if (qm == 0) {
-      break;
-    }
+  for (int i = 0; i < total_threads; ++i) {
+    returns[i] = std::async(
+        std::launch::async, &ecall_handle_gemm_cpu_first_mult, global_eid, i);
   }
-  for (int i = 0; i < usable_threads_row * usable_threads_col; ++i) {
+  for (int i = 0; i < total_threads; ++i) {
     auto res = returns[i].get();
     CHECK_SGX_SUCCESS(
         res, "call to ecall_handle_gemm_cpu_first_mult caused problem!!");
@@ -677,89 +729,35 @@ void ocall_handle_gemm_cpu_first_mult(int M, int N, float BETA, int ldc,
 #endif
 }
 
-void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA,
-                           size_t addr_A, int lda, size_t addr_B, int ldb,
-                           size_t addr_C, int ldc) {
-
+void
+ocall_handle_gemm_all(int total_threads) {
 #ifdef USE_GEMM_THREADING_SGX
-  //LOG_DEBUG("ocall_handle_gemm_all Just got called!\n");
-  int qm = 0, rm = 0, qn = 0, rn = 0;
-  int available_threads = (AVAIL_THREADS);
-  const int efficiency_per_thread = 512;
-  if (M * N / available_threads < efficiency_per_thread) {
-    int needed_threads = M * N / efficiency_per_thread;
-    if (needed_threads == 0) {
-      available_threads = 1;
-    } else {
-      available_threads = needed_threads;
-    }
+  std::future<sgx_status_t> returns[total_threads];
+  for (int i = 0; i < total_threads; ++i) {
+    returns[i]
+        = std::async(std::launch::async, &ecall_handle_gemm_all, global_eid, i);
   }
-  int row_threads = (available_threads / 2) + (available_threads % 2);
-  int col_threads = (available_threads / row_threads);
-  if (M < N) {
-    int temp = row_threads;
-    row_threads = col_threads;
-    col_threads = temp;
-  }
-  qm = M / (row_threads);
-  rm = M % (row_threads);
-  qn = N / (col_threads);
-  rn = N % (col_threads);
-
-  int usable_threads_row = qm == 0 ? 1 : row_threads;
-  int usable_threads_col = qn == 0 ? 1 : col_threads;
-
-  // LOG_DEBUG("gemm_cpu_all called with
-  // M:%d,N:%d,available_threads=%d,qm=%d,rm=%d,qn=%d,rn=%d,row_threads=%d,col_threads=%d,usable_row=%d,usable_col=%d\n",M,N,available_threads,qm,rm,qn,rn,row_threads,col_threads,usable_threads_row,usable_threads_col)
-
-  std::future<sgx_status_t> returns[usable_threads_row * usable_threads_col];
-  int curr_M = 0;
-  for (int i = 0; i < usable_threads_row; ++i) {
-    int M_size = qm;
-    if (rm > 0) {
-      M_size += rm;
-      rm = 0;
-    }
-    int rn_temp = rn;
-    int curr_N = 0;
-    for (int j = 0; j < usable_threads_col; ++j) {
-      int N_size = qn;
-      if (rn_temp > 0) {
-        N_size += rn_temp;
-        rn_temp = 0;
-      }
-      returns[i * usable_threads_col + j] =
-          std::async(std::launch::async, &ecall_handle_gemm_all, global_eid,
-                     curr_M, curr_N, TA, TB, curr_M + M_size, curr_N + N_size,
-                     K, ALPHA, addr_A, lda, addr_B, ldb, addr_C, ldc);
-      curr_N += N_size;
-      if (qn == 0) {
-        break;
-      }
-    }
-    curr_M += M_size;
-    if (qm == 0) {
-      break;
-    }
-  }
-  for (int i = 0; i < usable_threads_row * usable_threads_col; ++i) {
+  for (int i = 0; i < total_threads; ++i) {
     auto res = returns[i].get();
     CHECK_SGX_SUCCESS(res, "call to ecall_handle_gemm_all caused problem!!");
   }
 #endif
 }
 
-uint8_t *lbtest_iv = nullptr;
+uint8_t *lbtest_iv  = nullptr;
 uint8_t *lbtest_tag = nullptr;
 uint8_t *lbtest_enc = nullptr;
-void ocall_test_long_buffer_encrypt_store(int first, int final,
-                                          size_t complete_len,
-                                          unsigned char *enc, size_t enc_len,
-                                          unsigned char *IV,
-                                          unsigned char *TAG) {
+void
+ocall_test_long_buffer_encrypt_store(int            first,
+                                     int            final,
+                                     size_t         complete_len,
+                                     unsigned char *enc,
+                                     size_t         enc_len,
+                                     unsigned char *IV,
+                                     unsigned char *TAG) {
   static size_t curr = 0;
   if (first) {
-    lbtest_iv = new uint8_t[AES_GCM_IV_SIZE];
+    lbtest_iv  = new uint8_t[AES_GCM_IV_SIZE];
     lbtest_enc = new uint8_t[complete_len];
     if (lbtest_enc == NULL) {
       LOG_ERROR("Could not allocate memory for encrypted buffer");
@@ -776,10 +774,13 @@ void ocall_test_long_buffer_encrypt_store(int first, int final,
   }
 }
 
-void ocall_test_long_buffer_decrypt_retrieve(int first, size_t index,
-                                             unsigned char *enc, size_t enc_len,
-                                             unsigned char *IV,
-                                             unsigned char *TAG) {
+void
+ocall_test_long_buffer_decrypt_retrieve(int            first,
+                                        size_t         index,
+                                        unsigned char *enc,
+                                        size_t         enc_len,
+                                        unsigned char *IV,
+                                        unsigned char *TAG) {
   //
   if (first) {
     std::memcpy(IV, lbtest_iv, AES_GCM_IV_SIZE);
@@ -792,17 +793,19 @@ void ocall_test_long_buffer_decrypt_retrieve(int first, size_t index,
   }
 }
 
-void print_timers() {
-
+void
+print_timers() {
   for (const auto &s : duration_map) {
-    LOG_WARN("++ Item %s took about %f seconds\n", s.first.c_str(),
+    LOG_WARN("++ Item %s took about %f seconds\n",
+             s.first.c_str(),
              s.second / 1000000.0)
   }
 }
 
-void test_long_buffer() {
+void
+test_long_buffer() {
   const size_t comp_len = 523 * ONE_MB;
-  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
 
   ret = ecall_test_long_buffer_encrypt(global_eid, comp_len);
   CHECK_SGX_SUCCESS(ret, "ecall for long buffer enc caused problem\n")
@@ -814,7 +817,8 @@ void test_long_buffer() {
   delete[] lbtest_tag;
 }
 
-void ocall_setup_channel(uint64_t chan_id, int channel_type) {
+void
+ocall_setup_channel(uint64_t chan_id, int channel_type) {
   // TODO: Later try to choose the correct implementation of channel with
   // templates
 
@@ -829,27 +833,55 @@ void ocall_setup_channel(uint64_t chan_id, int channel_type) {
   //   BasicChannel<ChannelType::OneWaySender>::AddNewChannelToRegistery(
   //       std::make_unique<BasicChannel<ChannelType::OneWaySender>>(chan_id));
   // }
-
 }
 
-void ocall_tearup_channel(uint64_t chan_id) {
-  
+void
+ocall_tearup_channel(uint64_t chan_id) {
 }
 
-void ocall_send_to_channel(uint64_t chan_id, unsigned char *buff, size_t len) {
+void
+ocall_send_to_channel(uint64_t chan_id, unsigned char *buff, size_t len) {
   LOG_DEBUG("Channel %u received a buffer with %u bytes from enclave!\n",
-            chan_id, len);
+            chan_id,
+            len);
 }
 
-void ocall_receive_from_channel(uint64_t chan_id, unsigned char *buff,
-                                size_t len) {
+void
+ocall_receive_from_channel(uint64_t chan_id, unsigned char *buff, size_t len) {
   LOG_DEBUG("Channel %u is about to send a buffer with %u bytes to enclave!\n",
-            chan_id, len);
+            chan_id,
+            len);
 }
 
-RunConfig process_json_config(const std::string &f_path) {
+void
+ocall_get_size_rec_from_recset(size_t  rec_set_id,
+                               size_t  rec_id,
+                               size_t *rec_size) {
+}
+
+void
+ocall_get_serialized_rec_from_recset(size_t   rec_set_id,
+                                     size_t   rec_id,
+                                     uint8_t *buff,
+                                     size_t   buff_len) {
+}
+
+void
+ocall_generate_recset(size_t function_handler_id, size_t *rec_set_id) {
+}
+
+void
+ocall_generate_recset(int         rec_set_type,
+                      const char *name,
+                      int         rec_type,
+                      size_t *    rec_set_id,
+                      int         rec_set_gen_func) {
+}
+
+RunConfig
+process_json_config(const std::string &f_path) {
   std::ifstream json_in(f_path);
-  json configs;
+  json          configs;
   json_in >> configs;
   LOG_DEBUG("The loaded config file is:\n%s\n", configs.dump(2).c_str());
   RunConfig run_config = {};
@@ -909,8 +941,8 @@ RunConfig process_json_config(const std::string &f_path) {
   } else if (sec_mode.compare("privacy") == 0) {
     run_config.common_config.sec_strategy = SecStrategyType::SEC_PRIVACY;
   } else if (sec_mode.compare("privacy_integrity") == 0) {
-    run_config.common_config.sec_strategy =
-        SecStrategyType::SEC_PRIVACY_INTEGRITY;
+    run_config.common_config.sec_strategy
+        = SecStrategyType::SEC_PRIVACY_INTEGRITY;
   }
 
   if (configs.find("data_config") == configs.end()) {
@@ -921,23 +953,23 @@ RunConfig process_json_config(const std::string &f_path) {
     LOG_ERROR("You need to define the dims field\n");
     abort();
   }
-  run_config.common_config.input_shape.width =
-      configs["data_config"]["dims"][0];
-  run_config.common_config.input_shape.height =
-      configs["data_config"]["dims"][1];
-  run_config.common_config.input_shape.channels =
-      configs["data_config"]["dims"][2];
+  run_config.common_config.input_shape.width
+      = configs["data_config"]["dims"][0];
+  run_config.common_config.input_shape.height
+      = configs["data_config"]["dims"][1];
+  run_config.common_config.input_shape.channels
+      = configs["data_config"]["dims"][2];
 
-  if (configs["data_config"].find("num_classes") ==
-      configs["data_config"].end()) {
+  if (configs["data_config"].find("num_classes")
+      == configs["data_config"].end()) {
     LOG_ERROR("You need to define the num_classes field\n");
     abort();
   }
-  run_config.common_config.output_shape.num_classes =
-      configs["data_config"]["num_classes"];
+  run_config.common_config.output_shape.num_classes
+      = configs["data_config"]["num_classes"];
 
-  if (configs["data_config"].find("trainSize") ==
-      configs["data_config"].end()) {
+  if (configs["data_config"].find("trainSize")
+      == configs["data_config"].end()) {
     LOG_ERROR("You need to define the trainSize field\n");
     abort();
   }
@@ -945,13 +977,13 @@ RunConfig process_json_config(const std::string &f_path) {
     LOG_ERROR("You need to define the testSize field\n");
     abort();
   }
-  if (configs["data_config"].find("predictSize") ==
-      configs["data_config"].end()) {
+  if (configs["data_config"].find("predictSize")
+      == configs["data_config"].end()) {
     LOG_ERROR("You need to define the predictSize field\n");
     abort();
   }
-  run_config.common_config.train_size = configs["data_config"]["trainSize"];
-  run_config.common_config.test_size = configs["data_config"]["testSize"];
+  run_config.common_config.train_size   = configs["data_config"]["trainSize"];
+  run_config.common_config.test_size    = configs["data_config"]["testSize"];
   run_config.common_config.predict_size = configs["data_config"]["predictSize"];
 
   if (configs["data_config"].find("is_image") != configs["data_config"].end()) {
@@ -961,26 +993,26 @@ RunConfig process_json_config(const std::string &f_path) {
     run_config.is_idash = configs["data_config"]["is_idash"];
   }
 
-  if (configs["data_config"].find("train_path") !=
-      configs["data_config"].end()) {
+  if (configs["data_config"].find("train_path")
+      != configs["data_config"].end()) {
     std::string train_path = configs["data_config"]["train_path"];
     strcpy(run_config.train_file_path, train_path.c_str());
   }
 
-  if (configs["data_config"].find("test_path") !=
-      configs["data_config"].end()) {
+  if (configs["data_config"].find("test_path")
+      != configs["data_config"].end()) {
     std::string test_path = configs["data_config"]["test_path"];
     strcpy(run_config.test_file_path, test_path.c_str());
   }
 
-  if (configs["data_config"].find("predict_path") !=
-      configs["data_config"].end()) {
+  if (configs["data_config"].find("predict_path")
+      != configs["data_config"].end()) {
     std::string predict_path = configs["data_config"]["predict_path"];
     strcpy(run_config.predict_file_path, predict_path.c_str());
   }
 
-  if (configs["data_config"].find("labels_path") !=
-      configs["data_config"].end()) {
+  if (configs["data_config"].find("labels_path")
+      != configs["data_config"].end()) {
     std::string labels_path = configs["data_config"]["labels_path"];
     strcpy(run_config.labels_file_path, labels_path.c_str());
   }
@@ -996,4 +1028,41 @@ RunConfig process_json_config(const std::string &f_path) {
   }
 
   return run_config;
+}
+
+void
+load_data_set_temp() {
+  if (run_config.common_config.task == DNNTaskType::TASK_TRAIN_SGX
+      && run_config.common_config.sec_strategy == SecStrategyType::SEC_PLAIN) {
+    auto ds_ptr = std::make_unique<sgx::untrusted::VectorRecordSet>(
+        std::string("trainig_set"),
+        sgx::common::RecordTypes::IMAGE_REC,
+        run_config.common_config.train_size);
+    LOG_DEBUG("RecordSet with ID %u is generated\n", ds_ptr->getRecordSetID())
+
+    // just generating some dummy image data :(
+    for (int i = 0; i < run_config.common_config.train_size; ++i) {
+      auto im_ptr = std::make_unique<sgx::common::ImageRecord>(
+          run_config.common_config.input_shape.width,
+          run_config.common_config.input_shape.height,
+          run_config.common_config.input_shape.channels);
+      const auto           num_bytes = im_ptr->getRecordSizeInBytes();
+      std::vector<uint8_t> rnd_ns(num_bytes);
+      int                  rc = RAND_bytes(rnd_ns.data(), num_bytes);
+      // unsigned long err = ERR_get_error();
+      if (rc != 1) {
+        LOG_DEBUG("Getting Random vector failed!\n");
+        std::exit(1);
+      }
+      im_ptr->unSerializeIntoThis(std::move(rnd_ns));
+      ds_ptr->appendNew(std::move(im_ptr));
+    }
+
+    LOG_DEBUG("RecordSet with ID %u has %u records\n",
+              ds_ptr->getRecordSetID(),
+              ds_ptr->getTotalNumberofElements());
+    sgx::untrusted::IRecordSet::addToRegistery(std::move(ds_ptr));
+  }
+  LOG_DEBUG("Not very helpful so far\n");
+  std::exit(1);
 }

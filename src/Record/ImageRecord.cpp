@@ -11,7 +11,7 @@ namespace sgx {
     ImageRecord::ImageRecord() : img_(0){};
 
     ImageRecord::ImageRecord(int width, int height, int channels) :
-        img_((width * height * channels)) {
+        img_((width * height * channels),0.0) {
       img_.shrink_to_fit();
     }
 

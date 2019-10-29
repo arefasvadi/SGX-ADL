@@ -9,9 +9,9 @@ namespace sgx {
     class VectorRecordSet : public IRecordSet {
       public:
       virtual ~VectorRecordSet() = default;
-
-      explicit VectorRecordSet(std::string name) : IRecordSet(name){};
-      explicit VectorRecordSet(std::string name, size_t initial_sz);
+      explicit VectorRecordSet(std::string         name,
+                               common::RecordTypes r_type,
+                               size_t              initial_sz);
 
       virtual const std::unique_ptr<common::IRecord>&
       getItemAt(const size_t i) const override;
@@ -65,8 +65,16 @@ namespace sgx {
       virtual size_t
       getRecordSetSizeInBytes() const override;
 
+      virtual common::RecordTypes
+      getRecordsType() const override;
+
+      virtual void
+      accept(common::IVisitor& visitor) override;
+
       protected:
+      explicit VectorRecordSet(std::string name) : IRecordSet(name){};
       std::vector<std::unique_ptr<common::IRecord>> storage_;
+      common::RecordTypes                           recType_;
 
       private:
     };

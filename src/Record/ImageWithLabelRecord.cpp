@@ -12,7 +12,7 @@ namespace sgx {
     ImageWLabelRecord::ImageWLabelRecord(
         int num_classes, std::unique_ptr<ImageRecord>&& image_ptr) :
         IRecordDecorator(std::move(image_ptr)),
-        label_(num_classes) {
+        label_(num_classes,0.0) {
     }
 
     // ImageWLabelRecord::ImageWLabelRecord(const ImageWLabelRecord& rhs) :

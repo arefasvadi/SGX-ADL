@@ -19,17 +19,29 @@ enclave {
        public void ecall_start_predicting();
        //public void ecall_singal_convolution(int size1,int size2);
        //public void ecall_matrix_mult(int row1,int col1,int row2,int col2);
+       
        public void ecall_init_ptext_imgds_blocking2D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
        public void ecall_init_ptext_imgds_blocking1D(int single_size_x_bytes,int single_size_y_bytes,int total_items);
        
-       public void ecall_handle_gemm_cpu_first_mult(int starter_M,int starter_N, int M,int N,float BETA,int ldc,size_t address_of_C);
-       public void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M, int N, int K, float ALPHA, size_t addr_A, int lda, size_t addr_B, int ldb, size_t addr_C, int ldc);
+       public void ecall_handle_gemm_cpu_first_mult(int thread_num);
+       public void ecall_handle_gemm_all(int thread_num);
 
        public void ecall_test_long_buffer_encrypt(size_t complete_len);
        
        public void ecall_test_long_buffer_decrypt(size_t complete_len);
     };
     untrusted {
+       
+       void ocall_generate_recset(int rec_set_type,
+                                  [in,string] const char* name,
+                                  int rec_type,
+                                  [out,count=1] size_t* rec_set_id,
+                                  int rec_set_gen_func);
+
+       void ocall_get_size_rec_from_recset(size_t rec_set_id,size_t rec_id, [out,count=1] size_t* rec_size);
+
+       void ocall_get_serialized_rec_from_recset(size_t rec_set_id,size_t rec_id,
+                                                 [out,size=buff_len]uint8_t* buff,size_t buff_len);
 
        void ocall_setup_channel(uint64_t chan_id,int channel_type);
        void ocall_tearup_channel(uint64_t chan_id);
@@ -59,8 +71,8 @@ enclave {
        void ocall_write_block(int64_t block_id,size_t index, [in,size=len] unsigned char* buff,size_t len);
        void ocall_read_block(int64_t block_id,size_t index, [out,size=len] unsigned char* buff,size_t len);
 
-       void ocall_handle_gemm_cpu_first_mult(int M,int N,float BETA, int ldc, size_t address_of_C);
-       void ocall_handle_gemm_all(int TA, int TB, int M, int N, int K, float ALPHA, size_t addr_A, int lda, size_t addr_B, int ldb, size_t addr_C, int ldc);
+       void ocall_handle_gemm_cpu_first_mult(int total_threads);
+       void ocall_handle_gemm_all(int total_threads);
        
        void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size);
        void ocall_get_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end,[out,size=temp_buff_len] unsigned char* temp_buff, size_t temp_buff_len);

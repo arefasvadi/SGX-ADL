@@ -1,12 +1,15 @@
 #include "Record/VectorRecordSet.h"
-
+#include "Visitors/Visitor.h"
 #include "cassert"
 
 namespace sgx {
   namespace untrusted {
-    VectorRecordSet::VectorRecordSet(std::string name, size_t initial_sz) :
+    VectorRecordSet::VectorRecordSet(std::string               name,
+                                     const common::RecordTypes r_type,
+                                     size_t                    initial_sz) :
         VectorRecordSet(name) {
       storage_.reserve(initial_sz);
+      recType_ = r_type;
     };
 
     const std::unique_ptr<common::IRecord>&
@@ -136,5 +139,16 @@ namespace sgx {
       }
       return total_bytes;
     }
+
+    common::RecordTypes
+    VectorRecordSet::getRecordsType() const {
+      return recType_;
+    }
+
+    void
+    VectorRecordSet::accept(common::IVisitor& visitor) {
+        visitor.visit(*this);
+    }
+
   }  // namespace untrusted
 }  // namespace sgx

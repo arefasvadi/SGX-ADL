@@ -51,6 +51,7 @@ int total_items = 0;
 int single_len_x = 0;
 int single_leb_y = 0;
 
+
 int printf(const char *fmt, ...) {
   char buf[BUFSIZ] = {'\0'};
   va_list ap;
@@ -578,69 +579,85 @@ void ecall_start_predicting() {
   LOG_TRACE("finished in %s\n", __func__)
 }
 
-void ecall_handle_gemm_cpu_first_mult(int starter_M, int starter_N, int M,
-                                      int N, float BETA, int ldc,
-                                      size_t new_address_of_C) {
-  float *C = (float *)new_address_of_C;
+void ecall_handle_gemm_cpu_first_mult(int thread_num) {
+#if defined(USE_SGX) && defined (USE_GEMM_THREADING_SGX)
+  if (thread_num < 0 || thread_num >= per_thr_params.size()) {
+    LOG_DEBUG("GEMM threading was called with wrong param");
+    abort();
+  }
+  auto& task = per_thr_params[thread_num];
+  if (task.second._a.load() != thread_task_status_t::not_started) {
+    LOG_DEBUG("GEMM threading was called for the same thread again!!");
+  }
+  task.second._a.store(thread_task_status_t::in_progress);
   int i, j;
-  for (i = starter_M; i < M; ++i) {
-    for (j = starter_N; j < N; ++j) {
-      C[i * ldc + j] *= BETA;
+  for (i = task.first.starterM; i < task.first.M; ++i) {
+    for (j = task.first.starterN; j < task.first.N; ++j) {
+      task.first.C[i * task.first.ldc + j] *= task.first.BETA;
     }
   }
+  task.second._a.store(thread_task_status_t::finished);
+#endif
 }
 
-void ecall_handle_gemm_all(int starter_M, int starter_N, int TA, int TB, int M,
-                           int N, int K, float ALPHA, size_t addr_A, int lda,
-                           size_t addr_B, int ldb, size_t addr_C, int ldc) {
-  float *A = (float *)addr_A;
-  float *B = (float *)addr_B;
-  float *C = (float *)addr_C;
-  if (!TA && !TB) {
+void ecall_handle_gemm_all(int thread_num) {
+  #if defined(USE_SGX) && defined (USE_GEMM_THREADING_SGX)                                        
+  if (thread_num < 0 || thread_num >= per_thr_params.size()) {
+    LOG_DEBUG("GEMM threading was called with wrong param");
+    abort();
+  }
+  auto& task = per_thr_params[thread_num];
+  if (task.second._a.load() != thread_task_status_t::not_started) {
+    LOG_DEBUG("GEMM threading was called for the same thread again!!");
+  }
+  task.second._a.store(thread_task_status_t::in_progress);
+  if (!task.first.TA && !task.first.TB) {
     // gemm_nn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
     int i, j, k;
-    for (i = starter_M; i < M; ++i) {
-      for (k = 0; k < K; ++k) {
-        float A_PART = ALPHA * A[i * lda + k];
-        for (j = starter_N; j < N; ++j) {
-          C[i * ldc + j] += A_PART * B[k * ldb + j];
+    for (i = task.first.starterM; i < task.first.M; ++i) {
+      for (k = 0; k < task.first.K; ++k) {
+        float A_PART = task.first.ALPHA * task.first.A[i * task.first.lda + k];
+        for (j = task.first.starterN; j < task.first.N; ++j) {
+          task.first.C[i * task.first.ldc + j] += A_PART * task.first.B[k * task.first.ldb + j];
         }
       }
     }
-  } else if (TA && !TB) {
+  } else if (task.first.TA && !task.first.TB) {
     // gemm_tn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
     int i, j, k;
-    for (i = starter_M; i < M; ++i) {
-      for (k = 0; k < K; ++k) {
-        float A_PART = ALPHA * A[k * lda + i];
-        for (j = starter_N; j < N; ++j) {
-          C[i * ldc + j] += A_PART * B[k * ldb + j];
+    for (i = task.first.starterM; i < task.first.M; ++i) {
+      for (k = 0; k < task.first.K; ++k) {
+        float A_PART = task.first.ALPHA * task.first.A[k * task.first.lda + i];
+        for (j = task.first.starterN; j < task.first.N; ++j) {
+          task.first.C[i * task.first.ldc + j] += A_PART * task.first.B[k * task.first.ldb + j];
         }
       }
     }
-  } else if (!TA && TB) {
+  } else if (!task.first.TA && task.first.TB) {
     // gemm_nt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
     int i, j, k;
-    for (i = starter_M; i < M; ++i) {
-      for (j = starter_N; j < N; ++j) {
+    for (i = task.first.starterM; i < task.first.M; ++i) {
+      for (j = task.first.starterN; j < task.first.N; ++j) {
         float sum = 0;
-        for (k = 0; k < K; ++k) {
-          sum += ALPHA * A[i * lda + k] * B[j * ldb + k];
+        for (k = 0; k < task.first.K; ++k) {
+          sum += task.first.ALPHA * task.first.A[i * task.first.lda + k] * task.first.B[j * task.first.ldb + k];
         }
-        C[i * ldc + j] += sum;
+        task.first.C[i * task.first.ldc + j] += sum;
       }
     }
   } else {
     // gemm_tt(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
     int i, j, k;
-    for (i = starter_M; i < M; ++i) {
-      for (j = starter_N; j < N; ++j) {
+    for (i = task.first.starterM; i < task.first.M; ++i) {
+      for (j = task.first.starterN; j < task.first.N; ++j) {
         float sum = 0;
-        for (k = 0; k < K; ++k) {
-          sum += ALPHA * A[i + k * lda] * B[k + j * ldb];
+        for (k = 0; k < task.first.K; ++k) {
+          sum += task.first.ALPHA * task.first.A[i + k * task.first.lda] * task.first.B[k + j * task.first.ldb];
         }
-        C[i * ldc + j] += sum;
+        task.first.C[i * task.first.ldc + j] += sum;
       }
     }
   }
+  task.second._a.store(thread_task_status_t::finished);
+  #endif
 }

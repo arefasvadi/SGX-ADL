@@ -8,11 +8,15 @@ namespace sgx {
       public:
       virtual ~VectorRecordSetView() = default;
 
-      explicit VectorRecordSetView(const size_t record_set_id,
-                                   const size_t current_view_size,
-                                   const size_t total_records) :
-          IRecordSetView(record_set_id, current_view_size, total_records){};
-
+      explicit VectorRecordSetView(const size_t              record_set_id,
+                                   const size_t              current_view_size,
+                                   const size_t              total_records,
+                                   const common::RecordTypes rec_type);
+      
+      virtual size_t
+      getRecordSetID() const override;
+      
+      // makes sure that we have enough space
       virtual void
       prepare(size_t view_size) override;
 
@@ -32,6 +36,7 @@ namespace sgx {
       virtual void
       setItemsInRangeFromRecordSet(const size_t i, const size_t len) override;
 
+      // clean up is used when want to delete objects stored by viewStorage_
       virtual void
       cleanUp() override;
 
@@ -75,9 +80,17 @@ namespace sgx {
           const std::vector<size_t>& indices_view,
           std::vector<uint8_t>&&     changed_records) const override;
 
+      virtual common::RecordTypes
+      getRecordsType() const override;
+
       protected:
-        std::vector<std::unique_ptr<common::IRecord>> viewStorage_;
-        
+      size_t                    recordSetID_;
+      size_t                    currentViewSize_;
+      const size_t              totalRecords_;
+      const common::RecordTypes recType_;
+
+      std::vector<std::unique_ptr<common::IRecord>> viewStorage_;
+
       private:
     };
   }  // namespace trusted

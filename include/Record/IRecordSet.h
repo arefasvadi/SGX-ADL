@@ -72,6 +72,9 @@ namespace sgx {
       virtual size_t
       getRecordSetSizeInBytes() const = 0;
 
+      virtual common::RecordTypes
+      getRecordsType() const = 0;
+
       static void
       addToRegistery(std::unique_ptr<IRecordSet>&& record_set);
 

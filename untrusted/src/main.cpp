@@ -37,14 +37,16 @@ int SGX_CDECL main(int argc, char *argv[]) {
   LOG_INFO("Size of encrypted data is: %fMB\n",
            (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
                (1 << 20));
-
+  
   /* Initialize the enclave */
   if (initialize_enclave() < 0) {
     LOG_ERROR("Something went wrong. Enter a character before exit ...\n");
     getchar();
     return -1;
   }
-  
+
+  //load_data_set_temp();  
+
   ret = ecall_enclave_init(
       global_eid, (unsigned char*)(&run_config.common_config),sizeof(run_config.common_config));
   if (ret != SGX_SUCCESS) {

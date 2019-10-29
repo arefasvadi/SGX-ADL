@@ -8,10 +8,8 @@ namespace sgx {
       public:
       virtual ~IRecordSetView() = default;
 
-      size_t
-      getRecordSetID() {
-        return recordSetID_;
-      }
+      virtual size_t
+      getRecordSetID() const = 0;
 
       virtual void
       prepare(size_t view_size)
@@ -83,16 +81,11 @@ namespace sgx {
           const std::vector<size_t>& indices_view,
           std::vector<uint8_t>&&     changed_records) const = 0;
 
-      protected:
-      explicit IRecordSetView(const size_t record_set_id,
-                              const size_t current_view_size,
-                              const size_t total_records) :
-          recordSetID_(0),
-          currentViewSize_(current_view_size), totalRecords_(total_records){};
+      virtual common::RecordTypes
+      getRecordsType() const = 0;
 
-      size_t       recordSetID_;
-      size_t       currentViewSize_;
-      const size_t totalRecords_;
+      protected:
+      IRecordSetView() = default;
 
       private:
     };
