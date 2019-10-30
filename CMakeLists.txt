@@ -66,11 +66,11 @@ set(Private_Key_File "${Trusted_Home}/private_key.pem")
 
 set(SGX_HW ON)
 if (CUSTOM_ENABLE_DEBUGING)
-  set(SGX_MODE "Debug")
+  set(SGX_MODE Debug CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
   
 else()
-  set(SGX_MODE "PreRelease")
+  set(SGX_MODE PreRelease CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   #set(SGX_MODE "Release")
   set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()

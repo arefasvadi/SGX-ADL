@@ -661,3 +661,38 @@ void ecall_handle_gemm_all(int thread_num) {
   task.second._a.store(thread_task_status_t::finished);
   #endif
 }
+
+void ecall_handle_fill_cpu(int thread_num) {
+  // #if defined(USE_SGX) && defined (USE_GEMM_THREADING_SGX)
+  // if (thread_num < 0 || thread_num >= cpu_same_src_dest_per_thr_params.size()) {
+  //   LOG_DEBUG("fill cpu threading was called with wrong param\n");
+  //   abort();
+  // }
+  // auto& task = cpu_same_src_dest_per_thr_params[thread_num];
+  // if (task.second._a.load() != thread_task_status_t::not_started) {
+  //   LOG_DEBUG("fill cpu threading was called for the same thread again!!\n");
+  // }
+  // task.second._a.store(thread_task_status_t::in_progress);
+  // for(int i = task.first.starterN; i < task.first.N; ++i) {
+  //   task.first.X[i*task.first.INCX] = task.first.ALPHA;
+  // }
+  // task.second._a.store(thread_task_status_t::finished);                                        
+  // #endif
+}
+void ecall_handle_scale_cpu(int thread_num) {
+// #if defined(USE_SGX) && defined (USE_GEMM_THREADING_SGX)
+// if (thread_num < 0 || thread_num >= cpu_same_src_dest_per_thr_params.size()) {
+//     LOG_DEBUG("scale cpu threading was called with wrong param\n");
+//     abort();
+//   }
+//   auto& task = cpu_same_src_dest_per_thr_params[thread_num];
+//   if (task.second._a.load() != thread_task_status_t::not_started) {
+//     LOG_DEBUG("scale cpu threading was called for the same thread again!!\n");
+//   }
+//   task.second._a.store(thread_task_status_t::in_progress);
+//   for(int i = task.first.starterN; i < task.first.N; ++i) {
+//     task.first.X[i*task.first.INCX] *= task.first.ALPHA;
+//   }
+//   task.second._a.store(thread_task_status_t::finished);                                          
+// #endif
+}

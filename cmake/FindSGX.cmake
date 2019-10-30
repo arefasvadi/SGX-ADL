@@ -53,6 +53,7 @@ if(SGX_FOUND)
         set(SGX_USVC_LIB sgx_uae_service)
         set(SGX_TRTS_LIB sgx_trts)
         set(SGX_TSVC_LIB sgx_tservice)
+        set(SGX_SWITCHLESS_LIB sgx_tswitchless)
     else()
         set(SGX_URTS_LIB sgx_urts_sim)
         set(SGX_USVC_LIB sgx_uae_service_sim)
@@ -63,7 +64,7 @@ if(SGX_FOUND)
     set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS} -Wpedantic -Wall -Wextra")
 
     if(SGX_MODE STREQUAL "Debug")
-        set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}  -O0 -g3 -ggdb -DDEBUG -UNDEBUG -UEDEBUG")
+        set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}  -O0 -g -g3 -ggdb -DDEBUG -UNDEBUG -UEDEBUG")
     elseif(SGX_MODE STREQUAL "PreRelease")
         set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}  -O3 -UDEBUG -DNDEBUG -DEDEBUG")
     elseif(SGX_MODE STREQUAL "Release")
@@ -132,7 +133,7 @@ if(SGX_FOUND)
 
         target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
-            -Wl,--whole-archive -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
+            -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
             -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
             -Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tkey_exchange -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
@@ -173,7 +174,7 @@ if(SGX_FOUND)
 
         target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
-            -Wl,--whole-archive -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
+            -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
             -Wl,--start-group ${TLIB_LIST} -lsgx_tstdc -lsgx_tcxx -lsgx_tkey_exchange -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
             -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \

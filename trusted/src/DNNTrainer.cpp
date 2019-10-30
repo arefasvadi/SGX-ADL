@@ -482,6 +482,8 @@ bool DNNTrainer::prepareBatchPredictPlain(int start) {
 }
 
 void DNNTrainer::train() {
+  // const char* timing_key = "tarining time";
+  // ocall_set_timing(timing_key,strlen(timing_key)+1 , 1, 0);
   int start = 0;
   float avg_loss = -1, loss = -1;
   float AVG_ACC = -1;
@@ -553,6 +555,7 @@ void DNNTrainer::train() {
               test_accuracy);
       }*/
   }
+  //ocall_set_timing(timing_key,strlen(timing_key)+1, 0, 1);
 }
 
 void DNNTrainer::test() {

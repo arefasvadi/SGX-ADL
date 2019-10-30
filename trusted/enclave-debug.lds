@@ -1,4 +1,4 @@
-idash2017.enclave.so
+libsgxdnn.enclave.so
 {
 	global:
 		g_global_data_sim;

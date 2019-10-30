@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+
 #include "Record/VectorRecordSet.h"
 
 #define MAX_PATH FILENAME_MAX
@@ -44,6 +45,12 @@ using timeTracker
 
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid = 0;
+sgx_uswitchless_config_t us_config = SGX_USWITCHLESS_CONFIG_INITIALIZER;
+#ifdef MEASURE_SWITCHLESS_TIMING
+uint64_t g_stats[4] = {};
+#endif
+ /* Initialize the enclave */
+
 
 sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
     sgx::untrusted::CryptoEngine<uint8_t>::Key{
@@ -353,27 +360,39 @@ main_logger(int level, const char *file, int line, const char *format, ...) {
  *   Call sgx_create_enclave to initialize an enclave instance
  */
 int
-initialize_enclave(void) {
-  sgx_launch_token_t token   = {0};
+initialize_enclave() {
+  //sgx_launch_token_t token   = {0};
   sgx_status_t       ret     = SGX_ERROR_UNEXPECTED;
-  int                updated = 0;
+  //int                updated = 0;
 
-  /* Call sgx_create_enclave to initialize an enclave instance */
-  /* Debug Support: set 2nd parameter to 1 */
-  // SGX_DEBUG_FLAG
-  ret = sgx_create_enclave(
-      ENCLAVE_FILENAME, 1, &token, &updated, &global_eid, NULL);
-  if (ret != SGX_SUCCESS) {
-    LOG_ERROR("Error code is %#010X\n", ret);
-    return -1;
-  }
+  const void* enclave_ex_p[32] = {};
+
+  us_config.num_uworkers = 6;
+  us_config.num_tworkers = 6;
+  #ifdef MEASURE_SWITCHLESS_TIMING
+  us_config.callback_func[3] = &exit_callback;
+  #endif
+  enclave_ex_p[SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX] = (const void*)(&us_config);
+  
+  
+  // ret = sgx_create_enclave(
+  //     ENCLAVE_FILENAME, 1, &token, &updated, &global_eid, NULL);
+  ret = sgx_create_enclave_ex(ENCLAVE_FILENAME,
+                              1,
+                              NULL,
+                              NULL,
+                              &global_eid,
+                              NULL,
+                              SGX_CREATE_ENCLAVE_EX_SWITCHLESS,
+                              enclave_ex_p);
+  CHECK_SGX_SUCCESS(ret, "sgx_create_enclave_ex caused problem!");
 
   return 0;
 }
 
 sgx_status_t
 dest_enclave(const sgx_enclave_id_t enclave_id) {
-  return sgx_destroy_enclave(global_eid);
+  return sgx_destroy_enclave(enclave_id);
 }
 
 /* OCall functions */
@@ -667,8 +686,9 @@ ocall_get_buffer_layerwise(uint32_t       buff_id,
                            unsigned char *temp_buff,
                            size_t         temp_buff_len) {
   assert((end - start) == temp_buff_len);
+  const auto &vec = layerwise_contents[buff_id];
   std::memcpy(
-      temp_buff, &((layerwise_contents[buff_id])[start]), temp_buff_len);
+      temp_buff, &(vec[start]), temp_buff_len);
 }
 
 void
@@ -678,8 +698,9 @@ ocall_set_buffer_layerwise(uint32_t       buff_id,
                            unsigned char *temp_buff,
                            size_t         temp_buff_len) {
   assert((end - start) == temp_buff_len);
+  auto &vec = layerwise_contents[buff_id];
   std::memcpy(
-      &((layerwise_contents[buff_id])[start]), temp_buff, temp_buff_len);
+      &(vec[start]), temp_buff, temp_buff_len);
 }
 
 void
@@ -727,6 +748,39 @@ ocall_handle_gemm_cpu_first_mult(int total_threads) {
         res, "call to ecall_handle_gemm_cpu_first_mult caused problem!!");
   }
 #endif
+}
+
+
+void ocall_handle_fill_cpu(int total_threads) {
+// #ifdef USE_GEMM_THREADING_SGX
+// std::future<sgx_status_t> returns[total_threads];
+
+//   for (int i = 0; i < total_threads; ++i) {
+//     returns[i] = std::async(
+//         std::launch::async, &ecall_handle_fill_cpu, global_eid, i);
+//   }
+//   for (int i = 0; i < total_threads; ++i) {
+//     auto res = returns[i].get();
+//     CHECK_SGX_SUCCESS(
+//         res, "call to ecall handle fill cpu caused problem!!\n");
+//   }
+// #endif
+}
+
+void ocall_handle_scale_cpu(int total_threads) {
+// #ifdef USE_GEMM_THREADING_SGX
+// std::future<sgx_status_t> returns[total_threads];
+
+//   for (int i = 0; i < total_threads; ++i) {
+//     returns[i] = std::async(
+//         std::launch::async, &ecall_handle_scale_cpu, global_eid, i);
+//   }
+//   for (int i = 0; i < total_threads; ++i) {
+//     auto res = returns[i].get();
+//     CHECK_SGX_SUCCESS(
+//         res, "call to ecall handle scale cpu caused problem!!\n");
+//   }
+// #endif
 }
 
 void
@@ -1066,3 +1120,24 @@ load_data_set_temp() {
   LOG_DEBUG("Not very helpful so far\n");
   std::exit(1);
 }
+
+#ifdef MEASURE_SWITCHLESS_TIMING
+void
+exit_callback(sgx_uswitchless_worker_type_t         type,
+              sgx_uswitchless_worker_event_t        event,
+              const sgx_uswitchless_worker_stats_t *stats) {
+  // last thread exiting will update the latest results
+  g_stats[type * 2]     = stats->processed;
+  g_stats[type * 2 + 1] = stats->missed;
+}
+
+void print_switchless_timing() {
+  LOG_WARN(
+      "for trusted_workers stats were -> (processed: %u,missed: %u)\nfor "
+      "untrusted workers stats were -> (processed: %u,missed: %u)\n",
+      g_stats[SGX_USWITCHLESS_WORKER_TYPE_TRUSTED * 2],
+      g_stats[SGX_USWITCHLESS_WORKER_TYPE_TRUSTED * 2 + 1],
+      g_stats[SGX_USWITCHLESS_WORKER_TYPE_UNTRUSTED * 2],
+      g_stats[SGX_USWITCHLESS_WORKER_TYPE_UNTRUSTED * 2 + 1]);
+}
+#endif

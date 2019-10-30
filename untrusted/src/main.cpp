@@ -38,7 +38,6 @@ int SGX_CDECL main(int argc, char *argv[]) {
            (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0])) /
                (1 << 20));
   
-  /* Initialize the enclave */
   if (initialize_enclave() < 0) {
     LOG_ERROR("Something went wrong. Enter a character before exit ...\n");
     getchar();
@@ -46,14 +45,10 @@ int SGX_CDECL main(int argc, char *argv[]) {
   }
 
   //load_data_set_temp();  
-
   ret = ecall_enclave_init(
       global_eid, (unsigned char*)(&run_config.common_config),sizeof(run_config.common_config));
-  if (ret != SGX_SUCCESS) {
-    LOG_ERROR("ecall init enclave caused problem! Error code is %#010\n", ret);
-    abort();
-  }
-
+  CHECK_SGX_SUCCESS(ret,"ecall init enclave caused problem!\n")
+  
   /* ret = ecall_singal_convolution(global_eid, 20000000, 10000);
   if (ret != SGX_SUCCESS) {
     printf("ecall for signal conv caused problem! Error code is %#010\n", ret);
@@ -129,7 +124,9 @@ int SGX_CDECL main(int argc, char *argv[]) {
   /* Destroy the enclave */
   dest_enclave(global_eid);
   //sgx_destroy_enclave(global_eid);
-
+  #ifdef MEASURE_SWITCHLESS_TIMING
+  print_switchless_timing();
+  #endif
   print_timers();
   return 0;
 }

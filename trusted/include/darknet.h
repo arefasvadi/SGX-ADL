@@ -2,7 +2,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
-
+#include <string>
 #include "common.h"
 #include "util.h"
 
@@ -91,6 +91,22 @@ using gemm_thread_task_t
     = std::pair<gemm_multi_thread_params_t, atomwrapper<thread_task_status_t>>;
 extern std::vector<gemm_thread_task_t> per_thr_params;
 extern gemm_multi_thread_params_t      gemm_params;
+
+// can be used for scal_cpu, fill_cpu and const_cpu;
+// typedef struct cpu_same_src_dest_multi_thread_params_t {
+//   float *X;
+//   int    N;
+//   int    INCX;
+//   float  ALPHA;
+//   int starterN;
+// } cpu_same_src_dest_multi_thread_params_t;
+
+// using cpu_same_thread_task_t
+//     = std::pair<cpu_same_src_dest_multi_thread_params_t, atomwrapper<thread_task_status_t>>;
+// extern std::vector<cpu_same_thread_task_t> cpu_same_src_dest_per_thr_params;
+// extern cpu_same_src_dest_multi_thread_params_t cpu_same_src_dest_params;
+// extern const int cpu_same_src_dest_num;
+
 #endif
 
 #include "../../third_party/darknet/include/darknet.h"

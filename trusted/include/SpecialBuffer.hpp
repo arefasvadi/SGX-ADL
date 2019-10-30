@@ -78,13 +78,21 @@ namespace sgx {
     std::unique_ptr<T[]>
     SpecialBuffer<T>::getItemsInRange(const uint32_t start,
                                       const uint32_t end) {
+      // #ifdef USE_SGX
+      //     const char* timing_key = "getItemsinRange time";
+      //     ocall_set_timing(timing_key,strlen(timing_key)+1 , 1, 0);
+      // #endif
       assert(end > start);
       sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
       const size_t buff_len         = end - start;
-      const size_t interim_buff_len = 100 * ONE_KB / sizeof(T);
+      const size_t interim_buff_len = (64 * ONE_KB) / sizeof(T);
       auto         ret              = std::unique_ptr<T[]>(new T[buff_len]);
-      int          q                = buff_len / (interim_buff_len);
-      int          r                = buff_len % (interim_buff_len);
+      // #ifdef USE_SGX
+      // const char* timing_key_s = "transfer getItemsinRange time";
+      // ocall_set_timing(timing_key_s,strlen(timing_key_s)+1 , 1, 0);
+      // #endif
+      int q = buff_len / (interim_buff_len);
+      int r = buff_len % (interim_buff_len);
       for (int i = 0; i < q; ++i) {
         succ = ocall_get_buffer_layerwise(
             id_,
@@ -103,7 +111,12 @@ namespace sgx {
             (r) * sizeof(T));
         CHECK_SGX_SUCCESS(succ, "Problem Caused by Get Buffer LayerWise");
       }
-
+      // #ifdef USE_SGX
+      // ocall_set_timing(timing_key_s,strlen(timing_key_s)+1 , 0, 1);
+      // #endif
+      // #ifdef USE_SGX
+      // ocall_set_timing(timing_key,strlen(timing_key)+1 , 0, 1);
+      // #endif
       return ret;
     }
 
@@ -112,9 +125,13 @@ namespace sgx {
     SpecialBuffer<T>::setItemsInRange(const uint32_t        start,
                                       const uint32_t        end,
                                       std::unique_ptr<T[]> &content) {
+      //     #ifdef USE_SGX
+      //   const char* timing_key = "setItemsinRange time";
+      //   ocall_set_timing(timing_key,strlen(timing_key)+1 , 1, 0);
+      // #endif
       assert(end > start);
       const size_t buff_len         = end - start;
-      const size_t interim_buff_len = 100 * ONE_KB / sizeof(T);
+      const size_t interim_buff_len = (64 * ONE_KB) / sizeof(T);
       sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
       int          q                = buff_len / (interim_buff_len);
       int          r                = buff_len % (interim_buff_len);
@@ -136,13 +153,16 @@ namespace sgx {
             (r) * sizeof(T));
         CHECK_SGX_SUCCESS(succ, "Problem Caused by Set Buffer LayerWise");
       }
+      //       #ifdef USE_SGX
+      //   ocall_set_timing(timing_key,strlen(timing_key)+1 , 0, 1);
+      // #endif
       // content.clear();
       // content.shrink_to_fit();
     }
 
-    template class SpecialBuffer<float>;
-    template class SpecialBuffer<int>;
-    template class SpecialBuffer<char>;
+    //template class SpecialBuffer<float>;
+    //template class SpecialBuffer<int>;
+    //template class SpecialBuffer<char>;
 
   }  // namespace trusted
 }  // namespace sgx
