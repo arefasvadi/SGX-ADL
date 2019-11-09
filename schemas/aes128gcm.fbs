@@ -1,0 +1,7 @@
+table AESGCM128Enc {
+    enc_content:[ubyte] (required);
+    iv:[ubyte] (required);
+    mac:[ubyte] (required);
+    aad:[ubyte] ;
+}
+root_type AESGCM128Enc;

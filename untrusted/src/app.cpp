@@ -1,6 +1,8 @@
 #include "app.h"
 
 #include <assert.h>
+#include <cryptopp/oids.h>
+#include <pthread.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,6 +10,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <future>
 #include <iostream>
@@ -21,17 +24,17 @@
 #include <utility>
 #include <vector>
 
-
 #include "Record/VectorRecordSet.h"
+#include "cryptopp/eccrypto.h"
+#include "cryptopp/osrng.h"
+#include "cryptopp/pubkey.h"
 
 #define MAX_PATH FILENAME_MAX
 
 //#include "Channel/BasicChannel.hpp"
 //#include "Channel/IChannel.hpp"
 #include "CryptoEngine.hpp"
-#include "Record/ImageRecord.h"
-#include "Record/ImageWithLabelRecord.h"
-
+//#include <x86intrin.h>
 // sgx::common::ImageRecord* imr = new sgx::common::ImageRecord(2,6,8);
 // std::unique_ptr<sgx::common::ImageRecord> tempImg(new
 // sgx::common::ImageRecord(2,6,8));
@@ -44,13 +47,12 @@ using timeTracker
                 std::chrono::time_point<std::chrono::high_resolution_clock>>;
 
 /* Global EID shared by multiple threads */
-sgx_enclave_id_t global_eid = 0;
-sgx_uswitchless_config_t us_config = SGX_USWITCHLESS_CONFIG_INITIALIZER;
+sgx_enclave_id_t         global_eid = 0;
+sgx_uswitchless_config_t us_config  = SGX_USWITCHLESS_CONFIG_INITIALIZER;
 #ifdef MEASURE_SWITCHLESS_TIMING
 uint64_t g_stats[4] = {};
 #endif
- /* Initialize the enclave */
-
+/* Initialize the enclave */
 
 sgx::untrusted::CryptoEngine<uint8_t> crypto_engine(
     sgx::untrusted::CryptoEngine<uint8_t>::Key{
@@ -82,6 +84,9 @@ std::map<std::string, double>      duration_map;
 
 std::unordered_map<uint32_t, std::vector<unsigned char>> layerwise_contents;
 std::unordered_map<int64_t, std::vector<unsigned char>>  all_blocks;
+
+FlatBufferedContainerT<TrainLocationsConfigs>   trainlocconfigs;
+FlatBufferedContainerT<PredictLocationsConfigs> predlocconfigs;
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
@@ -361,20 +366,20 @@ main_logger(int level, const char *file, int line, const char *format, ...) {
  */
 int
 initialize_enclave() {
-  //sgx_launch_token_t token   = {0};
-  sgx_status_t       ret     = SGX_ERROR_UNEXPECTED;
-  //int                updated = 0;
+  // sgx_launch_token_t token   = {0};
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  // int                updated = 0;
 
-  const void* enclave_ex_p[32] = {};
+  const void *enclave_ex_p[32] = {};
 
-  us_config.num_uworkers = 6;
-  us_config.num_tworkers = 6;
-  #ifdef MEASURE_SWITCHLESS_TIMING
+  us_config.num_uworkers = 2;
+  us_config.num_tworkers = 2;
+#ifdef MEASURE_SWITCHLESS_TIMING
   us_config.callback_func[3] = &exit_callback;
-  #endif
-  enclave_ex_p[SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX] = (const void*)(&us_config);
-  
-  
+#endif
+  enclave_ex_p[SGX_CREATE_ENCLAVE_EX_SWITCHLESS_BIT_IDX]
+      = (const void *)(&us_config);
+
   // ret = sgx_create_enclave(
   //     ENCLAVE_FILENAME, 1, &token, &updated, &global_eid, NULL);
   ret = sgx_create_enclave_ex(ENCLAVE_FILENAME,
@@ -687,8 +692,7 @@ ocall_get_buffer_layerwise(uint32_t       buff_id,
                            size_t         temp_buff_len) {
   assert((end - start) == temp_buff_len);
   const auto &vec = layerwise_contents[buff_id];
-  std::memcpy(
-      temp_buff, &(vec[start]), temp_buff_len);
+  std::memcpy(temp_buff, &(vec[start]), temp_buff_len);
 }
 
 void
@@ -699,8 +703,7 @@ ocall_set_buffer_layerwise(uint32_t       buff_id,
                            size_t         temp_buff_len) {
   assert((end - start) == temp_buff_len);
   auto &vec = layerwise_contents[buff_id];
-  std::memcpy(
-      &(vec[start]), temp_buff, temp_buff_len);
+  std::memcpy(&(vec[start]), temp_buff, temp_buff_len);
 }
 
 void
@@ -750,37 +753,38 @@ ocall_handle_gemm_cpu_first_mult(int total_threads) {
 #endif
 }
 
+void
+ocall_handle_fill_cpu(int total_threads) {
+  // #ifdef USE_GEMM_THREADING_SGX
+  // std::future<sgx_status_t> returns[total_threads];
 
-void ocall_handle_fill_cpu(int total_threads) {
-// #ifdef USE_GEMM_THREADING_SGX
-// std::future<sgx_status_t> returns[total_threads];
-
-//   for (int i = 0; i < total_threads; ++i) {
-//     returns[i] = std::async(
-//         std::launch::async, &ecall_handle_fill_cpu, global_eid, i);
-//   }
-//   for (int i = 0; i < total_threads; ++i) {
-//     auto res = returns[i].get();
-//     CHECK_SGX_SUCCESS(
-//         res, "call to ecall handle fill cpu caused problem!!\n");
-//   }
-// #endif
+  //   for (int i = 0; i < total_threads; ++i) {
+  //     returns[i] = std::async(
+  //         std::launch::async, &ecall_handle_fill_cpu, global_eid, i);
+  //   }
+  //   for (int i = 0; i < total_threads; ++i) {
+  //     auto res = returns[i].get();
+  //     CHECK_SGX_SUCCESS(
+  //         res, "call to ecall handle fill cpu caused problem!!\n");
+  //   }
+  // #endif
 }
 
-void ocall_handle_scale_cpu(int total_threads) {
-// #ifdef USE_GEMM_THREADING_SGX
-// std::future<sgx_status_t> returns[total_threads];
+void
+ocall_handle_scale_cpu(int total_threads) {
+  // #ifdef USE_GEMM_THREADING_SGX
+  // std::future<sgx_status_t> returns[total_threads];
 
-//   for (int i = 0; i < total_threads; ++i) {
-//     returns[i] = std::async(
-//         std::launch::async, &ecall_handle_scale_cpu, global_eid, i);
-//   }
-//   for (int i = 0; i < total_threads; ++i) {
-//     auto res = returns[i].get();
-//     CHECK_SGX_SUCCESS(
-//         res, "call to ecall handle scale cpu caused problem!!\n");
-//   }
-// #endif
+  //   for (int i = 0; i < total_threads; ++i) {
+  //     returns[i] = std::async(
+  //         std::launch::async, &ecall_handle_scale_cpu, global_eid, i);
+  //   }
+  //   for (int i = 0; i < total_threads; ++i) {
+  //     auto res = returns[i].get();
+  //     CHECK_SGX_SUCCESS(
+  //         res, "call to ecall handle scale cpu caused problem!!\n");
+  //   }
+  // #endif
 }
 
 void
@@ -930,6 +934,81 @@ ocall_generate_recset(int         rec_set_type,
                       int         rec_type,
                       size_t *    rec_set_id,
                       int         rec_set_gen_func) {
+}
+
+void
+parse_location_configs(const std::string &location_conf_file,
+                       const std::string &tasktype) {
+  if (tasktype.compare("train") == 0) {
+    trainlocconfigs.vecBuff = read_file_binary(location_conf_file.c_str());
+    // auto trainlocconfigs
+    trainlocconfigs.objPtr = flatbuffers::GetMutableRoot<TrainLocationsConfigs>(
+        &trainlocconfigs.vecBuff[0]);
+
+  } else if (tasktype.compare("predict") == 0) {
+    predlocconfigs.vecBuff = read_file_binary(location_conf_file.c_str());
+    // auto trainlocconfigs
+    predlocconfigs.objPtr
+        = flatbuffers::GetMutableRoot<PredictLocationsConfigs>(
+            &predlocconfigs.vecBuff[0]);
+  }
+}
+
+void
+load_sec_keys_into_enclave() {
+  // std::vector<uint8_t> client_pk_sig = read_file_binary(train)
+  if (trainlocconfigs.objPtr != nullptr) {
+    const decltype(trainlocconfigs.objPtr) &tbl_ptr = trainlocconfigs.objPtr;
+    auto                                    client_sig_pk
+        = read_file_binary(tbl_ptr->client_pk_sig_file()->c_str());
+    auto client_aes_gcm_key
+        = read_file_binary(tbl_ptr->client_aes_gcm_key_file()->c_str());
+    auto sgx_aes_gcm_key
+        = read_file_binary(tbl_ptr->sgx_aes_gcm_key_file()->c_str());
+    auto sgx_sig_sk = read_file_binary(tbl_ptr->sgx_sk_sig_file()->c_str());
+    auto sgx_sig_pk = read_file_binary(tbl_ptr->sgx_pk_sig_file()->c_str());
+    auto res        = ecall_NOT_SECURE_send_req_keys(global_eid,
+                                              client_sig_pk.data(),
+                                              client_sig_pk.size(),
+                                              client_aes_gcm_key.data(),
+                                              client_aes_gcm_key.size(),
+                                              sgx_sig_pk.data(),
+                                              sgx_sig_pk.size(),
+                                              sgx_sig_sk.data(),
+                                              sgx_sig_sk.size(),
+                                              sgx_aes_gcm_key.data(),
+                                              sgx_aes_gcm_key.size());
+    CHECK_SGX_SUCCESS(res, "setting up enclave keys caused problems\n")
+  } else {
+    // I will reemove this later
+    LOG_ERROR("NOT IMPLEMENTED YET!\n")
+    abort();
+    const decltype(predlocconfigs.objPtr) &tbl_ptr = predlocconfigs.objPtr;
+    auto                                   client_sig_pk
+        = read_file_binary(tbl_ptr->client_pk_sig_file()->c_str());
+    auto client_aes_gcm_key
+        = read_file_binary(tbl_ptr->client_aes_gcm_key_file()->c_str());
+    auto sgx_aes_gcm_key
+        = read_file_binary(tbl_ptr->sgx_aes_gcm_key_file()->c_str());
+    auto sgx_sig_sk = read_file_binary(tbl_ptr->sgx_sk_sig_file()->c_str());
+    auto sgx_sg_pk  = read_file_binary(tbl_ptr->sgx_pk_sig_file()->c_str());
+   
+  }
+}
+
+// send keys to enclave
+// send signed task to enclave
+// enclave must verify the dataset, and depending on the task will setup the
+// buffers and randomness
+void
+prepare_enclave(const std::string &location_conf_file,
+                const std::string &tasktype) {
+  int success = 0;
+  parse_location_configs(location_conf_file, tasktype);
+  load_sec_keys_into_enclave();
+  
+  LOG_DEBUG("finished as expected\n");
+  std::exit(1);
 }
 
 RunConfig
@@ -1084,43 +1163,6 @@ process_json_config(const std::string &f_path) {
   return run_config;
 }
 
-void
-load_data_set_temp() {
-  if (run_config.common_config.task == DNNTaskType::TASK_TRAIN_SGX
-      && run_config.common_config.sec_strategy == SecStrategyType::SEC_PLAIN) {
-    auto ds_ptr = std::make_unique<sgx::untrusted::VectorRecordSet>(
-        std::string("trainig_set"),
-        sgx::common::RecordTypes::IMAGE_REC,
-        run_config.common_config.train_size);
-    LOG_DEBUG("RecordSet with ID %u is generated\n", ds_ptr->getRecordSetID())
-
-    // just generating some dummy image data :(
-    for (int i = 0; i < run_config.common_config.train_size; ++i) {
-      auto im_ptr = std::make_unique<sgx::common::ImageRecord>(
-          run_config.common_config.input_shape.width,
-          run_config.common_config.input_shape.height,
-          run_config.common_config.input_shape.channels);
-      const auto           num_bytes = im_ptr->getRecordSizeInBytes();
-      std::vector<uint8_t> rnd_ns(num_bytes);
-      int                  rc = RAND_bytes(rnd_ns.data(), num_bytes);
-      // unsigned long err = ERR_get_error();
-      if (rc != 1) {
-        LOG_DEBUG("Getting Random vector failed!\n");
-        std::exit(1);
-      }
-      im_ptr->unSerializeIntoThis(std::move(rnd_ns));
-      ds_ptr->appendNew(std::move(im_ptr));
-    }
-
-    LOG_DEBUG("RecordSet with ID %u has %u records\n",
-              ds_ptr->getRecordSetID(),
-              ds_ptr->getTotalNumberofElements());
-    sgx::untrusted::IRecordSet::addToRegistery(std::move(ds_ptr));
-  }
-  LOG_DEBUG("Not very helpful so far\n");
-  std::exit(1);
-}
-
 #ifdef MEASURE_SWITCHLESS_TIMING
 void
 exit_callback(sgx_uswitchless_worker_type_t         type,
@@ -1131,7 +1173,8 @@ exit_callback(sgx_uswitchless_worker_type_t         type,
   g_stats[type * 2 + 1] = stats->missed;
 }
 
-void print_switchless_timing() {
+void
+print_switchless_timing() {
   LOG_WARN(
       "for trusted_workers stats were -> (processed: %u,missed: %u)\nfor "
       "untrusted workers stats were -> (processed: %u,missed: %u)\n",

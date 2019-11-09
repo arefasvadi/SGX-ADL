@@ -1,0 +1,5 @@
+table PlainImageLabel {
+    img_content:[float32] (required,original_order);
+    label_content:[float32] (required,original_order);
+}
+root_type PlainImageLabel;

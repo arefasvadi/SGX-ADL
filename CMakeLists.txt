@@ -44,6 +44,7 @@ set(CMAKE_CUDA_STANDARD 14)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(Flatbuffers REQUIRED)
 #find_library(SSL_LIB libssl.a REQUIRED)
 #find_library(CRYPTO_LIB libcrypto.a REQUIRED)
 
@@ -151,10 +152,10 @@ list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX
   #third_party/darknet/src/route_layer.cpp
   third_party/darknet/src/upsample_layer.cpp
   third_party/darknet/src/box.cpp
-  #third_party/darknet/src/normalization_layer.cpp
-  #third_party/darknet/src/local_layer.cpp
+  third_party/darknet/src/normalization_layer.cpp
+  third_party/darknet/src/local_layer.cpp
   #third_party/darknet/src/shortcut_layer.cpp
-  #third_party/darknet/src/logistic_layer.cpp
+  third_party/darknet/src/logistic_layer.cpp
   third_party/darknet/src/rnn_layer.cpp
   third_party/darknet/src/gru_layer.cpp
   third_party/darknet/src/crnn_layer.cpp
@@ -281,6 +282,11 @@ set(Enclave_Cpp_Files
   ${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
   )
   
+# add_library(LIBXSMM_T STATIC IMPORTED)
+# set_target_properties(LIBXSMM_T PROPERTIES IMPORTED_LOCATION "/home/aref/projects/libxsmm/lib/libxsmm.a")
+# add_library(LIBXSMM_EXTRA_T STATIC IMPORTED)
+# set_target_properties(LIBXSMM_EXTRA_T PROPERTIES IMPORTED_LOCATION "/home/aref/projects/libxsmm/lib/libxsmmext.a")
+
 add_enclave_library(
   ${Trusted_Name}
   SRCS
@@ -291,6 +297,11 @@ add_enclave_library(
     ${SGX_SDK}/include
   TRUSTED_LIBS
     DARKNET_T
+    #LIBXSMM_T
+    #LIBXSMM_EXTRA_T
+  #EXTRA_IMPORTED_LIBS
+    # TODO: this is ugly!!!! needs cmake find etc.
+    
   LDSCRIPT
     ${LDS}
 )
@@ -300,6 +311,7 @@ target_compile_definitions(${Trusted_Name} PRIVATE -DUSE_SGX
 )
 target_include_directories(${Trusted_Name} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
+  #${FLATBUFFERS_INCLUDE_DIRS}
   ${Trusted_Home}/
   ${Trusted_Home}/include
   )
@@ -373,6 +385,9 @@ set(App_Cpp_Files
   ${CMAKE_SOURCE_DIR}/src/Record/IRecordSet.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/VectorRecordSet.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/VectorRecordSetView.cpp
+  #${CMAKE_SOURCE_DIR}/third_party/cryptopp-pem/pem_read.cpp
+  #${CMAKE_SOURCE_DIR}/third_party/cryptopp-pem/x509cert.cpp
+  #${CMAKE_SOURCE_DIR}/third_party/cryptopp-pem/pem_write.cpp
   #${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
   #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
   #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
@@ -394,9 +409,10 @@ ${CMAKE_SOURCE_DIR}/include
 ${Untrusted_Home}
 ${Untrusted_Home}/include
 ${CUDA_INCLUDE_DIRS}
+#/usr/include/cryptopp
 #${FOONATHAN_MEMORY_INCLUDE_DIR}
 )
-target_link_libraries(${Untrusted_Lib_Name} PRIVATE DARKNET_U_GPU OpenSSL::Crypto OpenSSL::SSL Threads::Threads 
+target_link_libraries(${Untrusted_Lib_Name} PRIVATE DARKNET_U_GPU OpenSSL::Crypto OpenSSL::SSL Threads::Threads  cryptopp
   #PUBLIC foonathan_memory
 )
 attatch_clang_tidy_to_target(${Untrusted_Lib_Name})

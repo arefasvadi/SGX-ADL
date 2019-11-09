@@ -1,0 +1,9 @@
+enum EnumSecurityType:short {
+    integrity = 0, // aka sgx_verify_gpu
+    privacy_integrity = 1 // aka run on sgx
+}
+
+enum EnumComputationTaskType:short {
+    training = 0,
+    prediction = 1
+}

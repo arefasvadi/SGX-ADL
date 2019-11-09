@@ -1,0 +1,4 @@
+table PlainImage {
+    img_content:[float32] (required,original_order);
+}
+root_type PlainImage;

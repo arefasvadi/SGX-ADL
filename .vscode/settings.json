@@ -4,7 +4,8 @@
         "Unix Makefiles",
         "Ninja"
     ],
-    "cmake.configureEnvironment": {"SGX_SDK":"/opt/intel/sdk-2.5/sgxsdk",},
+    //"cmake.configureEnvironment": {"SGX_SDK":"/opt/intel/sdk-2.7/sgxsdk",},
+    "cmake.configureEnvironment": {"SGX_SDK":"/opt/intel/sdk-2.7-debug/sgxsdk",},
     "cmake.parallelJobs": 7,
     "python.linting.pylintEnabled": true,
     "python.pythonPath": "/usr/bin/python",
@@ -20,5 +21,6 @@
     "ccls.highlighting.bold.namespaces": false,
     "ccls.highlighting.bold.enumConstants": false,
     "ccls.highlighting.bold.enums": false,
+    "python.formatting.provider": "yapf",
     //"cmake.copyCompileCommands": "${workspaceRoot}/"
 }

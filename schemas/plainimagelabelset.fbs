@@ -1,0 +1,5 @@
+include "plainimagelabel.fbs";
+table PlainImageLabelSet {
+    images:[PlainImageLabel] (required,original_order);
+}
+root_type PlainImageLabelSet;

@@ -1,0 +1,4 @@
+table PlainLabel {
+    label_content:[float32] (required,original_order);
+}
+root_type PlainLabel;

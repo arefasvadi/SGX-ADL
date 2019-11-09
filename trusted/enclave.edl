@@ -4,7 +4,7 @@ enclave {
     // from "TrustedLibrary/Libcxx.edl" import *;
     from "sgx_tstdc.edl" import *;
     trusted {
-
+       
        public void ecall_setup_channel(uint64_t chan_id,int channel_type);
        public void ecall_tearup_channel(uint64_t chan_id);
        public void ecall_send_to_channel(uint64_t chan_id,[out,size=len] unsigned char* buff, size_t len);
@@ -29,8 +29,15 @@ enclave {
        public void ecall_handle_scale_cpu(int thread_num);
 
        public void ecall_test_long_buffer_encrypt(size_t complete_len);
-       
        public void ecall_test_long_buffer_decrypt(size_t complete_len);
+
+       public void ecall_NOT_SECURE_send_req_keys([in,size=cl_pksig_len]uint8_t* cl_pksig,size_t cl_pksig_len,
+                                                  [in, size=cl_sksymm_len] uint8_t* cl_sksymm,size_t cl_sksymm_len,
+                                                  [in,size=sgx_pksig_len]uint8_t* sgx_pksig,size_t sgx_pksig_len,
+                                                  [in,size=sgx_sksig_len]uint8_t* sgx_sksig,size_t sgx_sksig_len,
+                                                  [in, size=sgx_sksymm_len] uint8_t* sgx_sksymm,size_t sgx_sksymm_len);
+
+
     };
     untrusted {
        
@@ -57,38 +64,38 @@ enclave {
               size_t config_len,
               [out] unsigned int* real_len,
               [out, size = 12] unsigned char* config_iv,
-              [out, size = 16] unsigned char* config_mac);
+              [out, size = 16] unsigned char* config_mac) transition_using_threads;
 
        void ocall_get_ptext_img(int loc,[out,size=len] unsigned char* buff,size_t len);
-       void ocall_print_string([in, string] const char *str);
-       void ocall_print_log([in, string] const char *str);
-       void ocall_get_record_sort(int i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i, int j, [out, size=len_j] unsigned char* tr_record_j, size_t len_j); 
-       void ocall_set_record_sort(int i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i, int j, [in, size=len_j] unsigned char* tr_record_j, size_t len_j);
+       void ocall_print_string([in, string] const char *str) transition_using_threads;
+       void ocall_print_log([in, string] const char *str) transition_using_threads;
+       void ocall_get_record_sort(int i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i, int j, [out, size=len_j] unsigned char* tr_record_j, size_t len_j) transition_using_threads; 
+       void ocall_set_record_sort(int i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i, int j, [in, size=len_j] unsigned char* tr_record_j, size_t len_j) transition_using_threads;
        void ocall_get_records_encrypted(int train_or_test,size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i,
-                                          [out,size=12] unsigned char* _iv,[out,size=16] unsigned char* _tag); 
-       void ocall_set_records_encrypted(int train_or_test,size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i, [in,size=12] unsigned char* _iv,[in,size=16] unsigned char* _tag);
-       void ocall_get_records_plain(int train_or_test,size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i); 
-       void ocall_set_records_plain(int train_or_test,size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i);
-       void ocall_set_timing([in, size=len] const char* time_id, size_t len , int is_it_first_call,int is_it_last_call);
-       void ocall_write_block(int64_t block_id,size_t index, [in,size=len] unsigned char* buff,size_t len);
-       void ocall_read_block(int64_t block_id,size_t index, [out,size=len] unsigned char* buff,size_t len);
+                                          [out,size=12] unsigned char* _iv,[out,size=16] unsigned char* _tag) transition_using_threads; 
+       void ocall_set_records_encrypted(int train_or_test,size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i, [in,size=12] unsigned char* _iv,[in,size=16] unsigned char* _tag) transition_using_threads;
+       void ocall_get_records_plain(int train_or_test,size_t i, [out, size=len_i] unsigned char* tr_record_i, size_t len_i) transition_using_threads; 
+       void ocall_set_records_plain(int train_or_test,size_t i, [in, size=len_i] unsigned char* tr_record_i, size_t len_i) transition_using_threads;
+       void ocall_set_timing([in, size=len] const char* time_id, size_t len , int is_it_first_call,int is_it_last_call) transition_using_threads;
+       void ocall_write_block(int64_t block_id,size_t index, [in,size=len] unsigned char* buff,size_t len) transition_using_threads;
+       void ocall_read_block(int64_t block_id,size_t index, [out,size=len] unsigned char* buff,size_t len) transition_using_threads;
 
-       void ocall_handle_gemm_cpu_first_mult(int total_threads);
-       void ocall_handle_gemm_all(int total_threads);
-       void ocall_handle_fill_cpu(int total_threads);
-       void ocall_handle_scale_cpu(int total_threads);
+       void ocall_handle_gemm_cpu_first_mult(int total_threads) transition_using_threads;
+       void ocall_handle_gemm_all(int total_threads) transition_using_threads;
+       void ocall_handle_fill_cpu(int total_threads) transition_using_threads;
+       void ocall_handle_scale_cpu(int total_threads) transition_using_threads;
        
-       void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size);
+       void ocall_init_buffer_layerwise(uint32_t buff_id, size_t buff_size) transition_using_threads;
        void ocall_get_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end,[out,size=temp_buff_len] unsigned char* temp_buff, size_t temp_buff_len) transition_using_threads;
        void ocall_set_buffer_layerwise(uint32_t buff_id, uint32_t start,uint32_t end,[in,size=temp_buff_len] unsigned char* temp_buff, size_t temp_buff_len) transition_using_threads;
 
-       void ocall_load_weights_plain(int start,[out,size=weight_len] unsigned char* weight_arr,size_t weight_len);
+       void ocall_load_weights_plain(int start,[out,size=weight_len] unsigned char* weight_arr,size_t weight_len) transition_using_threads;
        void ocall_load_weights_encrypted(int start,[out,size=weight_len] unsigned char* weight_arr, size_t weight_len, [out, size = 12] unsigned char* weights_iv,
-              [out, size = 16] unsigned char* weights_mac,int final_round);
-       void ocall_store_preds_encrypted([in, size=len] unsigned char* enc_buff,size_t len,[in, size = 12] unsigned char* enc_iv, [in, size = 16] unsigned char* enc_mac);
+              [out, size = 16] unsigned char* weights_mac,int final_round) transition_using_threads;
+       void ocall_store_preds_encrypted([in, size=len] unsigned char* enc_buff,size_t len,[in, size = 12] unsigned char* enc_iv, [in, size = 16] unsigned char* enc_mac) transition_using_threads;
        
-       void ocall_test_long_buffer_encrypt_store(int first,int final, size_t complete_len,[in, size=enc_len]unsigned char *enc, size_t enc_len, [in, size=12]unsigned char *IV,[in,size=16]unsigned char *TAG);
+       void ocall_test_long_buffer_encrypt_store(int first,int final, size_t complete_len,[in, size=enc_len]unsigned char *enc, size_t enc_len, [in, size=12]unsigned char *IV,[in,size=16]unsigned char *TAG) transition_using_threads;
 
-       void ocall_test_long_buffer_decrypt_retrieve(int first,size_t index,[out,size=enc_len] unsigned char* enc,size_t enc_len,[out, size=12]unsigned char *IV,[out,size=16]unsigned char *TAG);
+       void ocall_test_long_buffer_decrypt_retrieve(int first,size_t index,[out,size=enc_len] unsigned char* enc,size_t enc_len,[out, size=12]unsigned char *IV,[out,size=16]unsigned char *TAG) transition_using_threads;
        };
 };

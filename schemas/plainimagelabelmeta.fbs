@@ -1,0 +1,8 @@
+include "plainimagemeta.fbs";
+include "plainlabelmeta.fbs";
+
+table PlainImageLabelMeta {
+   image_meta:PlainImageMeta;
+   label_meta:PlainLabelMeta;
+}
+root_type PlainImageLabelMeta;

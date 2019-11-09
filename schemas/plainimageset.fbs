@@ -1,0 +1,5 @@
+include "plainimage.fbs";
+table PlainImageSet {
+    images:[PlainImage] (required,original_order);
+}
+root_type PlainImageSet;

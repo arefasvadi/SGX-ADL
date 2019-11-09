@@ -1,0 +1,6 @@
+table PlainImageMeta {
+    width:int32;
+    height:int32;
+    channels:int32;
+}
+root_type PlainImageMeta;

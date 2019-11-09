@@ -1,0 +1,4 @@
+table SingleUnitParamSet {
+    param_content:[float32] (required,original_order);
+}
+root_type SingleUnitParamSet;

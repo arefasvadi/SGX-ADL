@@ -1,0 +1,5 @@
+table SignedECC {
+    content:[ubyte] (required,original_order);
+    signature:[ubyte] (required,original_order);
+}
+root_type SignedECC;

@@ -1,0 +1,4 @@
+table PlainLabelMeta {
+    numClasses:int32;
+}
+root_type PlainLabelMeta;

@@ -16,10 +16,13 @@
 #include <memory>
 #include <set>
 #include <sgx_trts.h>
+#include <sgx_tcrypto.h>
 #include <string>
 #include <tuple>
 #include <unordered_map>
+//#include <x86intrin.h>
 
+//#include "/home/aref/projects/libxsmm/include/libxsmm_source.h"
 /*
  * printf:
  *   Invokes OCALL to display the enclave buffer to the terminal.
@@ -40,6 +43,11 @@ bool global_training = false;
 int gpu_index = -1;
 CommonRunConfig comm_run_config = {};
 
+sgx_aes_gcm_128bit_key_t enclave_ases_gcm_key;
+sgx_aes_gcm_128bit_key_t client_ases_gcm_key;
+sgx_ec256_public_t enclave_sig_pk_key;
+sgx_ec256_private_t enclave_sig_sk_key;
+sgx_ec256_public_t client_sig_pk_key;
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_x;
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_y;
@@ -81,6 +89,37 @@ static int checkStatus(const char *funcName, IppStatus expectedStatus,
     return 0;
   }
   return 1;
+}
+
+void
+ecall_NOT_SECURE_send_req_keys(uint8_t *cl_pksig,
+                               size_t   cl_pksig_len,
+                               uint8_t *cl_sksymm,
+                               size_t   cl_sksymm_len,
+                               uint8_t *sgx_pksig,
+                               size_t   sgx_pksig_len,
+                               uint8_t *sgx_sksig,
+                               size_t   sgx_sksig_len,
+                               uint8_t *sgx_sksymm,
+                               size_t   sgx_sksymm_len) {
+  
+  if (cl_pksig_len != sizeof(client_sig_pk_key)
+      || cl_sksymm_len != SGX_AESGCM_KEY_SIZE) {
+    LOG_ERROR("clients sig key size or symmetric key size does not match!\n")
+    abort();
+  }
+  memcpy(&client_sig_pk_key, cl_pksig, cl_pksig_len);
+  memcpy(client_ases_gcm_key, cl_sksymm, cl_sksymm_len);
+
+  if (sgx_pksig_len != sizeof(enclave_sig_pk_key) || sgx_sksig_len != sizeof(enclave_sig_sk_key) 
+  || sgx_sksymm_len != SGX_AESGCM_KEY_SIZE) {
+     LOG_ERROR("sgx's sig key size or symmetric key size does not match!\n")
+    abort();
+  }
+  memcpy(&enclave_sig_pk_key, sgx_pksig, sgx_pksig_len);
+  memcpy(&enclave_sig_sk_key, sgx_sksig, sgx_sksig_len);
+  memcpy(enclave_ases_gcm_key,sgx_sksymm,sgx_sksymm_len);
+
 }
 
 void ecall_setup_channel(uint64_t chan_id, int channel_type) {
@@ -611,6 +650,11 @@ void ecall_handle_gemm_all(int thread_num) {
     LOG_DEBUG("GEMM threading was called for the same thread again!!");
   }
   task.second._a.store(thread_task_status_t::in_progress);
+  // libxsmm_gemm((const char*)&(task.first.TA), (const char*)&(task.first.TB), 
+  //   &(task.first.M), &(task.first.N), &(task.first.K), &(task.first.ALPHA), 
+  //   task.first.A,&(task.first.lda), task.first.B, &(task.first.lda), 
+  //   &(task.first.BETA), (task.first.C+task.first.starterM), &(task.first.ldc));
+  
   if (!task.first.TA && !task.first.TB) {
     // gemm_nn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
     int i, j, k;
@@ -661,6 +705,152 @@ void ecall_handle_gemm_all(int thread_num) {
   task.second._a.store(thread_task_status_t::finished);
   #endif
 }
+
+
+// #define TILE_M 4 // 4 ops
+// #define TILE_N 16 // AVX2 = 2 ops * 8 floats
+// #define TILE_K 16 // loop
+// #ifdef __cplusplus
+// #define PUT_IN_REGISTER
+// #else
+// #define PUT_IN_REGISTER register
+// #endif
+
+// #include "x86intrin.h"
+
+// void gemm_nn_fast(int M, int N, int K, float ALPHA,
+//     float *A, int lda,
+//     float *B, int ldb,
+//     float *C, int ldc)
+// {
+//     int i;
+
+//     for (i = 0; i < (M / TILE_M)*TILE_M; i += TILE_M)
+//     {
+//         int j, k;
+//         int i_d, k_d;
+
+//         for (k = 0; k < (K / TILE_K)*TILE_K; k += TILE_K)
+//         {
+//             for (j = 0; j < (N / TILE_N)*TILE_N; j += TILE_N)
+//             {
+//                 // L1 - 6 bits tag [11:6] - cache size 32 KB, conflict for each 4 KB
+//                 // L2 - 9 bits tag [14:6] - cache size 256 KB, conflict for each 32 KB
+//                 // L3 - 13 bits tag [18:6] - cache size 8 MB, conflict for each 512 KB
+
+//                 __m256 result256;
+//                 __m256 a256_0, b256_0;    // AVX
+//                 __m256 a256_1, b256_1;    // AVX
+//                 __m256 a256_2;// , b256_2;    // AVX
+//                 __m256 a256_3;// , b256_3;    // AVX
+//                 __m256 c256_0, c256_1, c256_2, c256_3;
+//                 __m256 c256_4, c256_5, c256_6, c256_7;
+
+//                 c256_0 = _mm256_loadu_ps(&C[(0 + i)*ldc + (0 + j)]);
+//                 c256_1 = _mm256_loadu_ps(&C[(1 + i)*ldc + (0 + j)]);
+//                 c256_2 = _mm256_loadu_ps(&C[(0 + i)*ldc + (8 + j)]);
+//                 c256_3 = _mm256_loadu_ps(&C[(1 + i)*ldc + (8 + j)]);
+
+//                 c256_4 = _mm256_loadu_ps(&C[(2 + i)*ldc + (0 + j)]);
+//                 c256_5 = _mm256_loadu_ps(&C[(3 + i)*ldc + (0 + j)]);
+//                 c256_6 = _mm256_loadu_ps(&C[(2 + i)*ldc + (8 + j)]);
+//                 c256_7 = _mm256_loadu_ps(&C[(3 + i)*ldc + (8 + j)]);
+
+
+//                 for (k_d = 0; k_d < (TILE_K); ++k_d)
+//                 {
+//                     a256_0 = _mm256_set1_ps(ALPHA*A[(0 + i)*lda + (k_d + k)]);
+//                     a256_1 = _mm256_set1_ps(ALPHA*A[(1 + i)*lda + (k_d + k)]);
+
+//                     a256_2 = _mm256_set1_ps(ALPHA*A[(2 + i)*lda + (k_d + k)]);
+//                     a256_3 = _mm256_set1_ps(ALPHA*A[(3 + i)*lda + (k_d + k)]);
+
+
+//                     b256_0 = _mm256_loadu_ps(&B[(k_d + k)*ldb + (0 + j)]);
+//                     b256_1 = _mm256_loadu_ps(&B[(k_d + k)*ldb + (8 + j)]);
+
+//                     // FMA - Intel Haswell (2013), AMD Piledriver (2012)
+//                     //c256_0 = _mm256_fmadd_ps(a256_0, b256_0, c256_0);
+//                     //c256_1 = _mm256_fmadd_ps(a256_1, b256_0, c256_1);
+//                     //c256_2 = _mm256_fmadd_ps(a256_0, b256_1, c256_2);
+//                     //c256_3 = _mm256_fmadd_ps(a256_1, b256_1, c256_3);
+
+//                     //c256_4 = _mm256_fmadd_ps(a256_2, b256_0, c256_4);
+//                     //c256_5 = _mm256_fmadd_ps(a256_3, b256_0, c256_5);
+//                     //c256_6 = _mm256_fmadd_ps(a256_2, b256_1, c256_6);
+//                     //c256_7 = _mm256_fmadd_ps(a256_3, b256_1, c256_7);
+
+//                     result256 = _mm256_mul_ps(a256_0, b256_0);
+//                     c256_0 = _mm256_add_ps(result256, c256_0);
+
+//                     result256 = _mm256_mul_ps(a256_1, b256_0);
+//                     c256_1 = _mm256_add_ps(result256, c256_1);
+
+//                     result256 = _mm256_mul_ps(a256_0, b256_1);
+//                     c256_2 = _mm256_add_ps(result256, c256_2);
+
+//                     result256 = _mm256_mul_ps(a256_1, b256_1);
+//                     c256_3 = _mm256_add_ps(result256, c256_3);
+
+
+//                     result256 = _mm256_mul_ps(a256_2, b256_0);
+//                     c256_4 = _mm256_add_ps(result256, c256_4);
+
+//                     result256 = _mm256_mul_ps(a256_3, b256_0);
+//                     c256_5 = _mm256_add_ps(result256, c256_5);
+
+//                     result256 = _mm256_mul_ps(a256_2, b256_1);
+//                     c256_6 = _mm256_add_ps(result256, c256_6);
+
+//                     result256 = _mm256_mul_ps(a256_3, b256_1);
+//                     c256_7 = _mm256_add_ps(result256, c256_7);
+//                 }
+//                 _mm256_storeu_ps(&C[(0 + i)*ldc + (0 + j)], c256_0);
+//                 _mm256_storeu_ps(&C[(1 + i)*ldc + (0 + j)], c256_1);
+//                 _mm256_storeu_ps(&C[(0 + i)*ldc + (8 + j)], c256_2);
+//                 _mm256_storeu_ps(&C[(1 + i)*ldc + (8 + j)], c256_3);
+
+//                 _mm256_storeu_ps(&C[(2 + i)*ldc + (0 + j)], c256_4);
+//                 _mm256_storeu_ps(&C[(3 + i)*ldc + (0 + j)], c256_5);
+//                 _mm256_storeu_ps(&C[(2 + i)*ldc + (8 + j)], c256_6);
+//                 _mm256_storeu_ps(&C[(3 + i)*ldc + (8 + j)], c256_7);
+//             }
+
+//             for (j = (N / TILE_N)*TILE_N; j < N; ++j) {
+//                 for (i_d = i; i_d < (i + TILE_M); ++i_d)
+//                 {
+//                     for (k_d = k; k_d < (k + TILE_K); ++k_d)
+//                     {
+//                         PUT_IN_REGISTER float A_PART = ALPHA*A[i_d*lda + k_d];
+//                         C[i_d*ldc + j] += A_PART*B[k_d*ldb + j];
+//                     }
+//                 }
+//             }
+//         }
+
+//         for (k = (K / TILE_K)*TILE_K; k < K; ++k)
+//         {
+//             for (i_d = i; i_d < (i + TILE_M); ++i_d)
+//             {
+//                 PUT_IN_REGISTER float A_PART = ALPHA*A[i_d*lda + k];
+//                 for (j = 0; j < N; ++j) {
+//                     C[i_d*ldc + j] += A_PART*B[k*ldb + j];
+//                 }
+//             }
+//         }
+//     }
+
+//     for (i = (M / TILE_M)*TILE_M; i < M; ++i) {
+//         int j, k;
+//         for (k = 0; k < K; ++k) {
+//             PUT_IN_REGISTER float A_PART = ALPHA*A[i*lda + k];
+//             for (j = 0; j < N; ++j) {
+//                 C[i*ldc + j] += A_PART*B[k*ldb + j];
+//             }
+//         }
+//     }
+// }
+
 
 void ecall_handle_fill_cpu(int thread_num) {
   // #if defined(USE_SGX) && defined (USE_GEMM_THREADING_SGX)

@@ -1,0 +1,55 @@
+include "enums.fbs";
+include "plainimagelabelmeta.fbs";
+
+attribute "fixed_length";
+
+table DataConfig {
+    dataset_size:int32;
+    img_label_meta: PlainImageLabelMeta (required);
+    dataset_sha256: [ubyte] (required,fixed_length:32);
+}
+
+table TrainLocationsConfigs {
+    dataset_dir:string (required);
+    dec_dataset_dir: string (required);
+    network_arch_path:string (required);
+    weights_save_dir:string (required);
+    weights_backup_dir:string (required);
+    snapshot_dir:string (required);
+    client_pk_sig_file:string (required);
+    sgx_sk_sig_file:string (required);
+    sgx_pk_sig_file:string (required);
+    signed_task_config_path:string (required);
+    client_aes_gcm_key_file:string (required);
+    sgx_aes_gcm_key_file:string(required);
+}
+
+table PredictLocationsConfigs {
+    dataset_dir:string (required);
+    dec_dataset_dir: string (required);
+    network_arch_path:string (required);
+    weights_load_dir:string (required);
+    preds_save_dir:string (required);
+    snapshot_dir:string (required);
+    client_pk_sig_file:string (required);
+    sgx_sk_sig_file:string (required);
+    sgx_pk_sig_file:string (required);
+    signed_task_config_path:string (required);
+    client_aes_gcm_key_file:string (required);
+    sgx_aes_gcm_key_file:string(required);
+}
+
+table ArchConfig {
+    contents:[ubyte] (required);
+    network_sha_256:[ubyte] (required,fixed_length:32);
+}
+
+table TaskConfig {
+    security_type :EnumSecurityType;
+    task_type :EnumComputationTaskType;
+    arch_config_sha256:[ubyte] (required,fixed_length:32);
+    dataset_sha256:[ubyte] (required,fixed_length:32);
+    pub_root_rand_seed:int64 = 0;
+}
+
+root_type TaskConfig;

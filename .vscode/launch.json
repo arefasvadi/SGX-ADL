@@ -12,7 +12,8 @@
         //"args": ["../test/config/idash/idash-test-config.json"],
         "cwd": "${workspaceRoot}/build",
         "MIMode": "gdb",
-        "miDebuggerPath": "/opt/intel/sdk-2.5/sgxsdk/bin/sgx-gdb",
+        //"miDebuggerPath": "/opt/intel/sdk-2.7/sgxsdk/bin/sgx-gdb",
+        "miDebuggerPath": "/opt/intel/sdk-2.7-debug/sgxsdk/bin/sgx-gdb",
         "stopAtEntry": true,
         /* "setupCommands":[{"text":"enable sgx_emmt", "description":"enable sgx memory calc","ignoreFailures": false},] */
       },

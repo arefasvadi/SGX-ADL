@@ -1,0 +1,7 @@
+include "singleunitparamset.fbs";
+
+table MultipleUnitParamSet {
+    total_sections:uint32;
+    sections:[SingleUnitParamSet] (required,original_order);
+}
+root_type MultipleUnitParamSet;

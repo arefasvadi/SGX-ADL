@@ -32,8 +32,9 @@
 #include "BlockEngine.hpp"
 #endif
 
-#if defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
 #include <vector>
+
+#if defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
 
 #include "SpecialBuffer.hpp"
 #endif
@@ -61,7 +62,7 @@ struct atomwrapper
   }
 };
 
-#if defined(USE_SGX) && defined(USE_GEMM_THREADING_SGX)
+#if defined(USE_SGX)
 
 typedef enum class thread_task_status_t {
   not_started,

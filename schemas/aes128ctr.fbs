@@ -1,0 +1,5 @@
+table AESCTR128Enc {
+    enc_content:[ubyte] (required);
+    iv:[byte] (required);
+}
+root_type AESCTR128Enc;

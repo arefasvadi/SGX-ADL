@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+message PlainImage {
+    repeated float imageContent_ = 1;
+}
+
+message PlainImageSetMeta {
+    required int32 counts_ = 1;
+    required int32 width_ = 2;
+    required int32 height_ = 3;
+    required int32 channels_ = 4;
+}
+
+message SymEncData {
+    enum SymEncType {
+        AES128_GCM = 0;
+        AES128_CTR = 1;
+    };
+    enum PlainType {
+        plain_image = 0;
+        plain_label = 2;
+        plain_image_label = 2;
+    }
+    required SymEncType encType_ = 1;
+    repeated string encBytes_ = 2;
+    repeated string mac_ = 3;
+    repeated string aad_ = 4;
+}
+
+message PlainLabel {
+    repeated float labelContent_ = 1;
+}
+
+message PlainLabelSetMeta {
+    required int32 counts_ = 1;
+    required int32 numClasses_ = 2;
+}
+
+message PlainImageLabel {
+    required PlainImage image_ = 1;
+    required PlainLabel label_ = 2;
+}
+
+message PlainImageLabelSetMeta {
+    required int32 counts_ = 1;
+    required int32 width_ = 2;
+    required int32 height_ = 3;
+    required int32 channels_ = 4;
+    required int32 numClasses_ = 5;
+}

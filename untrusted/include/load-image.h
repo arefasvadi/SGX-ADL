@@ -4,6 +4,7 @@
 #include "common.h"
 #include <vector>
 #include <nlohmann/json.hpp>
+//#include "fbs_gen_code/plainimagemeta_generated.h"
 
 using json = nlohmann::json;
 #include "darknet.h"
@@ -82,3 +83,15 @@ void initialize_data(data_params &tr_pub_params, data_params &test_pub_params, d
                      sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine);
 
 void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset);
+
+//std::vector<uint8_t> flatBuffInitImageMeta();
+// PlainImage flatBuffInitPlainImage();
+// PlainImageSet flatBuffInitImageDataSet();
+
+// PlainLabelMeta flatBuffInitLabelMeta();
+// PlainLabel flatBuffInitPlainLabel();
+// PlainLabelSet flatBuffInitLabelDataSet();
+
+// PlainImageLabelMeta flatBuffInitImageLabelMeta();
+// PlainImageLabel flatBuffInitPlainImageLabel();
+// PlainImageLabelSet flatBuffInitImageLabelDataSet();
