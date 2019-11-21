@@ -1,3 +1,5 @@
+# downloaded from https://github.com/zhang-xin/SGX-CMake/blob/master/cmake/FindSGX.cmake <- THANKS
+# and made some changes for my own use
 # FindPackage cmake file for Intel SGX SDK
 
 cmake_minimum_required(VERSION 3.15)
@@ -28,7 +30,7 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 4)
     set(SGX_ENCLAVE_SIGNER ${SGX_PATH}/bin/x86/sgx_sign)
     set(SGX_EDGER8R ${SGX_PATH}/bin/x86/sgx_edger8r)
 else()
-    set(SGX_COMMON_CFLAGS "-march=native -m64 -mavx -mavx2 -msse3 -msse4.1 -msse4.2 -msse4a")
+    set(SGX_COMMON_CFLAGS "-march=native -m64 -mavx -mavx2 -mssse3 -msse3 -msse4.1 -msse4.2 -msse4a")
     set(SGX_LIBRARY_PATH ${SGX_PATH}/lib64)
     set(SGX_ENCLAVE_SIGNER ${SGX_PATH}/bin/x64/sgx_sign)
     set(SGX_EDGER8R ${SGX_PATH}/bin/x64/sgx_edger8r)
@@ -42,8 +44,9 @@ if(SGX_INCLUDE_DIR AND SGX_LIBRARY_DIR)
     set(SGX_INCLUDE_DIR "${SGX_PATH}/include" CACHE PATH "Intel SGX include directory" FORCE)
     set(SGX_TLIBC_INCLUDE_DIR "${SGX_INCLUDE_DIR}/tlibc" CACHE PATH "Intel SGX tlibc include directory" FORCE)
     set(SGX_LIBCXX_INCLUDE_DIR "${SGX_INCLUDE_DIR}/libcxx" CACHE PATH "Intel SGX libcxx include directory" FORCE)
-    set(SGX_INCLUDE_DIRS ${SGX_INCLUDE_DIR} ${SGX_TLIBC_INCLUDE_DIR} ${SGX_LIBCXX_INCLUDE_DIR})
-    mark_as_advanced(SGX_INCLUDE_DIR SGX_TLIBC_INCLUDE_DIR SGX_LIBCXX_INCLUDE_DIR SGX_LIBRARY_DIR)
+    set(SGX_INTRINSICS_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include/ported-intrinsics CACHE PATH "ported intrinsics from clang 9.0" FORCE)
+    set(SGX_INCLUDE_DIRS ${SGX_INCLUDE_DIR} ${SGX_TLIBC_INCLUDE_DIR} ${SGX_LIBCXX_INCLUDE_DIR} ${SGX_INTRINSICS_INCLUDE_DIR})
+    mark_as_advanced(SGX_INCLUDE_DIR SGX_TLIBC_INCLUDE_DIR SGX_LIBCXX_INCLUDE_DIR SGX_LIBRARY_DIR SGX_INTRINSICS_INCLUDE_DIR)
     message(STATUS "Found Intel SGX SDK.")
 endif()
 
@@ -76,7 +79,7 @@ if(SGX_FOUND)
         message(FATAL_ERROR "SGX_MODE ${SGX_MODE} is not Debug, PreRelease or Release.")
     endif()
 
-    set(ENCLAVE_INC_FLAGS "-I${SGX_INCLUDE_DIR} -I${SGX_TLIBC_INCLUDE_DIR} -I${SGX_LIBCXX_INCLUDE_DIR}")
+    set(ENCLAVE_INC_FLAGS "-I${SGX_INCLUDE_DIR} -I${SGX_TLIBC_INCLUDE_DIR} -I${SGX_LIBCXX_INCLUDE_DIR} -I${SGX_INTRINSICS_INCLUDE_DIR}")
     set(ENCLAVE_C_FLAGS "${SGX_COMMON_CFLAGS} -nostdinc -fvisibility=hidden -fpie -fstack-protector-strong ${ENCLAVE_INC_FLAGS}")
     set(ENCLAVE_CXX_FLAGS "${ENCLAVE_C_FLAGS} -nostdinc++")
 

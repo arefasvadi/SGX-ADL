@@ -26,7 +26,10 @@ class ECCSigner(object):
     def SignMsg(self,message):
         #msg_sha256 = SHA256.new(message)
         #signature = self.signer.sign(msg_sha256)
-        signature = self.signer.sign(message,hashfunc=sha256,sigencode=sigencode_string)
+
+        message_digest = sha256(message).digest()
+
+        signature = self.signer.sign(message_digest,hashfunc=sha256,sigencode=sigencode_string)
         return signature
 
 
@@ -52,8 +55,8 @@ class ECCVerifier(object):
         #     return True
         # except ValueError:
         #     print("Could not verify message!")
-
-        self.verifier.verify(signature,message,hashfunc=sha256,sigdecode=sigdecode_string)
+        message_digest = sha256(message).digest()
+        self.verifier.verify(signature,message_digest,hashfunc=sha256,sigdecode=sigdecode_string)
 
 if __name__ == "__main__":
     pass

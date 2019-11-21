@@ -136,7 +136,12 @@ main(int argc, char *argv[]) {
               location_conf_file.c_str(),
               task_type.c_str())
 
+    #if defined(GPU) && defined(SGX_VERIFIES)
     prepare_enclave(location_conf_file, task_type);
+    //prepare_gpu();
+    #endif
+    
+    
   }
   // load_data_set_temp();
 

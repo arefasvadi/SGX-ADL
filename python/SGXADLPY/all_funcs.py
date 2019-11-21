@@ -30,7 +30,9 @@ from keras import backend
 from tqdm import tqdm
 from multiprocessing import Pool
 
-def add_sha256_to_builder(builder,bytes,length):
+import struct
+
+def add_bytevec_to_builder(builder,bytes,length):
     if length != len(bytes):
         raise ValueError('len(bytes) and its provided len do not match')
     for i in reversed(range(0,length)) :
@@ -79,18 +81,18 @@ def gen_arch_config(arch_path):
     n_size = os.path.getsize(arch_path)
     with open(arch_path,'rb') as f:
         network_config_content = f.read()
+    #n_size = len(network_config_content)
     #print('*first 100 chars {}'.format(network_config_content[0:100]))
     ArchConfig.ArchConfigStartContentsVector(builder,n_size)
-    contents = add_sha256_to_builder(builder=builder,
-                                     bytes=network_config_content,
-                                     length=n_size)
+    contents = add_bytevec_to_builder(builder,network_config_content,n_size)
+
     sha256digest = SHA256.new(network_config_content)
     sha256digest = sha256digest.digest()
     digest_sz = len(sha256digest)
     #print('*digest is {}'.format(sha256digest))
 
     ArchConfig.ArchConfigStartNetworkSha256Vector(builder,digest_sz)
-    shacontents = add_sha256_to_builder(builder=builder,
+    shacontents = add_bytevec_to_builder(builder=builder,
                                         bytes=sha256digest,
                                         length=digest_sz)
 
@@ -124,7 +126,7 @@ def gen_data_config(dataset,num_classes,width,height,channels):
     img_lbl_meta = PlainImageLabelMeta.PlainImageLabelMetaEnd(builder)
 
     DataConfig.DataConfigStartDatasetSha256Vector(builder,ds_sha256_sz)
-    shacontents = add_sha256_to_builder(builder=builder,bytes = ds_sha256,length = ds_sha256_sz)
+    shacontents = add_bytevec_to_builder(builder=builder,bytes = ds_sha256,length = ds_sha256_sz)
 
     DataConfig.DataConfigStart(builder)
     DataConfig.DataConfigAddDatasetSize(builder,ds_size)
@@ -139,10 +141,10 @@ def gen_data_config(dataset,num_classes,width,height,channels):
 def gen_task_config(sec_t,task_t,arch_config_sha256,dataset_sha256,rand_root_seed):
     builder = flatbuffers.Builder(1024)
     TaskConfig.TaskConfigStartArchConfigSha256Vector(builder,len(arch_config_sha256))
-    arch_sha256 = add_sha256_to_builder(builder=builder,bytes=arch_config_sha256,length=len(arch_config_sha256))
+    arch_sha256 = add_bytevec_to_builder(builder=builder,bytes=arch_config_sha256,length=len(arch_config_sha256))
 
     TaskConfig.TaskConfigStartDatasetSha256Vector(builder,len(dataset_sha256))
-    data_config_sha256 = add_sha256_to_builder(builder,dataset_sha256,len(dataset_sha256))
+    data_config_sha256 = add_bytevec_to_builder(builder,dataset_sha256,len(dataset_sha256))
 
     TaskConfig.TaskConfigStart(builder)
     TaskConfig.TaskConfigAddSecurityType(builder,sec_t)
@@ -156,11 +158,13 @@ def gen_task_config(sec_t,task_t,arch_config_sha256,dataset_sha256,rand_root_see
 
     return buf
 
-def gen_aes_gcm128_cipher(enc_content,iv,mac,aad=None):
+def gen_aes_gcm128_cipher(enc_content,iv,mac,aad):
     cont_len = len(enc_content)
     iv_len = len(iv)
     mac_len = len(mac)
-    aad_len = 0
+    aad_len = len(aad)
+    if len(aad) != 4:
+        raise ValueError('length of aad is not 4 bytes instead it is {} and ind is {}'.format(len(aad),ind))
     
     builder = flatbuffers.Builder(1024)
 
@@ -179,19 +183,17 @@ def gen_aes_gcm128_cipher(enc_content,iv,mac,aad=None):
         builder.PrependByte(mac[i])
     mac_ = builder.EndVector(mac_len)
 
-    if aad is not None:
-        aad_len = len(aad)
-        AESGCM128Enc.AESGCM128EncStartAadVector(builder,aad_len)
-        for i in reversed(range(aad_len)):
-            builder.PrependByte(aad[i])
-        aad_ = builder.EndVector(aad_len)
+    
+    AESGCM128Enc.AESGCM128EncStartAadVector(builder,aad_len)
+    for i in reversed(range(aad_len)):
+        builder.PrependByte(aad[i])
+    aad_ = builder.EndVector(aad_len)
     
     AESGCM128Enc.AESGCM128EncStart(builder)
     AESGCM128Enc.AESGCM128EncAddEncContent(builder,enc_)
     AESGCM128Enc.AESGCM128EncAddIv(builder,iv_)
     AESGCM128Enc.AESGCM128EncAddMac(builder,mac_)
-    if aad_len != 0:
-        AESGCM128Enc.AESGCM128EncAddAad(builder,aad_)
+    AESGCM128Enc.AESGCM128EncAddAad(builder,aad_)
     
     aesgcmenc_offsets = AESGCM128Enc.AESGCM128EncEnd(builder)
     builder.Finish(aesgcmenc_offsets)
@@ -202,9 +204,16 @@ def gen_aes_gcm128_cipher(enc_content,iv,mac,aad=None):
 def enc_rec_store_path(ind, ds_rec,data_f_name,encryptor):
     
     # we keep the original rank as aead for ordering
-    cipher,tag,iv, aad = encryptor.Encrypt(np.asarray(ds_rec).tobytes(),iv=None,aad=bytes(int(ind)))
+    aad = int(ind).to_bytes(4,'little')
+    if len(aad) != 4:
+        raise ValueError('length of aad is not 4 bytes instead it is {} and ind is {}'.format(len(aad),ind))
+    #print('dec record shape {}'.format(ds_rec.shape))
+    ds_rec_bytes = ds_rec.tobytes()
+    cipher,tag,iv, aad = encryptor.Encrypt(ds_rec_bytes,iv=None,aad=aad)
+    if len(cipher) != len(ds_rec_bytes):
+        raise ValueError('cipher size and plain size do not match')
     # we do not store aad here!
-    aes_gcm_buff = gen_aes_gcm128_cipher(enc_content = cipher,iv=iv,mac=tag,aad=None)
+    aes_gcm_buff = gen_aes_gcm128_cipher(enc_content = cipher,iv=iv,mac=tag,aad=aad)
     
     with open(data_f_name,'wb') as f:
         f.write(aes_gcm_buff)
@@ -224,7 +233,11 @@ def enc_ds_store_path(dataset,key_file,dest_dir):
     #print('done fnames')
     encryptors = [encryptor for i in indices]
     #print('done encryptors')
-    ds_w_ind = zip(indices,dataset.tolist(),data_f_names,encryptors)
+    ds_list = [dataset[ind,...] for ind in indices]
+    #print(ds_list[0].shape)
+    #print(len(ds_list[0].tobytes()))
+    #sys.exit(1)
+    ds_w_ind = zip(indices,ds_list,data_f_names,encryptors)
     #print('done zipping')
     
     for _ in tqdm(pool.istarmap(enc_rec_store_path,ds_w_ind),total=dataset.shape[0],desc="encryption progress") :
@@ -263,15 +276,16 @@ def sign_store_task_config(task_conf_buf,client_sig_sk_f,output_f_path) :
 def gen_train_locations_config(enc_ds_dir,dec_ds_dir,net_arch_path,
                                weights_save_dir,weights_backup_dir,snapshot_dir,
                                client_pk_sig_file,sgx_sk_sig_file,sgx_pk_sig_file,
-                               signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file):
+                               signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file,data_config_path):
     builder = flatbuffers.Builder(1024)
     (enc_ds_dir,dec_ds_dir,net_arch_path,
         weights_save_dir,weights_backup_dir,snapshot_dir,
         client_pk_sig_file,sgx_sk_sig_file,sgx_pk_sig_file,
-        signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file) = map(builder.CreateString,(enc_ds_dir,dec_ds_dir, net_arch_path,weights_save_dir,weights_backup_dir,
+        signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file,
+        data_config_path) = map(builder.CreateString,(enc_ds_dir,dec_ds_dir, net_arch_path,weights_save_dir,weights_backup_dir,
                                                                snapshot_dir,client_pk_sig_file,sgx_sk_sig_file,
                                                                sgx_pk_sig_file,signed_task_config_path,
-                                                               client_aes_gcm_key_file,sgx_aes_gcm_key_file))
+                                                               client_aes_gcm_key_file,sgx_aes_gcm_key_file,data_config_path))
     TrainLocationsConfigs.TrainLocationsConfigsStart(builder)
     TrainLocationsConfigs.TrainLocationsConfigsAddDatasetDir(builder,enc_ds_dir)
     TrainLocationsConfigs.TrainLocationsConfigsAddDecDatasetDir(builder,dec_ds_dir)
@@ -285,6 +299,7 @@ def gen_train_locations_config(enc_ds_dir,dec_ds_dir,net_arch_path,
     TrainLocationsConfigs.TrainLocationsConfigsAddSignedTaskConfigPath(builder,signed_task_config_path)
     TrainLocationsConfigs.TrainLocationsConfigsAddClientAesGcmKeyFile(builder,client_aes_gcm_key_file)
     TrainLocationsConfigs.TrainLocationsConfigsAddSgxAesGcmKeyFile(builder,sgx_aes_gcm_key_file)
+    TrainLocationsConfigs.TrainLocationsConfigsAddDataConfigPath(builder,data_config_path)
     train_loc_config = TrainLocationsConfigs.TrainLocationsConfigsEnd(builder)
     builder.Finish(train_loc_config)
     buf = builder.Output()
@@ -293,16 +308,16 @@ def gen_train_locations_config(enc_ds_dir,dec_ds_dir,net_arch_path,
 def gen_predict_locations_config(enc_ds_dir,dec_ds_dir,net_arch_path,
                                weights_load_dir,preds_save_dir,snapshot_dir,
                                client_pk_sig_file,sgx_sk_sig_file,sgx_pk_sig_file,
-                               signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file):
+                               signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file,data_config_path):
     
     builder = flatbuffers.Builder(1024)
     (enc_ds_dir,dec_ds_dir,net_arch_path,
         weights_load_dir,preds_save_dir,snapshot_dir,
         client_pk_sig_file,sgx_sk_sig_file,sgx_pk_sig_file,
-        signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file) = map(builder.CreateString,(enc_ds_dir,dec_ds_dir, net_arch_path,weights_load_dir,preds_save_dir,
+        signed_task_config_path,client_aes_gcm_key_file,sgx_aes_gcm_key_file,data_config_path) = map(builder.CreateString,(enc_ds_dir,dec_ds_dir, net_arch_path,weights_load_dir,preds_save_dir,
                                                                snapshot_dir,client_pk_sig_file,sgx_sk_sig_file,
                                                                sgx_pk_sig_file,signed_task_config_path,
-                                                               client_aes_gcm_key_file,sgx_aes_gcm_key_file))
+                                                               client_aes_gcm_key_file,sgx_aes_gcm_key_file,data_config_path))
     PredictLocationsConfigs.PredictLocationsConfigsStart(builder)
     PredictLocationsConfigs.PredictLocationsConfigsAddDatasetDir(builder,enc_ds_dir)
     PredictLocationsConfigs.PredictLocationsConfigsAddDecDatasetDir(builder,dec_ds_dir)
@@ -316,6 +331,7 @@ def gen_predict_locations_config(enc_ds_dir,dec_ds_dir,net_arch_path,
     PredictLocationsConfigs.PredictLocationsConfigsAddSignedTaskConfigPath(builder,signed_task_config_path)
     PredictLocationsConfigs.PredictLocationsConfigsAddClientAesGcmKeyFile(builder,client_aes_gcm_key_file)
     PredictLocationsConfigs.PredictLocationsConfigsAddSgxAesGcmKeyFile(builder,sgx_aes_gcm_key_file)
+    PredictLocationsConfigs.PredictLocationsConfigsAddDataConfigPath(builder,data_config_path)
     pred_loc_config = PredictLocationsConfigs.PredictLocationsConfigsEnd(builder)
     builder.Finish(pred_loc_config)
     buf = builder.Output()
@@ -331,9 +347,21 @@ def process_cifar_10():
                          EnumSecurityType.EnumSecurityType.privacy_integrity]
     comp_task_list = [EnumComputationTaskType.EnumComputationTaskType.training,
                       EnumComputationTaskType.EnumComputationTaskType.prediction]
-    cifar10_arch_files = ["/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",]
+    cifar10_arch_files = [
+        
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",
+        
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc.cfg",
+        
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",
+        
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_gpu_subdiv_1_enclavesubdive_2.cfg",
+        
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_2.cfg",
+        
+    ]
     cifar10_out_dir = "/home/aref/projects/SGX-ADL/test/config/cifar10/"
-    root_seeds = [0,124]
+    root_seeds = [0]
     cifar_configs = {
         "name": "run_configs",
         "contents":{
@@ -390,10 +418,20 @@ def gen_ds_flatbuffs(ds_configs):
     os.makedirs(encrypted_ds_dir)
     tr_ds = conf_contents["combined_ds"]
     enc_tr_ds_dir = os.path.join(encrypted_ds_dir,"train")
+    data_conf_tr_dir = os.path.join(enc_tr_ds_dir,"dataconfigs")
+    data_conf_tr_path = os.path.join(data_conf_tr_dir,"dataconfig-train.fb")
+    data_conf_tr_saved = False
+
     pred_ds = conf_contents["prediction_ds"]
     enc_pred_ds_dir = os.path.join(encrypted_ds_dir,"pred")
+    data_conf_pred_dir = os.path.join(enc_pred_ds_dir,"dataconfigs")
+    data_conf_pred_path = os.path.join(data_conf_pred_dir,"dataconfig-pred.fb")
+    data_conf_pred_saved = False
+
     os.makedirs(enc_tr_ds_dir)
     os.makedirs(enc_pred_ds_dir)
+    os.makedirs(data_conf_tr_dir)
+    os.makedirs(data_conf_pred_dir)
 
     signed_task_configs_dir = os.path.join(ds_root_out_dir,"signed_tasks")
     os.makedirs(signed_task_configs_dir)
@@ -438,14 +476,24 @@ def gen_ds_flatbuffs(ds_configs):
             if task_t == EnumComputationTaskType.EnumComputationTaskType.training:
                 task_t_name = "train"
                 dataset_content = tr_ds
+                data_conf_save_path = data_conf_tr_path
+                data_conf_tr_saved = True
             elif task_t == EnumComputationTaskType.EnumComputationTaskType.prediction:
                 task_t_name = "predict"
                 dataset_content = pred_ds
+                data_conf_save_path = data_conf_pred_path
+                data_conf_pred_saved = True
+            
+            data_conf_file_saved = data_conf_pred_saved and data_conf_tr_saved
             print("++processing task_type {}".format(task_t_name))
             data_conf_buf = gen_data_config(dataset=dataset_content,
                     num_classes=conf_contents['num_classes'],width=conf_contents['width'],
                     height=conf_contents['height'],
                     channels=conf_contents['channels'])
+            if not data_conf_file_saved:
+                with open(data_conf_save_path,'wb') as dconf_f:
+                    dconf_f.write(data_conf_buf)
+            
             data_config = DataConfig.DataConfig.GetRootAsDataConfig(data_conf_buf,0)
             # print(data_config.ImgLabelMeta().ImageMeta().Width())
 
@@ -487,7 +535,7 @@ def gen_ds_flatbuffs(ds_configs):
                             sgx_sk_sig_file = sgx_sign_private_key_pem,sgx_pk_sig_file = sgx_sign_pub_key_pem,
                             signed_task_config_path = signed_task_conf_path,
                             client_aes_gcm_key_file = client_aes_gcm_key_file,
-                            sgx_aes_gcm_key_file=sgx_aes_gcm_key_file)
+                            sgx_aes_gcm_key_file=sgx_aes_gcm_key_file,data_config_path=data_conf_save_path)
                         #print('++++location file written at {}'.format(location_configs_path))
                     elif task_t_name == "predict":
                         location_configs_buff = gen_predict_locations_config(
@@ -498,7 +546,7 @@ def gen_ds_flatbuffs(ds_configs):
                             sgx_sk_sig_file = sgx_sign_private_key_pem,sgx_pk_sig_file = sgx_sign_pub_key_pem,
                             signed_task_config_path = signed_task_conf_path,
                             client_aes_gcm_key_file = client_aes_gcm_key_file,
-                            sgx_aes_gcm_key_file=sgx_aes_gcm_key_file)
+                            sgx_aes_gcm_key_file=sgx_aes_gcm_key_file,data_config_path=data_conf_save_path)
                     
                     with open(location_configs_path,'wb') as loc_f:
                             loc_f.write(location_configs_buff)

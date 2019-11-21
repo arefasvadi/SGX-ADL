@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 
 typedef enum SecStrategyType {
   SEC_NOT_MENTIONED = 0,
@@ -54,3 +55,13 @@ typedef struct RunConfig {
   bool is_idash;
 
 } RunConfig;
+
+// https://stackoverflow.com/a/3477578/1906041
+struct free_delete
+{
+    void operator()(void* x) { free(x); }
+};
+
+typedef struct iteration_seed_t_{
+  uint64_t batch_layer_seed[32];
+} iteration_seed_t;

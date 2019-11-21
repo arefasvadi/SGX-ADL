@@ -3,7 +3,7 @@
 #include "enclave_t.h"
 #include <stdarg.h>
 #include <stdio.h>
-
+#include <string>
 
 void main_logger(int level, const char *file, int line, const char *format,
                  ...) {

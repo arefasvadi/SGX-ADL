@@ -1,8 +1,8 @@
 #pragma once
 // #include <stdint.h>
-#ifdef USE_SGX
-#include "sgx_error.h"
-#endif
+// #ifdef USE_SGX
+// #include "sgx_error.h"
+// #endif
 
 //#define DO_BLOCK_INPUT
 
@@ -45,14 +45,21 @@
 #define CACHE_FIFO
 #endif
 
+
 //#define ALLOW_TIMING
 
 #define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_BRIGHT_RED "\x1b[91m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_BRIGHT_GREEN "\x1b[92m"
 #define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_BRIGHT_YELLOW "\x1b[93m"
 #define ANSI_COLOR_BLUE "\x1b[34m"
+#define ANSI_COLOR_BRIGHT_BLUE "\x1b[94m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_BRIGHT_MAGENTA "\x1b[95m"
 #define ANSI_COLOR_CYAN "\x1b[36m"
+#define ANSI_COLOR_BRIGHT_CYAN "\x1b[96m"
 #define ANSI_COLOR_WHITE "\x1b[37m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
@@ -69,6 +76,10 @@
 #define LOG_LEVEL_INFO_BEYOND 2003
 #define LOG_LEVEL_DEBUG_BEYOND 2004
 #define LOG_LEVEL_ALL 2005  // Including Traces
+
+
+#define COLORED_STR(COLOR,STR) ANSI_COLOR_##COLOR STR ANSI_COLOR_RESET
+
 
 #ifndef LOG_LEVEL
 #define LOG_LEVEL LOG_LEVEL_NO_LOG

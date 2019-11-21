@@ -93,6 +93,9 @@ find_package(SGX REQUIRED)
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
+#add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/blasfeo)
+#message(WARNING "BLASFEO_HEADERS ${BLASFEO_HEADERS}")
+
 set(DARKNET_SOURCE_FILES
   third_party/darknet/src/gemm.cpp
   third_party/darknet/src/utils.cpp
@@ -270,16 +273,21 @@ set(Enclave_Cpp_Files
   #${Trusted_Home}/src/bitonic-sort.cpp 
   ${Trusted_Home}/src/enclave-app.cpp
   ${Trusted_Home}/src/DNNConfigIO.cpp 
-  ${Trusted_Home}/src/DNNTrainer.cpp 
+  ${Trusted_Home}/src/DNNTrainer.cpp
+  ${Trusted_Home}/src/rand/PRNGHelper.cpp 
   #${Trusted_Home}/src/BlockHeader.cpp 
   #${Trusted_Home}/src/IBlockable.cpp 
-  ${Trusted_Home}/src/util.cpp 
+  ${Trusted_Home}/src/util.cpp
+  ${Trusted_Home}/src/extra-util.cpp
+  ${CMAKE_SOURCE_DIR}/src/hexString.cpp
   #${Trusted_Home}/src/tests.cpp
   ${Trusted_Home}/src/SpecialBufferCommon.cpp
   ${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
   ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
   ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
   ${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
+
+  #${CMAKE_SOURCE_DIR}/third_party/blasfeo/blas_api/sgemm.c
   )
   
 # add_library(LIBXSMM_T STATIC IMPORTED)
@@ -297,6 +305,7 @@ add_enclave_library(
     ${SGX_SDK}/include
   TRUSTED_LIBS
     DARKNET_T
+    #blasfeo
     #LIBXSMM_T
     #LIBXSMM_EXTRA_T
   #EXTRA_IMPORTED_LIBS
@@ -314,7 +323,10 @@ target_include_directories(${Trusted_Name} PRIVATE
   #${FLATBUFFERS_INCLUDE_DIRS}
   ${Trusted_Home}/
   ${Trusted_Home}/include
+  #${CMAKE_SOURCE_DIR}/third_party/libxsmm/include
+  #${CMAKE_SOURCE_DIR}/third_party/blasfeo/include
   )
+
 #clang_tidy_check(${Trusted_Name})
 attatch_clang_tidy_to_target(${Trusted_Name})
 
@@ -358,9 +370,33 @@ set(DARKNET_GPU_SOURCE_FILES
   third_party/darknet/src/avgpool_layer_kernels.cu
 )
 
+set(DARKNET_U_SOURCE_FILES ${DARKNET_SOURCE_FILES})
+list(REMOVE_ITEM DARKNET_U_SOURCE_FILES 
+  #third_party/darknet/src/cuda.cpp
+  third_party/darknet/src/deconvolutional_layer.cpp
+  third_party/darknet/src/detection_layer.cpp
+  #third_party/darknet/src/route_layer.cpp
+  third_party/darknet/src/upsample_layer.cpp
+  third_party/darknet/src/box.cpp
+  third_party/darknet/src/normalization_layer.cpp
+  third_party/darknet/src/local_layer.cpp
+  #third_party/darknet/src/shortcut_layer.cpp
+  third_party/darknet/src/logistic_layer.cpp
+  third_party/darknet/src/rnn_layer.cpp
+  third_party/darknet/src/gru_layer.cpp
+  third_party/darknet/src/crnn_layer.cpp
+  third_party/darknet/src/demo.cpp
+  third_party/darknet/src/region_layer.cpp
+  third_party/darknet/src/reorg_layer.cpp
+  third_party/darknet/src/tree.cpp
+  third_party/darknet/src/lstm_layer.cpp
+  third_party/darknet/src/l2norm_layer.cpp
+  third_party/darknet/src/yolo_layer.cpp
+)
+
 add_library(DARKNET_U_GPU STATIC ${DARKNET_GPU_SOURCE_FILES}
                                  #${DARKNET_SOURCE_FILES}
-                                 ${DARKNET_T_SOURCES}
+                                 #${DARKNET_T_SOURCES}
                                  )
 set_target_properties(DARKNET_U_GPU 
                         PROPERTIES
@@ -370,7 +406,7 @@ set_target_properties(DARKNET_U_GPU
                         CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 target_include_directories(DARKNET_U_GPU PRIVATE ${Untrusted_Home}/include  ${CUDA_INCLUDE_DIRS} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_link_libraries(DARKNET_U_GPU PRIVATE curand cublas cuda)
-target_compile_definitions(DARKNET_U_GPU PRIVATE)
+target_compile_definitions(DARKNET_U_GPU PRIVATE -DGPU)
 #clang_tidy_check(DARKNET_U_GPU)
 attatch_clang_tidy_to_target(DARKNET_U_GPU)
 
@@ -379,6 +415,7 @@ attatch_clang_tidy_to_target(DARKNET_U_GPU)
 set(App_Cpp_Files
   ${Untrusted_Home}/src/app.cpp
   ${Untrusted_Home}/src/load-image.cpp
+  ${CMAKE_SOURCE_DIR}/src/hexString.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/IRecord.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/ImageRecord.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/ImageWithLabelRecord.cpp
@@ -392,6 +429,9 @@ set(App_Cpp_Files
   #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
   #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
   #${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
+
+  ${DARKNET_U_SOURCE_FILES}
+
   )
 
 add_untrusted_library(
@@ -415,6 +455,7 @@ ${CUDA_INCLUDE_DIRS}
 target_link_libraries(${Untrusted_Lib_Name} PRIVATE DARKNET_U_GPU OpenSSL::Crypto OpenSSL::SSL Threads::Threads  cryptopp
   #PUBLIC foonathan_memory
 )
+target_compile_definitions(${Untrusted_Lib_Name} PUBLIC -DGPU -DSGX_VERIFIES)
 attatch_clang_tidy_to_target(${Untrusted_Lib_Name})
 #clang_tidy_check(${Untrusted_Lib_Name})
 
@@ -444,6 +485,7 @@ target_include_directories(SGXALDUnitTests PRIVATE ${GTEST_INCLUDE_DIRS} ${SGX_I
 #${FOONATHAN_MEMORY_INCLUDE_DIR}
 )
 set_target_properties(SGXALDUnitTests PROPERTIES NTERPROCEDURAL_OPTIMIZATION TRUE)
+target_compile_definitions(SGXALDUnitTests PUBLIC -DGPU -DSGX_VERIFIES)
 target_link_libraries(SGXALDUnitTests PRIVATE ${GTEST_BOTH_LIBRARIES} ${Untrusted_Lib_Name})
 attatch_clang_tidy_to_target(SGXALDUnitTests)
 #clang_tidy_check(SGXALDUnitTests)

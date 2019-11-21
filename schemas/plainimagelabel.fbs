@@ -2,4 +2,11 @@ table PlainImageLabel {
     img_content:[float32] (required,original_order);
     label_content:[float32] (required,original_order);
 }
+
+// table PlainImageLabelWAuth {
+//     pimglbl:PlainImageLabel (required,original_order);
+//     aad:[ubyte] (required,original_order);
+//     mac:[ubyte] (required,original_order);
+// }
+
 root_type PlainImageLabel;

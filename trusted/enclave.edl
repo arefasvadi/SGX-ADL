@@ -37,7 +37,9 @@ enclave {
                                                   [in,size=sgx_sksig_len]uint8_t* sgx_sksig,size_t sgx_sksig_len,
                                                   [in, size=sgx_sksymm_len] uint8_t* sgx_sksymm,size_t sgx_sksymm_len);
 
-
+       public void ecall_send_signed_task_config_verify([in,size=task_conf_len] uint8_t* task_conf, size_t task_conf_len);
+       public void ecall_send_data_config_dsverify([in,size=ds_conf_len] uint8_t* ds_conf, size_t ds_conf_len);
+       public void ecall_send_arch_cofig_verify_init([in, size=arch_conf_len] uint8_t* arch_conf_buff, size_t arch_conf_len);
     };
     untrusted {
        
@@ -97,5 +99,20 @@ enclave {
        void ocall_test_long_buffer_encrypt_store(int first,int final, size_t complete_len,[in, size=enc_len]unsigned char *enc, size_t enc_len, [in, size=12]unsigned char *IV,[in,size=16]unsigned char *TAG) transition_using_threads;
 
        void ocall_test_long_buffer_decrypt_retrieve(int first,size_t index,[out,size=enc_len] unsigned char* enc,size_t enc_len,[out, size=12]unsigned char *IV,[out,size=16]unsigned char *TAG) transition_using_threads;
+
+       void ocall_get_client_enc_image(uint32_t ind,[out,size=image_len] uint8_t* enc_image,size_t image_len,
+              [out,size=iv_len] uint8_t* iv,size_t iv_len,
+              [out,size=tag_len] uint8_t* tag,size_t tag_len,
+              [out,size=aad_len] uint8_t* aad,size_t aad_len) transition_using_threads;
+       
+       /*void ocall_send_pub_root_seed([in,size=seed_len] uint8_t* pub_seed,size_t seed_len)  transition_using_threads;*/
+       
+       void ocall_add_rand_integset([in,size=enc_integ_len] uint8_t* enc_integ, size_t enc_integ_len)  transition_using_threads;
+       void ocall_add_dec_images([in,size=dec_len] uint8_t* dec_image, size_t dec_len)  transition_using_threads;
+       
+       void ocall_gpu_get_iteration_seed(int iteration,
+       [in, size=batch_seed_len] uint8_t* batch_seed, 
+       size_t batch_seed_len,
+       [in, size=layers_seed_len] uint8_t* layers_seed,size_t layers_seed_len);
        };
 };

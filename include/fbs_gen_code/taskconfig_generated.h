@@ -450,6 +450,7 @@ struct TrainLocationsConfigsT : public flatbuffers::NativeTable {
   std::string signed_task_config_path;
   std::string client_aes_gcm_key_file;
   std::string sgx_aes_gcm_key_file;
+  std::string data_config_path;
   TrainLocationsConfigsT() {
   }
 };
@@ -471,7 +472,8 @@ struct TrainLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Tabl
     VT_SGX_PK_SIG_FILE = 20,
     VT_SIGNED_TASK_CONFIG_PATH = 22,
     VT_CLIENT_AES_GCM_KEY_FILE = 24,
-    VT_SGX_AES_GCM_KEY_FILE = 26
+    VT_SGX_AES_GCM_KEY_FILE = 26,
+    VT_DATA_CONFIG_PATH = 28
   };
   const flatbuffers::String *dataset_dir() const {
     return GetPointer<const flatbuffers::String *>(VT_DATASET_DIR);
@@ -545,6 +547,12 @@ struct TrainLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Tabl
   flatbuffers::String *mutable_sgx_aes_gcm_key_file() {
     return GetPointer<flatbuffers::String *>(VT_SGX_AES_GCM_KEY_FILE);
   }
+  const flatbuffers::String *data_config_path() const {
+    return GetPointer<const flatbuffers::String *>(VT_DATA_CONFIG_PATH);
+  }
+  flatbuffers::String *mutable_data_config_path() {
+    return GetPointer<flatbuffers::String *>(VT_DATA_CONFIG_PATH);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_DATASET_DIR) &&
@@ -571,6 +579,8 @@ struct TrainLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Tabl
            verifier.VerifyString(client_aes_gcm_key_file()) &&
            VerifyOffsetRequired(verifier, VT_SGX_AES_GCM_KEY_FILE) &&
            verifier.VerifyString(sgx_aes_gcm_key_file()) &&
+           VerifyOffsetRequired(verifier, VT_DATA_CONFIG_PATH) &&
+           verifier.VerifyString(data_config_path()) &&
            verifier.EndTable();
   }
   TrainLocationsConfigsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -617,6 +627,9 @@ struct TrainLocationsConfigsBuilder {
   void add_sgx_aes_gcm_key_file(flatbuffers::Offset<flatbuffers::String> sgx_aes_gcm_key_file) {
     fbb_.AddOffset(TrainLocationsConfigs::VT_SGX_AES_GCM_KEY_FILE, sgx_aes_gcm_key_file);
   }
+  void add_data_config_path(flatbuffers::Offset<flatbuffers::String> data_config_path) {
+    fbb_.AddOffset(TrainLocationsConfigs::VT_DATA_CONFIG_PATH, data_config_path);
+  }
   explicit TrainLocationsConfigsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -637,6 +650,7 @@ struct TrainLocationsConfigsBuilder {
     fbb_.Required(o, TrainLocationsConfigs::VT_SIGNED_TASK_CONFIG_PATH);
     fbb_.Required(o, TrainLocationsConfigs::VT_CLIENT_AES_GCM_KEY_FILE);
     fbb_.Required(o, TrainLocationsConfigs::VT_SGX_AES_GCM_KEY_FILE);
+    fbb_.Required(o, TrainLocationsConfigs::VT_DATA_CONFIG_PATH);
     return o;
   }
 };
@@ -654,8 +668,10 @@ inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigs(
     flatbuffers::Offset<flatbuffers::String> sgx_pk_sig_file = 0,
     flatbuffers::Offset<flatbuffers::String> signed_task_config_path = 0,
     flatbuffers::Offset<flatbuffers::String> client_aes_gcm_key_file = 0,
-    flatbuffers::Offset<flatbuffers::String> sgx_aes_gcm_key_file = 0) {
+    flatbuffers::Offset<flatbuffers::String> sgx_aes_gcm_key_file = 0,
+    flatbuffers::Offset<flatbuffers::String> data_config_path = 0) {
   TrainLocationsConfigsBuilder builder_(_fbb);
+  builder_.add_data_config_path(data_config_path);
   builder_.add_sgx_aes_gcm_key_file(sgx_aes_gcm_key_file);
   builder_.add_client_aes_gcm_key_file(client_aes_gcm_key_file);
   builder_.add_signed_task_config_path(signed_task_config_path);
@@ -684,7 +700,8 @@ inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigsDir
     const char *sgx_pk_sig_file = nullptr,
     const char *signed_task_config_path = nullptr,
     const char *client_aes_gcm_key_file = nullptr,
-    const char *sgx_aes_gcm_key_file = nullptr) {
+    const char *sgx_aes_gcm_key_file = nullptr,
+    const char *data_config_path = nullptr) {
   auto dataset_dir__ = dataset_dir ? _fbb.CreateString(dataset_dir) : 0;
   auto dec_dataset_dir__ = dec_dataset_dir ? _fbb.CreateString(dec_dataset_dir) : 0;
   auto network_arch_path__ = network_arch_path ? _fbb.CreateString(network_arch_path) : 0;
@@ -697,6 +714,7 @@ inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigsDir
   auto signed_task_config_path__ = signed_task_config_path ? _fbb.CreateString(signed_task_config_path) : 0;
   auto client_aes_gcm_key_file__ = client_aes_gcm_key_file ? _fbb.CreateString(client_aes_gcm_key_file) : 0;
   auto sgx_aes_gcm_key_file__ = sgx_aes_gcm_key_file ? _fbb.CreateString(sgx_aes_gcm_key_file) : 0;
+  auto data_config_path__ = data_config_path ? _fbb.CreateString(data_config_path) : 0;
   return CreateTrainLocationsConfigs(
       _fbb,
       dataset_dir__,
@@ -710,7 +728,8 @@ inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigsDir
       sgx_pk_sig_file__,
       signed_task_config_path__,
       client_aes_gcm_key_file__,
-      sgx_aes_gcm_key_file__);
+      sgx_aes_gcm_key_file__,
+      data_config_path__);
 }
 
 flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigs(flatbuffers::FlatBufferBuilder &_fbb, const TrainLocationsConfigsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -729,6 +748,7 @@ struct PredictLocationsConfigsT : public flatbuffers::NativeTable {
   std::string signed_task_config_path;
   std::string client_aes_gcm_key_file;
   std::string sgx_aes_gcm_key_file;
+  std::string data_config_path;
   PredictLocationsConfigsT() {
   }
 };
@@ -750,7 +770,8 @@ struct PredictLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Ta
     VT_SGX_PK_SIG_FILE = 20,
     VT_SIGNED_TASK_CONFIG_PATH = 22,
     VT_CLIENT_AES_GCM_KEY_FILE = 24,
-    VT_SGX_AES_GCM_KEY_FILE = 26
+    VT_SGX_AES_GCM_KEY_FILE = 26,
+    VT_DATA_CONFIG_PATH = 28
   };
   const flatbuffers::String *dataset_dir() const {
     return GetPointer<const flatbuffers::String *>(VT_DATASET_DIR);
@@ -824,6 +845,12 @@ struct PredictLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Ta
   flatbuffers::String *mutable_sgx_aes_gcm_key_file() {
     return GetPointer<flatbuffers::String *>(VT_SGX_AES_GCM_KEY_FILE);
   }
+  const flatbuffers::String *data_config_path() const {
+    return GetPointer<const flatbuffers::String *>(VT_DATA_CONFIG_PATH);
+  }
+  flatbuffers::String *mutable_data_config_path() {
+    return GetPointer<flatbuffers::String *>(VT_DATA_CONFIG_PATH);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_DATASET_DIR) &&
@@ -850,6 +877,8 @@ struct PredictLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Ta
            verifier.VerifyString(client_aes_gcm_key_file()) &&
            VerifyOffsetRequired(verifier, VT_SGX_AES_GCM_KEY_FILE) &&
            verifier.VerifyString(sgx_aes_gcm_key_file()) &&
+           VerifyOffsetRequired(verifier, VT_DATA_CONFIG_PATH) &&
+           verifier.VerifyString(data_config_path()) &&
            verifier.EndTable();
   }
   PredictLocationsConfigsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -896,6 +925,9 @@ struct PredictLocationsConfigsBuilder {
   void add_sgx_aes_gcm_key_file(flatbuffers::Offset<flatbuffers::String> sgx_aes_gcm_key_file) {
     fbb_.AddOffset(PredictLocationsConfigs::VT_SGX_AES_GCM_KEY_FILE, sgx_aes_gcm_key_file);
   }
+  void add_data_config_path(flatbuffers::Offset<flatbuffers::String> data_config_path) {
+    fbb_.AddOffset(PredictLocationsConfigs::VT_DATA_CONFIG_PATH, data_config_path);
+  }
   explicit PredictLocationsConfigsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -916,6 +948,7 @@ struct PredictLocationsConfigsBuilder {
     fbb_.Required(o, PredictLocationsConfigs::VT_SIGNED_TASK_CONFIG_PATH);
     fbb_.Required(o, PredictLocationsConfigs::VT_CLIENT_AES_GCM_KEY_FILE);
     fbb_.Required(o, PredictLocationsConfigs::VT_SGX_AES_GCM_KEY_FILE);
+    fbb_.Required(o, PredictLocationsConfigs::VT_DATA_CONFIG_PATH);
     return o;
   }
 };
@@ -933,8 +966,10 @@ inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfig
     flatbuffers::Offset<flatbuffers::String> sgx_pk_sig_file = 0,
     flatbuffers::Offset<flatbuffers::String> signed_task_config_path = 0,
     flatbuffers::Offset<flatbuffers::String> client_aes_gcm_key_file = 0,
-    flatbuffers::Offset<flatbuffers::String> sgx_aes_gcm_key_file = 0) {
+    flatbuffers::Offset<flatbuffers::String> sgx_aes_gcm_key_file = 0,
+    flatbuffers::Offset<flatbuffers::String> data_config_path = 0) {
   PredictLocationsConfigsBuilder builder_(_fbb);
+  builder_.add_data_config_path(data_config_path);
   builder_.add_sgx_aes_gcm_key_file(sgx_aes_gcm_key_file);
   builder_.add_client_aes_gcm_key_file(client_aes_gcm_key_file);
   builder_.add_signed_task_config_path(signed_task_config_path);
@@ -963,7 +998,8 @@ inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfig
     const char *sgx_pk_sig_file = nullptr,
     const char *signed_task_config_path = nullptr,
     const char *client_aes_gcm_key_file = nullptr,
-    const char *sgx_aes_gcm_key_file = nullptr) {
+    const char *sgx_aes_gcm_key_file = nullptr,
+    const char *data_config_path = nullptr) {
   auto dataset_dir__ = dataset_dir ? _fbb.CreateString(dataset_dir) : 0;
   auto dec_dataset_dir__ = dec_dataset_dir ? _fbb.CreateString(dec_dataset_dir) : 0;
   auto network_arch_path__ = network_arch_path ? _fbb.CreateString(network_arch_path) : 0;
@@ -976,6 +1012,7 @@ inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfig
   auto signed_task_config_path__ = signed_task_config_path ? _fbb.CreateString(signed_task_config_path) : 0;
   auto client_aes_gcm_key_file__ = client_aes_gcm_key_file ? _fbb.CreateString(client_aes_gcm_key_file) : 0;
   auto sgx_aes_gcm_key_file__ = sgx_aes_gcm_key_file ? _fbb.CreateString(sgx_aes_gcm_key_file) : 0;
+  auto data_config_path__ = data_config_path ? _fbb.CreateString(data_config_path) : 0;
   return CreatePredictLocationsConfigs(
       _fbb,
       dataset_dir__,
@@ -989,7 +1026,8 @@ inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfig
       sgx_pk_sig_file__,
       signed_task_config_path__,
       client_aes_gcm_key_file__,
-      sgx_aes_gcm_key_file__);
+      sgx_aes_gcm_key_file__,
+      data_config_path__);
 }
 
 flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfigs(flatbuffers::FlatBufferBuilder &_fbb, const PredictLocationsConfigsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1363,6 +1401,7 @@ inline void TrainLocationsConfigs::UnPackTo(TrainLocationsConfigsT *_o, const fl
   { auto _e = signed_task_config_path(); if (_e) _o->signed_task_config_path = _e->str(); }
   { auto _e = client_aes_gcm_key_file(); if (_e) _o->client_aes_gcm_key_file = _e->str(); }
   { auto _e = sgx_aes_gcm_key_file(); if (_e) _o->sgx_aes_gcm_key_file = _e->str(); }
+  { auto _e = data_config_path(); if (_e) _o->data_config_path = _e->str(); }
 }
 
 inline flatbuffers::Offset<TrainLocationsConfigs> TrainLocationsConfigs::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TrainLocationsConfigsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -1385,6 +1424,7 @@ inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigs(fl
   auto _signed_task_config_path = _fbb.CreateString(_o->signed_task_config_path);
   auto _client_aes_gcm_key_file = _fbb.CreateString(_o->client_aes_gcm_key_file);
   auto _sgx_aes_gcm_key_file = _fbb.CreateString(_o->sgx_aes_gcm_key_file);
+  auto _data_config_path = _fbb.CreateString(_o->data_config_path);
   return CreateTrainLocationsConfigs(
       _fbb,
       _dataset_dir,
@@ -1398,7 +1438,8 @@ inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigs(fl
       _sgx_pk_sig_file,
       _signed_task_config_path,
       _client_aes_gcm_key_file,
-      _sgx_aes_gcm_key_file);
+      _sgx_aes_gcm_key_file,
+      _data_config_path);
 }
 
 inline PredictLocationsConfigsT *PredictLocationsConfigs::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -1422,6 +1463,7 @@ inline void PredictLocationsConfigs::UnPackTo(PredictLocationsConfigsT *_o, cons
   { auto _e = signed_task_config_path(); if (_e) _o->signed_task_config_path = _e->str(); }
   { auto _e = client_aes_gcm_key_file(); if (_e) _o->client_aes_gcm_key_file = _e->str(); }
   { auto _e = sgx_aes_gcm_key_file(); if (_e) _o->sgx_aes_gcm_key_file = _e->str(); }
+  { auto _e = data_config_path(); if (_e) _o->data_config_path = _e->str(); }
 }
 
 inline flatbuffers::Offset<PredictLocationsConfigs> PredictLocationsConfigs::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PredictLocationsConfigsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -1444,6 +1486,7 @@ inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfig
   auto _signed_task_config_path = _fbb.CreateString(_o->signed_task_config_path);
   auto _client_aes_gcm_key_file = _fbb.CreateString(_o->client_aes_gcm_key_file);
   auto _sgx_aes_gcm_key_file = _fbb.CreateString(_o->sgx_aes_gcm_key_file);
+  auto _data_config_path = _fbb.CreateString(_o->data_config_path);
   return CreatePredictLocationsConfigs(
       _fbb,
       _dataset_dir,
@@ -1457,7 +1500,8 @@ inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfig
       _sgx_pk_sig_file,
       _signed_task_config_path,
       _client_aes_gcm_key_file,
-      _sgx_aes_gcm_key_file);
+      _sgx_aes_gcm_key_file,
+      _data_config_path);
 }
 
 inline ArchConfigT *ArchConfig::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -1620,10 +1664,11 @@ inline const flatbuffers::TypeTable *TrainLocationsConfigsTypeTable() {
     { flatbuffers::ET_STRING, 0, -1 },
     { flatbuffers::ET_STRING, 0, -1 },
     { flatbuffers::ET_STRING, 0, -1 },
+    { flatbuffers::ET_STRING, 0, -1 },
     { flatbuffers::ET_STRING, 0, -1 }
   };
   static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 12, type_codes, nullptr, nullptr, nullptr
+    flatbuffers::ST_TABLE, 13, type_codes, nullptr, nullptr, nullptr
   };
   return &tt;
 }
@@ -1641,10 +1686,11 @@ inline const flatbuffers::TypeTable *PredictLocationsConfigsTypeTable() {
     { flatbuffers::ET_STRING, 0, -1 },
     { flatbuffers::ET_STRING, 0, -1 },
     { flatbuffers::ET_STRING, 0, -1 },
+    { flatbuffers::ET_STRING, 0, -1 },
     { flatbuffers::ET_STRING, 0, -1 }
   };
   static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 12, type_codes, nullptr, nullptr, nullptr
+    flatbuffers::ST_TABLE, 13, type_codes, nullptr, nullptr, nullptr
   };
   return &tt;
 }

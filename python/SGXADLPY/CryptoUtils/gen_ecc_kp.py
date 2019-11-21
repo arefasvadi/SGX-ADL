@@ -15,7 +15,7 @@ def gen_ecc_kp(PK_file,SK_file) :
     sk_key = SigningKey.generate(curve=NIST256p,hashfunc=sha256)
     pk_key = sk_key.verifying_key
 
-    temp_msg = b'I am a message'
+    temp_msg = sha256(b'I am a message').digest()
     signed_bytes = sk_key.sign(temp_msg,hashfunc=sha256,sigencode=sigencode_string)
     if not pk_key.verify(signed_bytes,temp_msg,hashfunc=sha256,sigdecode=sigdecode_string) :
         raise RuntimeError('msg and sig did not match!\n')
@@ -44,8 +44,10 @@ def test_ecc_kp_keys(PK_file,SK_file):
     with open(SK_file,'rb') as f:
         #sk_key = ECC.import_key(f.read())
         sk_key = SigningKey.from_string(f.read(),curve=NIST256p,hashfunc=sha256)
-    temp_msg = b'I am a message'
+    temp_msg = sha256(b'I am a message').digest()
     sig_bytes = sk_key.sign(temp_msg,hashfunc=sha256,sigencode=sigencode_string)
+    print("pk is {}".format(pk_key.to_string()))
+    
     if not pk_key.verify(sig_bytes,temp_msg,hashfunc=sha256,sigdecode=sigdecode_string) :
         raise RuntimeError('read keys from file | msg and sig did not match!\n')
 

@@ -22,6 +22,7 @@ table TrainLocationsConfigs {
     signed_task_config_path:string (required);
     client_aes_gcm_key_file:string (required);
     sgx_aes_gcm_key_file:string(required);
+    data_config_path:string(required);
 }
 
 table PredictLocationsConfigs {
@@ -37,6 +38,7 @@ table PredictLocationsConfigs {
     signed_task_config_path:string (required);
     client_aes_gcm_key_file:string (required);
     sgx_aes_gcm_key_file:string(required);
+    data_config_path:string(required);
 }
 
 table ArchConfig {

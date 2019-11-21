@@ -1,0 +1,5 @@
+table CMAC128Auth {
+    content:[ubyte] (required,original_order);
+    aad:[ubyte] (required,original_order);
+    mac:[ubyte] (required,original_order);
+}

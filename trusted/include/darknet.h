@@ -24,6 +24,8 @@
 #undef USE_SGX_BLOCKING
 #endif
 
+#include "rand/PRNG.h"
+
 #ifdef USE_SGX_BLOCKING
 #undef USE_SGX_LAYERWISE
 #endif
@@ -107,8 +109,11 @@ extern gemm_multi_thread_params_t      gemm_params;
 // extern std::vector<cpu_same_thread_task_t> cpu_same_src_dest_per_thr_params;
 // extern cpu_same_src_dest_multi_thread_params_t cpu_same_src_dest_params;
 // extern const int cpu_same_src_dest_num;
+struct network;
+void set_network_batch_randomness(const int iteration,network & net_);
 
 #endif
+
 
 #include "../../third_party/darknet/include/darknet.h"
 #include "pcg_basic.h"

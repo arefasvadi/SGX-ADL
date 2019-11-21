@@ -28,6 +28,7 @@
 #include "cryptopp/eccrypto.h"
 #include "cryptopp/osrng.h"
 #include "cryptopp/pubkey.h"
+#include "hexString.h"
 
 #define MAX_PATH FILENAME_MAX
 
@@ -76,6 +77,10 @@ std::vector<uint8_t> encrypted_weights;
 std::vector<uint8_t> iv_weights;
 std::vector<uint8_t> tag_weights;
 
+bool                      global_training = true;
+
+int gpu_index = 1;
+
 // json configs;
 RunConfig run_config;
 // std::unordered_map<std::string, timeTracker> grand_timer;
@@ -85,8 +90,19 @@ std::map<std::string, double>      duration_map;
 std::unordered_map<uint32_t, std::vector<unsigned char>> layerwise_contents;
 std::unordered_map<int64_t, std::vector<unsigned char>>  all_blocks;
 
-FlatBufferedContainerT<TrainLocationsConfigs>   trainlocconfigs;
-FlatBufferedContainerT<PredictLocationsConfigs> predlocconfigs;
+FlatBufferedContainerT<TrainLocationsConfigs>   trainlocconfigs = {};
+FlatBufferedContainerT<PredictLocationsConfigs> predlocconfigs = {};
+FlatBufferedContainerT<DataConfig> dsconfigs = {};
+FlatBufferedContainerT<ArchConfig> archconfigs = {};
+
+std::unique_ptr<PRNG> pub_root_rng;
+std::deque<std::vector<uint8_t>> enc_integ_set;
+std::deque<std::vector<uint8_t>> dec_img_set;
+
+std::shared_ptr<network> network_ = nullptr;
+std::shared_ptr<PRNG> batch_inp_rng = nullptr;
+std::shared_ptr<PRNG> batch_layers_rng = nullptr;
+
 
 typedef struct _sgx_errlist_t {
   sgx_status_t err;
@@ -558,6 +574,25 @@ ocall_set_records_plain(int            train_or_test,
   }
 }
 
+void ocall_add_rand_integset(uint8_t* enc_integ, size_t enc_integ_len) {
+  // We need to have a policy for storage of rand integset!
+  // on disk or in memory!
+  std::vector<uint8_t> integ_in(enc_integ_len,0);
+  std::memcpy(integ_in.data(), enc_integ, enc_integ_len);
+  enc_integ_set.emplace_back(std::move(integ_in));
+
+}
+
+
+void ocall_add_dec_images(uint8_t* dec_image, size_t dec_len) {
+  // We need to have a policy for storage of rand integset!
+  // on disk or in memory!
+  std::vector<uint8_t> image_in(dec_len,0);
+  std::memcpy(image_in.data(), dec_image, dec_len);
+  dec_img_set.emplace_back(std::move(image_in));
+}
+
+
 void
 ocall_set_timing(const char *time_id,
                  size_t      len,
@@ -936,6 +971,52 @@ ocall_generate_recset(int         rec_set_type,
                       int         rec_set_gen_func) {
 }
 
+// void ocall_send_pub_root_seed(uint8_t* pub_seed,size_t seed_len) {
+//   std::array<uint64_t,16> rng_seed = {};
+//   assert(seed_len == rng_seed.size()*sizeof(uint64_t));
+//   std::memcpy((uint8_t*)rng_seed.data(), pub_seed, seed_len);
+//   pub_root_rng = std::make_unique<PRNG>();
+//   pub_root_rng->setSeed(rng_seed);
+//   auto hex_seed = bytesToHexString(pub_seed, seed_len);
+//   LOG_DEBUG("provided root seed from enclave:\n<\"%s\">\n",hex_seed.c_str())
+// }
+
+void ocall_gpu_get_iteration_seed(int iteration,
+       uint8_t* batch_seed, 
+       size_t batch_seed_len,
+       uint8_t* layers_seed,
+       size_t layers_seed_len) {
+
+std::array<uint64_t,16> temp_seed;
+// LOG_DEBUG("for batch %d, the generated seeds for PRNGs are recieved from enclave:\n"
+//     "1. <" COLORED_STR(RED,"%s") ">\n"
+//     "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
+//     iteration,bytesToHexString(batch_seed, 
+//       batch_seed_len).c_str(),
+//     bytesToHexString(layers_seed, 
+//       layers_seed_len).c_str())
+if (network_) {
+  std::memcpy(temp_seed.data(),batch_seed,batch_seed_len);
+  network_->iter_batch_rng = 
+  std::shared_ptr<PRNG>(new PRNG(temp_seed));
+  std::memcpy(temp_seed.data(),layers_seed,layers_seed_len);
+  network_->layer_rng_deriver = std::shared_ptr<PRNG>(new PRNG(temp_seed));
+}
+else {
+  LOG_DEBUG("FIXME!\nInconsistent API -- either change the net directly or variables\n")
+  // this is the first call to set init weights for training
+  LOG_DEBUG("Received the iteration 0 seeds!\n")
+  std::memcpy(temp_seed.data(),batch_seed,batch_seed_len);
+  batch_inp_rng = 
+  std::shared_ptr<PRNG>(new PRNG(temp_seed));
+  std::memcpy(temp_seed.data(),layers_seed,layers_seed_len);
+  batch_layers_rng = std::shared_ptr<PRNG>(new PRNG(temp_seed));
+  prepare_gpu();
+}
+
+
+}
+
 void
 parse_location_configs(const std::string &location_conf_file,
                        const std::string &tasktype) {
@@ -992,12 +1073,59 @@ load_sec_keys_into_enclave() {
         = read_file_binary(tbl_ptr->sgx_aes_gcm_key_file()->c_str());
     auto sgx_sig_sk = read_file_binary(tbl_ptr->sgx_sk_sig_file()->c_str());
     auto sgx_sg_pk  = read_file_binary(tbl_ptr->sgx_pk_sig_file()->c_str());
-   
+  }
+}
+
+void load_task_config_into_enclave() {
+   if (trainlocconfigs.objPtr != nullptr) {
+     const decltype(trainlocconfigs.objPtr) &tbl_ptr = trainlocconfigs.objPtr;
+     auto signed_task_config_buf = read_file_binary(tbl_ptr->signed_task_config_path()->c_str());
+     //LOG_DEBUG("loaded task config file %s with size %u: bytes\n",tbl_ptr->signed_task_config_path()->c_str(),task_config.size())
+     auto res = ecall_send_signed_task_config_verify(global_eid,signed_task_config_buf.data(),signed_task_config_buf.size());
+     CHECK_SGX_SUCCESS(res, "task sig verification caused an issue\n")
+   }
+   else if (predlocconfigs.objPtr != nullptr) {
+
+   }
+}
+
+void
+load_dataset_config_into_enclave() {
+  if (trainlocconfigs.objPtr != nullptr) {
+    dsconfigs.vecBuff
+        = read_file_binary(trainlocconfigs.objPtr->data_config_path()->c_str());
+    dsconfigs.objPtr
+        = flatbuffers::GetMutableRoot<DataConfig>(&dsconfigs.vecBuff[0]);
+    auto res = ecall_send_data_config_dsverify(
+        global_eid, dsconfigs.vecBuff.data(), dsconfigs.vecBuff.size());
+    CHECK_SGX_SUCCESS(res, "sending task config to enclave caused an issue!\n")
+  } else if (predlocconfigs.objPtr != nullptr) {
+    LOG_DEBUG("Not implemented\n")
+  }
+}
+
+void
+load_network_config_into_enclave() {
+  if (trainlocconfigs.objPtr != nullptr) {
+    LOG_DEBUG("loading network config file at location:\n[\"%s\"]\n",
+    trainlocconfigs.objPtr->mutable_network_arch_path()->c_str())
+    archconfigs.vecBuff = read_file_binary(
+        trainlocconfigs.objPtr->mutable_network_arch_path()->c_str());
+    archconfigs.objPtr
+        = flatbuffers::GetMutableRoot<ArchConfig>(archconfigs.vecBuff.data());
+
+    auto res = ecall_send_arch_cofig_verify_init(
+        global_eid, archconfigs.vecBuff.data(), archconfigs.vecBuff.size());
+    CHECK_SGX_SUCCESS(res, "ecall_send_arch_cofig_verify_init cause problem!\n")
+
+  } else if (predlocconfigs.objPtr != nullptr) {
+    LOG_DEBUG("Not implemented\n")
   }
 }
 
 // send keys to enclave
 // send signed task to enclave
+// send signed dataset_config to enclave
 // enclave must verify the dataset, and depending on the task will setup the
 // buffers and randomness
 void
@@ -1006,9 +1134,73 @@ prepare_enclave(const std::string &location_conf_file,
   int success = 0;
   parse_location_configs(location_conf_file, tasktype);
   load_sec_keys_into_enclave();
+  load_task_config_into_enclave();
+  load_dataset_config_into_enclave();
+  load_network_config_into_enclave();  
+}
+
+void
+prepare_gpu() {
+#if defined(GPU) && defined(SGX_VERIFIES)
+  auto net_ = load_network(
+      (char *)archconfigs.objPtr->mutable_contents()->Data(), NULL, 1);
+ network_
+      = std::shared_ptr<network>(net_, free_delete());
+  LOG_DEBUG(
+      "GPU loaded the network with following values\n"
+      "GPU batch size   : %d\n"
+      "GPU subdiv size  : %d\n"
+      "processings per batch : %d\n",
+      network_->batch,
+      network_->subdivisions,
+      (network_->batch * network_->subdivisions))
   
-  LOG_DEBUG("finished as expected\n");
-  std::exit(1);
+  // LOG_DEBUG("net_rng iter state : " COLORED_STR(RED,"%s\n") "layer_rng_deriver iter state: " COLORED_STR(BRIGHT_GREEN,"%s\n"),bytesToHexString((const uint8_t*)network_->iter_batch_rng->getState().data(),sizeof(uint64_t)*16).c_str(),bytesToHexString((const uint8_t*)network_->layer_rng_deriver->getState().data(),sizeof(uint64_t)*16).c_str());
+
+  // LOG_DEBUG("net_rng iter 0 first int : %d\n",network_->iter_batch_rng->getRandomInt());
+  // LOG_DEBUG("layer_rng_deriver iter 0 first int : %d\n",network_->layer_rng_deriver->getRandomInt());  
+#else
+  LOG_ERROR(
+      "This program needs to be compiled with following flags:\n"
+      "-DGPU and -DSGX_VERIFIES")
+#endif
+}
+
+void
+ocall_get_client_enc_image(uint32_t ind,
+                           uint8_t *enc_image,
+                           size_t   image_len,
+                           uint8_t *iv,
+                           size_t   iv_len,
+                           uint8_t *tag,
+                           size_t   tag_len,
+                           uint8_t *aad,
+                           size_t   aad_len) {
+  const auto img_path = trainlocconfigs.objPtr->dataset_dir()->str() + "/"
+                        + std::to_string((int)ind) + ".fb";
+  // LOG_DEBUG("file name is:%s\n",img_path.c_str())
+  FlatBufferedContainerT<AESGCM128Enc> aes_gcm;
+  aes_gcm.vecBuff = read_file_binary(img_path.c_str());
+  aes_gcm.objPtr
+      = flatbuffers::GetMutableRoot<AESGCM128Enc>(aes_gcm.vecBuff.data());
+  //LOG_DEBUG("is field present %d\n",flatbuffers::IsFieldPresent(aes_gcm.objPtr, AESGCM128Enc::VT_AAD));
+  //LOG_DEBUG("%d ?= %d\n",aes_gcm.objPtr->mutable_enc_content()->size(),image_len)
+  assert(aes_gcm.objPtr->mutable_enc_content()->size() == image_len);
+  assert(aes_gcm.objPtr->mutable_iv()->size() == iv_len);
+  assert(aes_gcm.objPtr->mutable_mac()->size() == tag_len);
+  assert(aes_gcm.objPtr->mutable_aad()->size() == aad_len);
+  std::memcpy(enc_image,
+              aes_gcm.objPtr->mutable_enc_content()->Data(),
+              aes_gcm.objPtr->mutable_enc_content()->size());
+  std::memcpy(iv,
+              aes_gcm.objPtr->mutable_iv()->Data(),
+              aes_gcm.objPtr->mutable_iv()->size());
+  std::memcpy(tag,
+              aes_gcm.objPtr->mutable_mac()->Data(),
+              aes_gcm.objPtr->mutable_mac()->size());
+  std::memcpy(aad,
+                aes_gcm.objPtr->mutable_aad()->Data(),
+                aes_gcm.objPtr->mutable_aad()->size());
 }
 
 RunConfig

@@ -7,21 +7,23 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <deque>
 #include <string>
 #include <vector>
-
-#include "common-structures.h"
-#include "enclave_u.h"
-#include "fbs_gen_code/taskconfig_generated.h"
-#include "flats-util.hpp"
-#include "load-image.h"
 #include "sgx_defs.h"
 #include "sgx_eid.h"   /* sgx_enclave_id_t */
 #include "sgx_error.h" /* sgx_status_t */
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
 #include "sgx_uswitchless.h"
+#include "common-structures.h"
+#include "global-vars-untrusted.h"
+#include "enclave_u.h"
+#include "fbs_gen_code/taskconfig_generated.h"
+#include "fbs_gen_code/aes128gcm_generated.h"
+#include "flats-util.hpp"
+#include "load-image.h"
+#include "rand/PRNG.h"
 
 #ifndef TRUE
 #define TRUE 1
@@ -36,23 +38,6 @@
 #define ENCLAVE_FILENAME "sgxdnn.enclave.signed.so"
 #endif
 
-extern sgx_enclave_id_t         global_eid; /* global enclave id */
-extern RunConfig                run_config;
-extern sgx_uswitchless_config_t us_config;
-extern FlatBufferedContainerT<TrainLocationsConfigs>   trainlocconfigs;
-extern FlatBufferedContainerT<PredictLocationsConfigs> predlocconfigs;
-// extern std::vector<uint8_t> trainlocconfigs_bytes;
-// extern std::vector<uint8_t> predlocconfigs_bytes;
-
-#ifdef MEASURE_SWITCHLESS_TIMING
-extern uint64_t g_stats[4];
-void
-exit_callback(sgx_uswitchless_worker_type_t         type,
-              sgx_uswitchless_worker_event_t        event,
-              const sgx_uswitchless_worker_stats_t* stats);
-void
-print_switchless_timing();
-#endif
 RunConfig
 process_json_config(const std::string& f_path);
 
@@ -71,6 +56,9 @@ print_timers();
 void
 prepare_enclave(const std::string& location_conf_file,
                 const std::string& tasktype);
+
+void prepare_gpu();
+
 void
 main_logger(int level, const char* file, int line, const char* format, ...);
 
