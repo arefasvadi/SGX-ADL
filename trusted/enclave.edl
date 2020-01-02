@@ -108,11 +108,44 @@ enclave {
        /*void ocall_send_pub_root_seed([in,size=seed_len] uint8_t* pub_seed,size_t seed_len)  transition_using_threads;*/
        
        void ocall_add_rand_integset([in,size=enc_integ_len] uint8_t* enc_integ, size_t enc_integ_len)  transition_using_threads;
+       
        void ocall_add_dec_images([in,size=dec_len] uint8_t* dec_image, size_t dec_len)  transition_using_threads;
        
+       void ocall_load_dec_images(uint32_t ind, [out,size=dec_len] uint8_t* dec_image, size_t dec_len)  transition_using_threads;
+
        void ocall_gpu_get_iteration_seed(int iteration,
        [in, size=batch_seed_len] uint8_t* batch_seed, 
        size_t batch_seed_len,
        [in, size=layers_seed_len] uint8_t* layers_seed,size_t layers_seed_len);
+
+       void ocall_gpu_train_report_frbv(int iteration,[out, size=report_len] uint8_t* report,size_t report_len);
+       void ocall_save_auth_report_frbv(int iteration,[in, size=report_len] uint8_t* auth_report,size_t report_len);
+       void ocall_load_auth_report_frbv(int iteration,
+              [out, size=report_len] uint8_t* auth_report,
+              size_t report_len,
+              [out, size=mac_len] uint8_t* mac,
+              size_t mac_len,
+              [out, size=aad_len] uint8_t* aad,
+              size_t aad_len);
+       
+       void ocall_load_layer_report_frbv(int iteration,int layer_index,
+              size_t start,
+              [out,size=buff_len] uint8_t* buff,size_t buff_len,
+              [out,size=layer_sha_len] uint8_t* layer_sha,size_t layer_sha_len);
+       
+       void ocall_save_enclaves_layer_params_updates_frbv(int iteration,int layer_index,
+              size_t start,
+              [in,size=buff_len] uint8_t* buff,size_t buff_len,
+              [in,size=aad_len] uint8_t* aad,size_t aad_len,
+              [in,size=layer_cmac_len] uint8_t* layer_cmac,size_t layer_cmac_len);
+
+       void ocall_load_enclaves_layer_params_updates_frbv(int iteration,int layer_index,
+              size_t start,
+              [out,size=buff_len] uint8_t* buff,size_t buff_len,
+              [out,size=aad_len] uint8_t* aad,size_t aad_len,
+              [out,size=layer_cmac_len] uint8_t* layer_cmac,size_t layer_cmac_len);
+
+       void ocall_use_sgx_new_weights_momentum_grads(int iteration);
+
        };
 };

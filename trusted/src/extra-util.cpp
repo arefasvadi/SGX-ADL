@@ -8,6 +8,7 @@
 #include "hexString.h"
 #include "sgx_trts.h"
 #include "util.h"
+#include <unordered_set>
 
 bool
 verify_sha256_single_round(const uint8_t* provided_sha256,
@@ -19,13 +20,15 @@ verify_sha256_single_round(const uint8_t* provided_sha256,
   CHECK_SGX_SUCCESS(res, "sgx_sha256_msg caused problem!\n")
   const auto comp
       = std::memcmp(comp_hash, provided_sha256, SGX_SHA256_HASH_SIZE);
-  LOG_DEBUG(
+  if (msg != nullptr) {
+    LOG_DEBUG(
       "computed hash vs reported hash for %s:\n"
       "\t<\"%s\">\n"
       "\t<\"%s\">\n",
       msg,
       bytesToHexString(comp_hash, SGX_SHA256_HASH_SIZE).c_str(),
       bytesToHexString(provided_sha256, SGX_SHA256_HASH_SIZE).c_str())
+  }
   if (comp != 0) {
     LOG_ERROR("Net Config sha256 comparison not accepted!\n")
     return false;
@@ -35,8 +38,124 @@ verify_sha256_single_round(const uint8_t* provided_sha256,
 }
 
 bool
-verify_sha256_mult_rounds() {
-  return false;
+verify_sha256_mult_rounds(sgx_sha_state_handle_t* sha256_handle,
+                          const uint8_t* provided_sha256,
+                          const uint8_t* buffer,
+                          const size_t   buffer_len,
+                          const char*    msg) {
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  if (*sha256_handle == nullptr) {
+    ret = sgx_sha256_init(sha256_handle);
+    CHECK_SGX_SUCCESS(ret, "sgx_sha256_init caused problem\n")
+  }
+  if (buffer!=nullptr){
+    ret = sgx_sha256_update(buffer,buffer_len,*sha256_handle);
+    CHECK_SGX_SUCCESS(ret, "sgx_sha256_update caused problem\n")
+  }
+
+  if (provided_sha256 != nullptr) {
+    // final round
+    sgx_sha256_hash_t comp_hash;
+    ret = sgx_sha256_get_hash(*sha256_handle, &comp_hash);
+    CHECK_SGX_SUCCESS(ret, "sgx_sha256_get_hash caused problem\n")
+
+    const auto comp
+        = std::memcmp(comp_hash, provided_sha256, SGX_SHA256_HASH_SIZE);
+    if (msg != nullptr) {
+      LOG_DEBUG(
+          "computed hash vs reported hash for %s:\n"
+          "\t<\"%s\">\n"
+          "\t<\"%s\">\n",
+          msg,
+          bytesToHexString(comp_hash, SGX_SHA256_HASH_SIZE).c_str(),
+          bytesToHexString(provided_sha256, SGX_SHA256_HASH_SIZE).c_str())
+    }
+    // close
+    ret = sgx_sha256_close(*sha256_handle);
+    CHECK_SGX_SUCCESS(ret, "sgx_sha256_close caused problem\n")
+    *sha256_handle = nullptr;
+    if (comp != 0) {
+      LOG_ERROR("sha256 comparison not accepted!\n")
+      abort();
+      return false;
+    }
+  }
+  return true;
+}
+
+bool verify_cmac128_single_round(const uint8_t* msg,const size_t msg_len,
+    const uint8_t* tag,const uint8_t* aad,const size_t aad_len) {
+  sgx_cmac_state_handle_t cmac_handle;
+  sgx_cmac_128bit_tag_t computed_tag;
+  auto ret = sgx_cmac128_init(&enclave_cmac_key,&cmac_handle);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_init caused problem\n")
+  ret =  sgx_cmac128_update(msg,msg_len,cmac_handle);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_update caused problem\n")
+  if (aad != nullptr) {
+    ret =  sgx_cmac128_update(aad,aad_len,cmac_handle); 
+    CHECK_SGX_SUCCESS(ret, "sgx_cmac128_update caused problem\n")
+  }
+  ret = sgx_cmac128_final(cmac_handle,&computed_tag);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_final caused problem\n")
+  ret = sgx_cmac128_close(cmac_handle);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_close caused problem\n")
+  const auto comp
+      = std::memcmp(computed_tag, tag, SGX_CMAC_MAC_SIZE);
+  if (comp != 0) {
+    LOG_ERROR("cmac128 comparison not accepted!\n")
+    // abort();
+    return false;
+  }
+  return true;
+}
+
+bool
+gen_verify_cmac128_multiple_rounds(bool generate,
+                               sgx_cmac_state_handle_t* cmac_handle,
+                               uint8_t*                 msg,
+                               size_t                   msg_len,
+                               uint8_t*                 tag,
+                               uint8_t*                 aad,
+                               size_t                   aad_len) {
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  if (*cmac_handle == nullptr) {
+    ret = sgx_cmac128_init(&enclave_cmac_key, cmac_handle);
+    CHECK_SGX_SUCCESS(ret, "sgx_cmac128_init caused problem\n")
+  }
+  if (msg != nullptr) {
+    ret = sgx_cmac128_update(msg, msg_len, *cmac_handle);
+    CHECK_SGX_SUCCESS(ret, "sgx_cmac128_update caused problem\n")
+  }
+  if (aad != nullptr) {
+    ret = sgx_cmac128_update(aad, aad_len, *cmac_handle);
+    CHECK_SGX_SUCCESS(ret, "sgx_cmac128_update caused problem\n")
+  }
+  if (tag != nullptr) {
+    sgx_cmac_128bit_tag_t computed_tag;
+    if (generate) {
+      ret = sgx_cmac128_final(*cmac_handle, &computed_tag);
+      CHECK_SGX_SUCCESS(ret, "sgx_cmac128_final caused problem\n")
+      ret = sgx_cmac128_close(*cmac_handle);
+      CHECK_SGX_SUCCESS(ret, "sgx_cmac128_close caused problem\n")
+      *cmac_handle = nullptr;
+      std::memcpy(tag, computed_tag, SGX_CMAC_MAC_SIZE);
+    }
+    else {
+      
+      ret = sgx_cmac128_final(*cmac_handle, &computed_tag);
+      CHECK_SGX_SUCCESS(ret, "sgx_cmac128_final caused problem\n")
+      ret = sgx_cmac128_close(*cmac_handle);
+      CHECK_SGX_SUCCESS(ret, "sgx_cmac128_close caused problem\n")
+      *cmac_handle = nullptr;
+      const auto comp = std::memcmp(computed_tag, tag, SGX_CMAC_MAC_SIZE);
+      if (comp != 0) {
+        LOG_ERROR("cmac128 comparison not accepted!\n")
+        // abort();
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 void
@@ -50,8 +169,8 @@ fix_task_dependent_global_vars() {
       = std::unique_ptr<net_init_load_net_func>(new net_init_load_net_func);
 
   verf_scheme_ptr
-      = std::unique_ptr<integ_verf_variations>(new integ_verf_variations);
-  *verf_scheme_ptr = integ_verf_variations::FRBV;
+      = std::unique_ptr<verf_variations_t>(new verf_variations_t);
+  *verf_scheme_ptr = verf_variations_t::FRBV;
   if (task_config.objPtr->security_type()
           == EnumSecurityType::EnumSecurityType_integrity
       && task_config.objPtr->task_type()
@@ -60,8 +179,10 @@ fix_task_dependent_global_vars() {
     LOG_ERROR("NOT IMPLEMENTED!\n")
     abort();
 #endif
+    net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
+    *net_context_ = net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT;
     net_init_loader_ptr->net_context
-        = net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT;
+        = net_context_.get();
     net_init_loader_ptr->invokable.init_train_integ_layered
         = init_net_train_integ_layered;
 
@@ -100,6 +221,25 @@ construct_aad_input_nochange(uint32_t id) {
       .only_component_id.component_id
       = id;
   auth.type_ = generic_comp_variations_::ONLY_COMP;
+  return auth;
+}
+
+additional_auth_data construct_aad_frbv_report_nochange_ts(uint32_t id,uint32_t ts) {
+  additional_auth_data auth = {};
+  auth.session_id           = session_id;
+  auth.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_w_ts.comp_or_compsubcomp_id.only_component_id.component_id
+      = id;
+  auth.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_w_ts.time_stamp = ts;
+  auth.type_ = generic_comp_variations_::ONLY_COMP;
+  return auth;
+}
+
+additional_auth_data construct_aad_frbv_comp_subcomp_nots(uint32_t comp_id,uint32_t subcomp_id) {
+  additional_auth_data auth = {};
+  auth.session_id           = session_id;
+  auth.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_no_ts.comp_or_compsubcomp_id.subcomponent_id.component_id.component_id = comp_id;
+  auth.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_no_ts.comp_or_compsubcomp_id.subcomponent_id.subcomponent_id = subcomp_id;
+  auth.type_ = generic_comp_variations_::COMP_W_SUB_COMP_NO_CHANGE;
   return auth;
 }
 
@@ -176,7 +316,7 @@ generate_auth_flatbuff(const std::vector<uint8_t>& in_vec,
   auto content  = builder.CreateVector<uint8_t>(in_vec);
   auto aad_auth = builder.CreateVector<uint8_t>((uint8_t*)aad,
                                                 sizeof(additional_auth_data));
-  auto mac      = builder.CreateVector(tag, sizeof(sgx_cmac_128bit_tag_t));
+  auto mac      = builder.CreateVector((uint8_t*)&tag[0],SGX_CMAC_MAC_SIZE);
 
   CMAC128AuthBuilder cmac_bldr(builder);
   cmac_bldr.add_content(content);
@@ -240,16 +380,33 @@ void
 set_pub_priv_seeds() {
   std::array<uint64_t, 16> pub_rand_root_seed = {};
   std::array<uint64_t, 16> sgx_rand_root_seed = {};
-
-  auto res = sgx_read_rand((uint8_t*)pub_rand_root_seed.data(),
+  sgx_status_t res = SGX_ERROR_UNEXPECTED;
+  if (0) {
+    res = sgx_read_rand((uint8_t*)pub_rand_root_seed.data(),
                            pub_rand_root_seed.size() * sizeof(uint64_t));
-  CHECK_SGX_SUCCESS(res, "sgx_read_rand caused problem\n")
-  res = sgx_read_rand((uint8_t*)sgx_rand_root_seed.data(),
+    CHECK_SGX_SUCCESS(res, "sgx_read_rand caused problem\n")
+  }
+  else {
+    for (int i=0;i<16;++i) {
+      pub_rand_root_seed[i] = 10;
+    }
+  }
+  
+  if (0) {
+    res = sgx_read_rand((uint8_t*)sgx_rand_root_seed.data(),
                       sgx_rand_root_seed.size() * sizeof(uint64_t));
-  CHECK_SGX_SUCCESS(res, "sgx_read_rand caused problem\n")
+    CHECK_SGX_SUCCESS(res, "sgx_read_rand caused problem\n")
 
-  res = sgx_read_rand((uint8_t*)&session_id, sizeof(session_id));
-  CHECK_SGX_SUCCESS(res, "sgx_read_rand caused problem\n")
+    res = sgx_read_rand((uint8_t*)&session_id, sizeof(session_id));
+    CHECK_SGX_SUCCESS(res, "sgx_read_rand caused problem\n")
+  }
+  else {
+    for (int i=0;i<16;++i) {
+      sgx_rand_root_seed[i] = 7;
+    }
+    session_id = 1;
+  }
+  
 
   sgx_root_rng = std::unique_ptr<PRNG>(new PRNG(sgx_rand_root_seed));
   // TODO: Change this PRNG type to basic array
@@ -331,7 +488,8 @@ choose_rand_integrity_set_nonbliv(
       // gen flatbuff image and make encrypted flatbuffer
       auto enc_auth_buff = generate_enc_auth_flatbuff(
           generate_image_label_flatb_from_actual_bytes(temp_buff_dec), &auth);
-
+      res = ocall_add_rand_integset(enc_auth_buff.data(), enc_auth_buff.size());
+      CHECK_SGX_SUCCESS(res, "ocall_add_rand_integset caused problem!\n")
       chosen_count++;
     } else {
       // construct aad
@@ -348,12 +506,18 @@ choose_rand_integrity_set_nonbliv(
       res = sgx_cmac128_close(cmac_handle);
       CHECK_SGX_SUCCESS(res, "sgx_cmac128_close caused problem!\n")
 
+      if (!plain_image_label_auth_bytes) {
+        plain_image_label_auth_bytes = std::unique_ptr<size_t>(new size_t);
+        *plain_image_label_auth_bytes = auth_buff.size();
+      }
       res = ocall_add_dec_images(auth_buff.data(), auth_buff.size());
       CHECK_SGX_SUCCESS(res, "ocall_add_dec_images caused problem!\n")
 
       not_chosen_count++;
     }
   }
+  plain_dataset_size = not_chosen_count;
+  integrity_set_dataset_size = chosen_count;
   LOG_DEBUG("%d chosen as integrity set and %d decrypted\n",
             chosen_count,
             not_chosen_count);
@@ -570,11 +734,11 @@ verify_init_dataset() {
 //            W_(outputs,inputs)
 //
 // For conv layers assume groups is 1
-// forward: per batch
+// forward: per single item in batch
 // O_(filters,(out_w x out_h)) = 
 //      W_(filters,(size x size x channels)) X 
 //      I_((size x size x channels),(out_w x out_h)) 
-// backward: per batch 
+// backward: per single item in batch 
 // WU_(filters,(size x size x channels)) =
 //    delta_(filters,(out_w x out_h)) X 
 //    TR(net_input((size x size x channels),(out_w x out_h)))
@@ -649,10 +813,14 @@ verify_init_net_config() {
 
 void
 init_net() {
-  if (net_init_loader_ptr->net_context
+  if (*net_init_loader_ptr->net_context
       == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT) {
     net_init_training_integrity_layered_args args;
-    net_init_loader_ptr->invokable.init_train_integ_layered(&args);
+    args.verif_prob     = 1.0f;
+    net_init_loader_ptr->invokable_params.init_train_integ_layered_params
+        = args;
+    net_init_loader_ptr->invokable.init_train_integ_layered(
+        &net_init_loader_ptr->invokable_params.init_train_integ_layered_params);
   } else {
     LOG_DEBUG("not implemented\n")
   }
@@ -664,34 +832,34 @@ send_batch_seed_to_gpu(const int iteration) {
   auto res        = ocall_gpu_get_iteration_seed(iteration,
                                           (uint8_t*)&prng_seeds.batch_layer_seed[0],
                                           sizeof(uint64_t) * 16,
-                                          (uint8_t*)&((prng_seeds.batch_layer_seed)[16]),
+                                          (uint8_t*)&prng_seeds.batch_layer_seed[16],
                                           sizeof(uint64_t) * 16);
   CHECK_SGX_SUCCESS(res,
                     "sending initial randomness before loading the network")
-  // LOG_DEBUG("for batch %d, the generated seeds for PRNGs are sent to gpu:\n"
-  //   "1. <" COLORED_STR(RED,"%s") ">\n"
-  //   "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
-  //   iteration,bytesToHexString((uint8_t*)&prng_seeds.batch_layer_seed[0], 
-  //     sizeof(uint64_t)*16).c_str(),
-  //   bytesToHexString((uint8_t*)&((prng_seeds.batch_layer_seed)[16]), 
-  //     sizeof(uint64_t)*16).c_str())
+  LOG_DEBUG("for batch %d, the generated seeds for PRNGs are sent to gpu:\n"
+    "1. <" COLORED_STR(RED,"%s") ">\n"
+    "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
+    iteration,bytesToHexString((uint8_t*)&prng_seeds.batch_layer_seed[0], 
+      sizeof(uint64_t)*16).c_str(),
+    bytesToHexString((uint8_t*)&((prng_seeds.batch_layer_seed)[16]), 
+      sizeof(uint64_t)*16).c_str())
 }
 
 // TODO: Be careful if you do threading
 void
 set_network_batch_randomness(const int iteration,network & net_) {
   auto prng_seeds = get_iteration_seed(pub_root_rng->getState(), iteration);
-  // LOG_DEBUG("for batch %d, enclaves PRNGs are :\n"
-  //   "1. <" COLORED_STR(RED,"%s") ">\n"
-  //   "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
-  //   iteration,bytesToHexString((uint8_t*)&prng_seeds.batch_layer_seed[0], 
-  //     sizeof(uint64_t)*16).c_str(),
-  //   bytesToHexString((uint8_t*)&((prng_seeds.batch_layer_seed)[16]), 
-  //     sizeof(uint64_t)*16).c_str())
+  LOG_DEBUG("for batch %d, enclaves PRNGs are :\n"
+    "1. <" COLORED_STR(RED,"%s") ">\n"
+    "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
+    iteration,bytesToHexString((uint8_t*)&prng_seeds.batch_layer_seed[0], 
+      sizeof(uint64_t)*16).c_str(),
+    bytesToHexString((uint8_t*)&((prng_seeds.batch_layer_seed)[16]), 
+      sizeof(uint64_t)*16).c_str())
   std::array<uint64_t,16> temp_seed;
-  std::memcpy(temp_seed.data(),&prng_seeds.batch_layer_seed[0],sizeof(uint64_t)*16);
+  std::memcpy(temp_seed.data(),(uint8_t*)&prng_seeds.batch_layer_seed[0],sizeof(uint64_t)*16);
   net_.iter_batch_rng      = std::shared_ptr<PRNG>(new PRNG(temp_seed));
-  std::memcpy(temp_seed.data(),&((prng_seeds.batch_layer_seed)[16]),sizeof(uint64_t)*16);
+  std::memcpy(temp_seed.data(),(uint8_t*)&prng_seeds.batch_layer_seed[16],sizeof(uint64_t)*16);
   net_.layer_rng_deriver = std::shared_ptr<PRNG>(new PRNG(temp_seed));
 
   // LOG_DEBUG("inside\nnet_rng iter state : " COLORED_STR(RED,"%s\n") "layer_rng_deriver iter state: " COLORED_STR(BRIGHT_GREEN,"%s\n"),
@@ -712,8 +880,19 @@ init_net_train_integ_layered(
   auto net_ = load_network(
       (char*)archconfigs.objPtr->mutable_contents()->Data(), nullptr, 1);
   network_ = std::shared_ptr<network>(net_, free_delete());
-  LOG_DEBUG(
+  LOG_OUT(
       "Enclave loaded the network with following values\n"
+      "enclave batch size   : %d\n"
+      "enclave subdiv size  : %d\n"
+      "processings per batch : %d\n",
+      network_->batch,
+      network_->enclave_subdivisions,
+      (network_->batch * network_->enclave_subdivisions))
+  auto verf_net_ = load_network(
+      (char*)archconfigs.objPtr->mutable_contents()->Data(), nullptr, 1);
+  verf_network_ = std::shared_ptr<network>(verf_net_, free_delete());
+  LOG_OUT(
+      "Enclave loaded the verfication network with following values\n"
       "enclave batch size   : %d\n"
       "enclave subdiv size  : %d\n"
       "processings per batch : %d\n",
@@ -726,4 +905,1931 @@ init_net_train_integ_layered(
   // LOG_DEBUG("net_rng iter 0 first int : %d\n",network_->iter_batch_rng->getRandomInt());
   // LOG_DEBUG("layer_rng_deriver iter 0 first int : %d\n",network_->layer_rng_deriver->getRandomInt());
   // LOG_WARN("FIXME!\nnetwork structure and buffers must be managed with care!\n")
+}
+
+std::array<uint64_t, 16> generate_random_seed_from(PRNG &rng) {
+  std::array<uint64_t, 16> temp_seed;
+  std::memset(temp_seed.data(), 0, 16*sizeof(float));
+  for (int j=0;j<16;++j) {
+    temp_seed[j] = rng.getRandomUint64();
+  }
+  return temp_seed;
+}
+
+void setup_layers_iteration_seed(network& net, int iteration) {
+  for (int i=0;i < net.n;++i) {
+    net.layers[i].layer_rng = std::shared_ptr<PRNG>(new PRNG(generate_random_seed_from(*(net.layer_rng_deriver))));
+  }
+}
+
+void apply_weight_updates_convolutional(int                     iteration,
+                                   layer&                  l,
+                                   int                     layer_index,
+                                   sgx_sha_state_handle_t* sha256_handle) {
+  uint64_t total_bytes   = count_layer_paramas_bytes(l);
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_sha(SGX_SHA256_HASH_SIZE, 0);
+  sgx_sha_state_handle_t layer_updates_sha256_handle = nullptr;
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  // load bias updates
+  {
+    start = 0;
+    end = l.bias_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    
+    auto l_bias_updates
+        = l.bias_updates->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_bias_updates.get(),
+        size_bytes,
+        layer_sha.data(),
+        SGX_SHA256_HASH_SIZE);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_bias_updates.get(),
+                              size_bytes,
+                              nullptr);
+    l.bias_updates->setItemsInRange(
+        start,end, l_bias_updates);
+  }
+  // load weight updates
+  {
+    start = 0;
+    end = l.weight_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    auto l_weight_updates
+        = l.weight_updates->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_weight_updates.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_weight_updates.get(),
+                              size_bytes,
+                              nullptr);
+    l.weight_updates->setItemsInRange(
+        start,end, l_weight_updates);
+  }
+
+  // batchnorm updates
+  if (l.batch_normalize) {
+    start = 0;
+    end = l.scale_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    auto l_scale_updates
+        = l.scale_updates->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_scale_updates.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_scale_updates.get(),
+                              size_bytes,
+                              nullptr);
+    l.scale_updates->setItemsInRange(
+        start,end, l_scale_updates);
+
+    auto l_rolling_mean
+        = l.rolling_mean->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_rolling_mean.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_rolling_mean.get(),
+                              size_bytes,
+                              nullptr);
+    l.rolling_mean->setItemsInRange(
+        start,end, l_rolling_mean);
+
+    auto l_rolling_variance
+        = l.rolling_variance->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_rolling_variance.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_rolling_variance.get(),
+                              size_bytes,
+                              nullptr);
+    l.rolling_variance->setItemsInRange(
+        start,end, l_rolling_variance);
+  }
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+ 
+  if (!verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              layer_sha.data(),
+                              nullptr,
+                              0,
+                              nullptr)) {
+    LOG_DEBUG("Layer sha256 computation did not match\n");
+    abort();
+  }
+  // hash is part of the overall hash
+  verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+}
+
+void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_sha_state_handle_t* sha256_handle) {
+  int enclave_update_batch = l.enclave_layered_batch / 2;
+  int q = l.outputs / enclave_update_batch;
+  int r = l.outputs % enclave_update_batch;
+  uint64_t total_bytes   = count_layer_paramas_bytes(l);
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_sha(SGX_SHA256_HASH_SIZE, 0);
+  sgx_sha_state_handle_t layer_updates_sha256_handle = nullptr;
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  // load bias updates
+  {
+    start = 0;
+    end = l.bias_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    auto l_bias_updates
+        = l.bias_updates->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_bias_updates.get(),
+        size_bytes,
+        layer_sha.data(),
+        SGX_SHA256_HASH_SIZE);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_bias_updates.get(),
+                              size_bytes,
+                              nullptr);
+    l.bias_updates->setItemsInRange(
+        start,end, l_bias_updates);
+  }
+
+  // load weight updates
+  {
+    for (int i=0;i<q;++i) {
+      start = i*enclave_update_batch*l.inputs;
+      end = (i+1)*enclave_update_batch*l.inputs;
+      size_bytes = (end - start)*sizeof(float);
+      auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
+      ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_weight_updates.get(),
+        size_bytes,
+        nullptr,
+        0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      buff_ind += size_bytes;
+      verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_weight_updates.get(),
+                              size_bytes,
+                              nullptr);
+      l.weight_updates->setItemsInRange(start, end,l_weight_updates);
+    }
+    if (r > 0) {
+      start = q*enclave_update_batch*l.inputs;
+      end = q*enclave_update_batch*l.inputs+r*l.inputs;
+      size_bytes = (end - start)*sizeof(float);
+      auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
+      ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_weight_updates.get(),
+        size_bytes,
+        nullptr,
+        0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      buff_ind += size_bytes;
+      verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_weight_updates.get(),
+                              size_bytes,
+                              nullptr);
+      l.weight_updates->setItemsInRange(start, end,l_weight_updates);
+    }
+  }
+  // batchnorm updates
+  if (l.batch_normalize) {
+    start = 0;
+    end = l.scale_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    auto l_scale_updates
+        = l.scale_updates->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_scale_updates.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += l.scale_updates->getBufferSize() * sizeof(float);
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_scale_updates.get(),
+                              size_bytes,
+                              nullptr);
+    l.scale_updates->setItemsInRange(
+        start,end, l_scale_updates);
+
+    auto l_rolling_mean
+        = l.rolling_mean->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_rolling_mean.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += l.rolling_mean->getBufferSize() * sizeof(float);
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_rolling_mean.get(),
+                              size_bytes,
+                              nullptr);
+    l.rolling_mean->setItemsInRange(
+        start,end, l_rolling_mean);
+
+    auto l_rolling_variance
+        = l.rolling_variance->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_rolling_variance.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += l.rolling_variance->getBufferSize() * sizeof(float);
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_rolling_variance.get(),
+                              size_bytes,
+                              nullptr);
+    l.rolling_variance->setItemsInRange(
+        start,end, l_rolling_variance);
+  }
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+ 
+  if (!verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              layer_sha.data(),
+                              nullptr,
+                              0,
+                              nullptr)) {
+    LOG_DEBUG("Layer sha256 computation did not match\n");
+    abort();
+  }
+  // hash is part of the overall hash
+  verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+}
+
+void apply_weight_updates_batchnorm(int iteration,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
+  uint64_t total_bytes   = count_layer_paramas_bytes(l);
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_sha(SGX_SHA256_HASH_SIZE, 0);
+  sgx_sha_state_handle_t layer_updates_sha256_handle = nullptr;
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  {
+    start = 0;
+    end = l.scale_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    auto l_scale_updates
+        = l.scale_updates->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_scale_updates.get(),
+        size_bytes,
+        layer_sha.data(),
+        SGX_SHA256_HASH_SIZE);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += l.scale_updates->getBufferSize() * sizeof(float);
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_scale_updates.get(),
+                              size_bytes,
+                              nullptr);
+    l.scale_updates->setItemsInRange(
+        start,end, l_scale_updates);
+
+    auto l_rolling_mean
+        = l.rolling_mean->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_rolling_mean.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += l.rolling_mean->getBufferSize() * sizeof(float);
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_rolling_mean.get(),
+                              size_bytes,
+                              nullptr);
+    l.rolling_mean->setItemsInRange(
+        start,end, l_rolling_mean);
+
+    auto l_rolling_variance
+        = l.rolling_variance->getItemsInRange(0, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)l_rolling_variance.get(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += l.rolling_variance->getBufferSize() * sizeof(float);
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)l_rolling_variance.get(),
+                              size_bytes,
+                              nullptr);
+    l.rolling_variance->setItemsInRange(
+        start,end, l_rolling_variance);
+  }
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+ 
+  if (!verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              layer_sha.data(),
+                              nullptr,
+                              0,
+                              nullptr)) {
+    LOG_DEBUG("Layer sha256 computation did not match\n");
+    abort();
+  }
+  // hash is part of the overall hash
+  verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+}
+
+void apply_clipping_then_update(network* netp) {
+  *netp->seen += netp->batch * (netp->enclave_subdivisions);
+  netp->train     = 1;
+  network     net = *netp;
+  int         i;
+  update_args a   = {0};
+  a.batch         = net.batch * (net.enclave_subdivisions);
+  a.learning_rate = get_current_rate(netp);
+  a.momentum      = net.momentum;
+  a.decay         = net.decay;
+  a.adam          = net.adam;
+  a.B1            = net.B1;
+  a.B2            = net.B2;
+  a.eps           = net.eps;
+  a.grad_clip     = net.gradient_clip;
+  ++*net.t;
+  a.t = *net.t;
+
+  for (i = 0; i < net.n; ++i) {
+    layer l = net.layers[i];
+    // LOG_DEBUG("processing update layer %d of %d with %d weights and %d biases
+    // of type %s\n",i+1,net.n,l.nweights,l.nbiases,
+    //         get_layer_string(l.type))
+    if (l.update) {
+      l.update(l, a);
+    }
+  }
+}
+
+void apply_weight_updates(int iteration,network* net) {
+  // get cmac on report hash
+  // verify and get the report hash
+  auto auth_report = std::vector<uint8_t>(SGX_SHA256_HASH_SIZE, 0);
+  auto mac_report  = std::vector<uint8_t>(SGX_CMAC_MAC_SIZE, 0);
+  additional_auth_data aad_report = {};
+  auto                 ret        = ocall_load_auth_report_frbv(iteration,
+                                         auth_report.data(),
+                                         auth_report.size(),
+                                         mac_report.data(),
+                                         mac_report.size(),
+                                         (uint8_t*)&aad_report,
+                                         sizeof(aad_report));
+
+  CHECK_SGX_SUCCESS(ret, "ocall_load_auth_report_frbv caused problem\n")
+  if (!verify_cmac128_single_round(auth_report.data(),
+                                   auth_report.size(),
+                                   mac_report.data(),
+                                   (uint8_t*)&aad_report,
+                                   sizeof(aad_report))) {
+    LOG_ERROR("could not verify valid cmac for the sh256\n");
+    abort();
+  }
+
+  if (aad_report.type_ != generic_comp_variations::ONLY_COMP
+      || aad_report.session_id != session_id
+      || aad_report.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_w_ts
+                 .comp_or_compsubcomp_id.only_component_id.component_id
+             != iteration
+      || aad_report.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_w_ts.time_stamp
+             != iteration) {
+    LOG_ERROR("aad data not valid\n");
+    abort();  
+  }
+  LOG_DEBUG("apply_weight_updates cmac of sha256 is valid\n");
+  sgx_sha_state_handle_t sha256_handle = nullptr;
+  verify_sha256_mult_rounds(&sha256_handle,nullptr,nullptr,0,nullptr);
+  for (int i=0;i<net->n;++i) {
+    auto &l = net->layers[i];
+    if (l.type == CONVOLUTIONAL) {
+      apply_weight_updates_convolutional(iteration,l,i,&sha256_handle);
+    }
+    else if (l.type == CONNECTED ) {
+      apply_weight_updates_connected(iteration,l,i,&sha256_handle);
+    }
+    else if(l.type == BATCHNORM) {
+      apply_weight_updates_batchnorm(iteration,l,i,&sha256_handle);
+    }
+  }
+  if (!verify_sha256_mult_rounds(&sha256_handle,auth_report.data(),nullptr,0,nullptr)) {
+    LOG_ERROR("overall hash of the layer snapshots cannot be verified!")
+    abort();
+  }
+}
+
+void save_load_params_and_update_snapshot_convolutional_frbv(bool save,int iteration,layer& l,int layer_index) {
+  sgx_cmac_state_handle_t cmac_handle = nullptr;
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_cmac(SGX_CMAC_MAC_SIZE, 0);
+  auto aad = construct_aad_frbv_comp_subcomp_nots(iteration,layer_index);
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  size_t total_bytes = count_layer_paramas_updates_bytes(l);
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, nullptr, 0, nullptr, nullptr, 0);
+  }
+  else {
+    gen_verify_cmac128_multiple_rounds(false,&cmac_handle, nullptr, 0, nullptr, nullptr, 0);
+  }
+  // bias and updates  
+  {
+    start = 0;
+    end = l.biases->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+
+    auto l_biases
+        = l.biases->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_biases.get(), size_bytes, 
+      nullptr, (uint8_t *)(&aad), sizeof(aad));
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_biases.get(),
+      size_bytes, (uint8_t *)(&aad), sizeof(aad), nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_biases.get(),
+      size_bytes, (uint8_t *)(&aad), sizeof(aad), nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_biases.get(), size_bytes, 
+      nullptr, (uint8_t *)(&aad), sizeof(aad));
+      l.biases->setItemsInRange(start,end,l_biases);
+    }
+    buff_ind += size_bytes;
+    
+    auto l_bias_updates
+        = l.bias_updates->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_bias_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_bias_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_bias_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_bias_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.bias_updates->setItemsInRange(start,end,l_bias_updates);
+    }
+    buff_ind += size_bytes;
+  }
+  // weights and updates
+  {
+    start = 0;
+    end = l.weights->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    auto l_weights
+        = l.weights->getItemsInRange(0, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_weights.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weights.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weights.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_weights.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.weights->setItemsInRange(start, end,l_weights);
+    }
+    buff_ind += size_bytes;
+
+    auto l_weight_updates
+        = l.weight_updates->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_weight_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+        size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+        size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_weight_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.weight_updates->setItemsInRange(start, end,l_weight_updates);
+    }
+    buff_ind += size_bytes;
+  }
+  // batchnorm weights and updates
+  if (l.batch_normalize) {
+    // scales
+    start = 0;
+    end = l.scales->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+
+    auto l_scales
+        = l.scales->getItemsInRange(start, end);
+    if(save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_scales.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scales.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scales.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_scales.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.scales->setItemsInRange(start, end, l_scales);
+    }
+    buff_ind += size_bytes;
+  
+    auto l_scale_updates
+        = l.scale_updates->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_scale_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_scale_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      // set items in range!
+      l.scale_updates->setItemsInRange(start, end, l_scale_updates);
+    }
+    buff_ind += size_bytes;
+
+    // rolling mean
+    auto l_rolling_mean
+        = l.rolling_mean->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_rolling_mean.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_rolling_mean.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.rolling_mean->setItemsInRange(start, end, l_rolling_mean);
+    }
+    buff_ind += size_bytes;
+    // rolling variance
+    auto l_rolling_variance
+        = l.rolling_variance->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_rolling_variance.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_rolling_variance.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.rolling_variance->setItemsInRange(start, end, l_rolling_variance);
+    }
+    buff_ind += size_bytes;
+  }
+  if (buff_ind != total_bytes) {
+    LOG_ERROR("size mismatch\n")
+    abort();
+  }
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, nullptr, 0, 
+      layer_cmac.data(), nullptr, 0);
+    ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, 0, nullptr,
+      0, nullptr, 0, layer_cmac.data(), layer_cmac.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+  }
+  else {
+    ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, 0, nullptr,
+      0, nullptr, 0, layer_cmac.data(), layer_cmac.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+    if (!gen_verify_cmac128_multiple_rounds(false,&cmac_handle, nullptr, 0, 
+      layer_cmac.data(), nullptr, 0)) {
+        LOG_ERROR("Layers cmac cannot be verified\n")
+        abort();
+      }
+  }
+  
+}
+
+void save_load_params_and_update_snapshot_connected_frbv(bool save,int iteration,layer& l,int layer_index) {
+  sgx_cmac_state_handle_t cmac_handle = nullptr;
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_cmac(SGX_CMAC_MAC_SIZE, 0);
+  auto aad = construct_aad_frbv_comp_subcomp_nots(iteration,layer_index);
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  size_t total_bytes = count_layer_paramas_updates_bytes(l);
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, nullptr, 0, nullptr, nullptr, 0);
+  }
+  else {
+    gen_verify_cmac128_multiple_rounds(false,&cmac_handle, nullptr, 0, nullptr, nullptr, 0);
+  }
+  int enclave_update_batch = l.enclave_layered_batch / 2;
+  int q = l.outputs / enclave_update_batch;
+  int r = l.outputs % enclave_update_batch;
+  // bias and updates 
+  {
+    start = 0;
+    end = l.biases->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+
+    auto l_biases
+        = l.biases->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_biases.get(), size_bytes, 
+      nullptr, (uint8_t *)(&aad), sizeof(aad));
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_biases.get(),
+      size_bytes, (uint8_t *)(&aad), sizeof(aad), nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_biases.get(),
+      size_bytes, (uint8_t *)(&aad), sizeof(aad), nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_biases.get(), size_bytes, 
+      nullptr, (uint8_t *)(&aad), sizeof(aad));
+      l.biases->setItemsInRange(start,end,l_biases);
+    }
+    buff_ind += size_bytes;
+    
+    auto l_bias_updates
+        = l.bias_updates->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_bias_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_bias_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_bias_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_bias_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.bias_updates->setItemsInRange(start,end,l_bias_updates);
+    }
+    buff_ind += size_bytes;
+  }
+
+  // weights and updates
+  for (int i=0;i<q;++i) {
+    start = i*enclave_update_batch*l.inputs;
+    end = (i+1)*enclave_update_batch*l.inputs;
+    size_bytes = (end - start)*sizeof(float);
+    auto l_weights
+        = l.weights->getItemsInRange(0, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_weights.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weights.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weights.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_weights.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.weights->setItemsInRange(start, end,l_weights);
+    }
+    buff_ind += size_bytes;
+  }
+  if (r > 0) {
+    start = q*enclave_update_batch*l.inputs;
+    end = q*enclave_update_batch*l.inputs+r*l.inputs;
+    size_bytes = (end - start)*sizeof(float);
+
+    auto l_weights
+        = l.weights->getItemsInRange(0, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_weights.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weights.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weights.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_weights.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.weights->setItemsInRange(start, end,l_weights);
+    }
+    buff_ind += size_bytes;
+  }
+  for (int i=0;i<q;++i) {
+    start = i*enclave_update_batch*l.inputs;
+    end = (i+1)*enclave_update_batch*l.inputs;
+    size_bytes = (end - start)*sizeof(float);
+
+    auto l_weight_updates
+        = l.weight_updates->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_weight_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+        size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+        size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_weight_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.weight_updates->setItemsInRange(start, end,l_weight_updates);
+    }
+    buff_ind += size_bytes;
+  }
+  if (r > 0) {
+    start = q*enclave_update_batch*l.inputs;
+    end = q*enclave_update_batch*l.inputs+r*l.inputs;
+    size_bytes = (end - start)*sizeof(float);
+
+    auto l_weight_updates
+        = l.weight_updates->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_weight_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+        size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+        size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_weight_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.weight_updates->setItemsInRange(start, end,l_weight_updates);
+    }
+    buff_ind += size_bytes;
+  }
+  // batchnorm weights and updates
+  if (l.batch_normalize) {
+    // scales
+    start = 0;
+    end = l.scales->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+
+    auto l_scales
+        = l.scales->getItemsInRange(start, end);
+    if(save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_scales.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scales.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scales.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_scales.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.scales->setItemsInRange(start, end, l_scales);
+    }
+    buff_ind += size_bytes;
+  
+    auto l_scale_updates
+        = l.scale_updates->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_scale_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_scale_updates.get(), size_bytes, 
+      nullptr, nullptr,0);
+      // set items in range!
+      l.scale_updates->setItemsInRange(start, end, l_scale_updates);
+    }
+    buff_ind += size_bytes;
+
+    // rolling mean
+    auto l_rolling_mean
+        = l.rolling_mean->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_rolling_mean.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_rolling_mean.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.rolling_mean->setItemsInRange(start, end, l_rolling_mean);
+    }
+    buff_ind += size_bytes;
+    // rolling variance
+    auto l_rolling_variance
+        = l.rolling_variance->getItemsInRange(start, end);
+    if (save) {
+      gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_rolling_variance.get(), size_bytes, 
+      nullptr, nullptr,0);
+      ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+    }
+    else {
+      ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+      size_bytes, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+      gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_rolling_variance.get(), size_bytes, 
+      nullptr, nullptr,0);
+      l.rolling_variance->setItemsInRange(start, end, l_rolling_variance);
+    }
+    buff_ind += size_bytes;
+  }
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, nullptr, 0, 
+      layer_cmac.data(), nullptr, 0);
+    ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, 0, nullptr,
+      0, nullptr, 0, layer_cmac.data(), layer_cmac.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+  }
+  else {
+    ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, 0, nullptr,
+      0, nullptr, 0, layer_cmac.data(), layer_cmac.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+    if (!gen_verify_cmac128_multiple_rounds(false,&cmac_handle, nullptr, 0, 
+      layer_cmac.data(), nullptr, 0)) {
+        LOG_ERROR("Layers cmac cannot be verified\n")
+        abort();
+      }
+  }
+}
+
+void save_load_params_and_update_snapshot_batchnorm_frbv(bool save,int iteration,layer& l,int layer_index) {
+  sgx_cmac_state_handle_t cmac_handle = nullptr;
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_cmac(SGX_CMAC_MAC_SIZE, 0);
+  auto aad = construct_aad_frbv_comp_subcomp_nots(iteration,layer_index);
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  size_t total_bytes = count_layer_paramas_updates_bytes(l);
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, nullptr, 0, nullptr, nullptr, 0);
+  }
+  else {
+    gen_verify_cmac128_multiple_rounds(false,&cmac_handle, nullptr, 0, nullptr, nullptr, 0);
+  }
+  // scales
+  start = 0;
+  end = l.scales->getBufferSize();
+  size_bytes = (end - start)*sizeof(float);
+
+  auto l_scales
+      = l.scales->getItemsInRange(start, end);
+  if(save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_scales.get(), size_bytes, 
+    nullptr, nullptr,0);
+    ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scales.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+  }
+  else {
+    ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scales.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+    gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_scales.get(), size_bytes, 
+    nullptr, nullptr,0);
+    l.scales->setItemsInRange(start, end, l_scales);
+  }
+  buff_ind += size_bytes;
+
+  auto l_scale_updates
+      = l.scale_updates->getItemsInRange(start, end);
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_scale_updates.get(), size_bytes, 
+    nullptr, nullptr,0);
+    ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+  }
+  else {
+    ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+    gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_scale_updates.get(), size_bytes, 
+    nullptr, nullptr,0);
+    // set items in range!
+    l.scale_updates->setItemsInRange(start, end, l_scale_updates);
+  }
+  buff_ind += size_bytes;
+
+  // rolling mean
+  auto l_rolling_mean
+      = l.rolling_mean->getItemsInRange(start, end);
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_rolling_mean.get(), size_bytes, 
+    nullptr, nullptr,0);
+    ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+  }
+  else {
+    ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+    gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_rolling_mean.get(), size_bytes, 
+    nullptr, nullptr,0);
+    l.rolling_mean->setItemsInRange(start, end, l_rolling_mean);
+  }
+  buff_ind += size_bytes;
+  // rolling variance
+  auto l_rolling_variance
+      = l.rolling_variance->getItemsInRange(start, end);
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, (uint8_t*)l_rolling_variance.get(), size_bytes, 
+    nullptr, nullptr,0);
+    ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+  }
+  else {
+    ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+    size_bytes, nullptr, 0, nullptr, 0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+    gen_verify_cmac128_multiple_rounds(false,&cmac_handle, (uint8_t*)l_rolling_variance.get(), size_bytes, 
+    nullptr, nullptr,0);
+    l.rolling_variance->setItemsInRange(start, end, l_rolling_variance);
+  }
+  buff_ind += size_bytes;
+  
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+  if (save) {
+    gen_verify_cmac128_multiple_rounds(true,&cmac_handle, nullptr, 0, 
+      layer_cmac.data(), nullptr, 0);
+    ret = ocall_save_enclaves_layer_params_updates_frbv(iteration, layer_index, 0, nullptr,
+      0, nullptr, 0, layer_cmac.data(), layer_cmac.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_save_enclaves_layer_params_updates_frbv caused problem!\n")
+  }
+  else {
+    ret = ocall_load_enclaves_layer_params_updates_frbv(iteration, layer_index, 0, nullptr,
+      0, nullptr, 0, layer_cmac.data(), layer_cmac.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enclaves_layer_params_updates_frbv caused problem!\n")
+    if (!gen_verify_cmac128_multiple_rounds(false,&cmac_handle, nullptr, 0, 
+      layer_cmac.data(), nullptr, 0)) {
+        LOG_ERROR("Layers cmac cannot be verified\n")
+        abort();
+      }
+  }
+
+}
+
+void save_load_params_and_update_snapshot_frbv(bool save,int iteration, network* net) {
+  
+  for (int i=0;i<net->n;++i) {
+    auto &l = net->layers[i];
+    if (l.type == CONVOLUTIONAL) {
+      save_load_params_and_update_snapshot_convolutional_frbv(save,iteration,l,i);
+    }
+    else if (l.type == CONNECTED ) {
+      save_load_params_and_update_snapshot_connected_frbv(save,iteration,l,i);
+    }
+    else if(l.type == BATCHNORM) {
+      save_load_params_and_update_snapshot_batchnorm_frbv(save,iteration,l,i);
+    }
+  }
+}
+
+float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf_net) {
+  // do forward, backward
+  *verf_net->seen = (iteration-1)*(verf_net->batch)*(verf_net->enclave_subdivisions);
+  verf_net->train = 1;
+  float avg_cost = 0;
+  std::set<int> selected_ids;
+  while(true) {
+    // Load input to the verf_network
+    setup_iteration_inputs_training(selected_ids,verf_net,iteration,verf_net->batch,0,plain_dataset_size);
+    *verf_net->seen += verf_net->batch;
+    forward_network(verf_net);
+    avg_cost += *verf_net->cost;
+    LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
+    backward_network(verf_net);
+    if(((*verf_net->seen)/verf_net->batch)%verf_net->enclave_subdivisions == 0) {
+      break;
+    }
+  }
+  std::string indices = "verification selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+  for (const auto ind:selected_ids) {
+    indices += std::to_string(ind)+",";
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+  return avg_cost/(verf_net->enclave_subdivisions * (verf_net->batch));
+}
+
+bool float_equal(const float a,const float b) {
+  if ((std::fabs(a - b)
+          < 
+          // std::numeric_limits<float>::epsilon()
+          0.01f
+                * std::fmax(std::fabs(a),
+                            std::fabs(b))) || (std::fabs(a - b) < 0.05f)) {
+                              return true;
+                            }
+  return false;
+}
+
+void compare_param_updates_convolutional(int iteration,network* verf_net,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
+  uint64_t total_bytes   = count_layer_paramas_bytes(l);
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_sha(SGX_SHA256_HASH_SIZE, 0);
+  sgx_sha_state_handle_t layer_updates_sha256_handle = nullptr;
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  std::vector<float> temp_vec;
+
+  float max_diff = 0.0f;
+
+  // load bias updates
+  {
+    start = 0;
+    end = l.bias_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    temp_vec.resize((end - start));
+
+    auto l_bias_updates
+        = l.bias_updates->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        layer_sha.data(),
+        SGX_SHA256_HASH_SIZE);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_bias_updates[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_bias_updates[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for bias do not match! Layer %d of type %s, at index %u with difference %f, (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_bias_updates[i]),temp_vec[i],l_bias_updates[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for bias do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+  }
+  // load weight updates
+  {
+    start = 0;
+    end = l.weight_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    temp_vec.resize((end - start));
+
+    auto l_weight_updates
+        = l.weight_updates->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_weight_updates[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_weight_updates[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for weights do not match! Layer %d of type %s, at index %u with difference %f (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_weight_updates[i]),temp_vec[i],l_weight_updates[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for weights do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+  }
+  // batchnorm updates
+  if (l.batch_normalize) {
+    start = 0;
+    end = l.scale_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    temp_vec.resize((end - start));
+
+    auto l_scale_updates
+        = l.scale_updates->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_scale_updates[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for scale updates do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_scale_updates[i]),temp_vec[i],l_scale_updates[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for scale updates do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+
+    auto l_rolling_mean
+        = l.rolling_mean->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_rolling_mean[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for rolling mean do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_mean[i]),temp_vec[i],l_rolling_mean[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for rolling mean do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+
+    auto l_rolling_variance
+        = l.rolling_variance->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_rolling_variance[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for rolling variance do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_variance[i]),temp_vec[i],l_rolling_variance[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for rolling variance do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+  }
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+ 
+  if (!verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              layer_sha.data(),
+                              nullptr,
+                              0,
+                              nullptr)) {
+    LOG_DEBUG("Layer sha256 computation did not match\n");
+    abort();
+  }
+  // hash is part of the overall hash
+  verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+}
+
+void compare_param_updates_connected(int iteration,network* verf_net,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
+  int enclave_update_batch = l.enclave_layered_batch / 2;
+  int q = l.outputs / enclave_update_batch;
+  int r = l.outputs % enclave_update_batch;
+  // LOG_DEBUG(COLORED_STR(BRIGHT_YELLOW, "layer enclave batch for connected is %d with halved:%d,q=%d,r=%d,batch=%d,inputs=%d,outputs=%d\n"),
+  // l.enclave_layered_batch,enclave_update_batch,q,r,l.batch,l.inputs,l.outputs)
+  uint64_t total_bytes   = count_layer_paramas_bytes(l);
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_sha(SGX_SHA256_HASH_SIZE, 0);
+  sgx_sha_state_handle_t layer_updates_sha256_handle = nullptr;
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+
+  float max_diff = 0.0f;
+
+  std::vector<float> temp_vec;
+  // load bias updates
+  {
+    start = 0;
+    end = l.bias_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    temp_vec.resize((end - start));
+
+    auto l_bias_updates
+        = l.bias_updates->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        layer_sha.data(),
+        SGX_SHA256_HASH_SIZE);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_bias_updates[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_bias_updates[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for bias do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_bias_updates[i]),temp_vec[i],l_bias_updates[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for bias do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+  }
+
+  // load weight updates
+  {
+    for (int i=0;i<q;++i) {
+      start = i*enclave_update_batch*l.inputs;
+      end = (i+1)*enclave_update_batch*l.inputs;
+      size_bytes = (end - start)*sizeof(float);
+      temp_vec.resize((end - start));
+      auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
+      ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      buff_ind += size_bytes;
+      verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+      for (uint32_t j = 0; j < (end - start); ++j) {
+        if (!float_equal(temp_vec[j],  l_weight_updates[j])) {
+          auto diff = std::fabs(temp_vec[j] - l_weight_updates[j]);
+          if (diff > max_diff) {
+            max_diff = diff;
+          }
+          // LOG_ERROR("reported updates and computed for weights do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+          //         layer_index,get_layer_string(l.type),j,std::fabs(temp_vec[j] - l_weight_updates[j]),temp_vec[j],l_weight_updates[j])
+          // abort();
+        }
+      }
+    }
+    if (r > 0) {
+      start = q*enclave_update_batch*l.inputs;
+      end = q*enclave_update_batch*l.inputs+r*l.inputs;
+      temp_vec.resize((end - start));
+      size_bytes = (end - start)*sizeof(float);
+      auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
+      ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      buff_ind += size_bytes;
+      verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+      for (uint32_t i = 0; i < (end - start); ++i) {
+        if (!float_equal(temp_vec[i], l_weight_updates[i])) {
+          auto diff = std::fabs(temp_vec[i] - l_weight_updates[i]);
+          if (diff > max_diff) {
+            max_diff = diff;
+          }
+          // LOG_ERROR("reported updates and computed for weights do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+          //         layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_weight_updates[i]),temp_vec[i],l_weight_updates[i])
+          // abort();
+        }
+      }
+    }
+    LOG_DEBUG("reported updates and computed for weights do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+  }
+  // batchnorm updates
+  // batchnorm updates
+  if (l.batch_normalize) {
+    start = 0;
+    end = l.scale_updates->getBufferSize();
+    size_bytes = (end - start)*sizeof(float);
+    temp_vec.resize((end - start));
+
+    auto l_scale_updates
+        = l.scale_updates->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_scale_updates[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for scale updates do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_scale_updates[i]),temp_vec[i],l_scale_updates[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for scale updates do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+
+    auto l_rolling_mean
+        = l.rolling_mean->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_rolling_mean[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for rolling mean do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_mean[i]),temp_vec[i],l_rolling_mean[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for rolling mean do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+
+    auto l_rolling_variance
+        = l.rolling_variance->getItemsInRange(start, end);
+    ret = ocall_load_layer_report_frbv(
+        iteration,
+        layer_index,
+        buff_ind,
+        (uint8_t*)temp_vec.data(),
+        size_bytes,
+        nullptr,
+        0);
+    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    buff_ind += size_bytes;
+    verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              nullptr,
+                              (uint8_t*)temp_vec.data(),
+                              size_bytes,
+                              nullptr);
+    for (uint32_t i = 0; i < (end - start); ++i) {
+      if (!float_equal(temp_vec[i],  l_rolling_variance[i])) {
+        auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
+        // LOG_ERROR("reported updates and computed for rolling variance do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+        //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_variance[i]),temp_vec[i],l_rolling_variance[i])
+        // abort();
+      }
+    }
+    LOG_DEBUG("reported updates and computed for rolling variance do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+    max_diff = 0.0f;
+  }
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+ 
+  if (!verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              layer_sha.data(),
+                              nullptr,
+                              0,
+                              nullptr)) {
+    LOG_DEBUG("Layer sha256 computation did not match\n");
+    abort();
+  }
+  // hash is part of the overall hash
+  verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+}
+
+void compare_param_updates_batchnorm(int iteration,network* verf_net,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
+  uint64_t total_bytes   = count_layer_paramas_bytes(l);
+  size_t       buff_ind = 0;
+  sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
+  std::vector<uint8_t>   layer_sha(SGX_SHA256_HASH_SIZE, 0);
+  sgx_sha_state_handle_t layer_updates_sha256_handle = nullptr;
+  size_t start = 0;
+  size_t end = 0;
+  size_t size_bytes =0;
+  std::vector<float> temp_vec;
+
+  float max_diff = 0.0f;
+
+  start = 0;
+  end = l.scale_updates->getBufferSize();
+  size_bytes = (end - start)*sizeof(float);
+  temp_vec.resize((end - start));
+
+  auto l_scale_updates
+      = l.scale_updates->getItemsInRange(start, end);
+  ret = ocall_load_layer_report_frbv(
+      iteration,
+      layer_index,
+      buff_ind,
+      (uint8_t*)temp_vec.data(),
+      size_bytes,
+      nullptr,
+      0);
+  CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+  buff_ind += size_bytes;
+  verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                            nullptr,
+                            (uint8_t*)temp_vec.data(),
+                            size_bytes,
+                            nullptr);
+  for (uint32_t i = 0; i < (end - start); ++i) {
+    if (!float_equal(temp_vec[i],  l_scale_updates[i])) {
+      auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
+      // LOG_ERROR("reported updates and computed for scale updates do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+      //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_scale_updates[i]),temp_vec[i],l_scale_updates[i])
+      // abort();
+    }
+  }
+  LOG_DEBUG("reported updates and computed for scale updates do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+  max_diff = 0.0f;
+
+  auto l_rolling_mean
+      = l.rolling_mean->getItemsInRange(start, end);
+  ret = ocall_load_layer_report_frbv(
+      iteration,
+      layer_index,
+      buff_ind,
+      (uint8_t*)temp_vec.data(),
+      size_bytes,
+      nullptr,
+      0);
+  CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+  buff_ind += size_bytes;
+  verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                            nullptr,
+                            (uint8_t*)temp_vec.data(),
+                            size_bytes,
+                            nullptr);
+  for (uint32_t i = 0; i < (end - start); ++i) {
+    if (!float_equal(temp_vec[i],  l_rolling_mean[i])) {
+      auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
+      // LOG_ERROR("reported updates and computed for rolling mean do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+      //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_mean[i]),temp_vec[i],l_rolling_mean[i])
+      // abort();
+    }
+  }
+  LOG_DEBUG("reported updates and computed for rolling mean do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+  max_diff = 0.0f;
+
+  auto l_rolling_variance
+      = l.rolling_variance->getItemsInRange(start, end);
+  ret = ocall_load_layer_report_frbv(
+      iteration,
+      layer_index,
+      buff_ind,
+      (uint8_t*)temp_vec.data(),
+      size_bytes,
+      nullptr,
+      0);
+  CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+  buff_ind += size_bytes;
+  verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                            nullptr,
+                            (uint8_t*)temp_vec.data(),
+                            size_bytes,
+                            nullptr);
+  for (uint32_t i = 0; i < (end - start); ++i) {
+    if (!float_equal(temp_vec[i],  l_rolling_variance[i])) {
+      auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
+      // LOG_ERROR("reported updates and computed for rolling variance do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
+      //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_variance[i]),temp_vec[i],l_rolling_variance[i])
+      // abort();
+    }
+  }
+  LOG_DEBUG("reported updates and computed for rolling variance do not match! Layer %d of type %s with and max diff: %f\n",layer_index,get_layer_string(l.type),max_diff);
+  max_diff = 0.0f;
+  if (buff_ind != total_bytes) {
+                LOG_ERROR("size mismatch\n")
+                abort();
+  }
+ 
+  if (!verify_sha256_mult_rounds(&layer_updates_sha256_handle,
+                              layer_sha.data(),
+                              nullptr,
+                              0,
+                              nullptr)) {
+    LOG_DEBUG("Layer sha256 computation did not match\n");
+    abort();
+  }
+  // hash is part of the overall hash
+  verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+}
+
+bool compare_param_updates_with_report_frbv(int iteration, network* verf_net) {
+  
+  // TODO: You can also compare the HASH value instead of comparing one by one
+  // get cmac on report hash
+  // verify and get the report hash
+  auto auth_report = std::vector<uint8_t>(SGX_SHA256_HASH_SIZE, 0);
+  auto mac_report  = std::vector<uint8_t>(SGX_CMAC_MAC_SIZE, 0);
+  additional_auth_data aad_report = {};
+  auto                 ret        = ocall_load_auth_report_frbv(iteration,
+                                         auth_report.data(),
+                                         auth_report.size(),
+                                         mac_report.data(),
+                                         mac_report.size(),
+                                         (uint8_t*)&aad_report,
+                                         sizeof(aad_report));
+
+  CHECK_SGX_SUCCESS(ret, "ocall_load_auth_report_frbv caused problem\n")
+  if (!verify_cmac128_single_round(auth_report.data(),
+                                   auth_report.size(),
+                                   mac_report.data(),
+                                   (uint8_t*)&aad_report,
+                                   sizeof(aad_report))) {
+    LOG_ERROR("could not verify valid cmac for the sh256\n");
+    abort();
+    return false;
+  }
+
+  if (aad_report.type_ != generic_comp_variations::ONLY_COMP
+      || aad_report.session_id != session_id
+      || aad_report.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_w_ts
+                 .comp_or_compsubcomp_id.only_component_id.component_id
+             != iteration
+      || aad_report.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_w_ts.time_stamp
+             != iteration) {
+    LOG_ERROR("aad data not valid\n");
+    abort();  
+    return false;
+  }
+  LOG_DEBUG("apply_weight_updates cmac of sha256 is valid\n");
+  sgx_sha_state_handle_t sha256_handle = nullptr;
+  verify_sha256_mult_rounds(&sha256_handle,nullptr,nullptr,0,nullptr);
+  for (int i=0;i<verf_net->n;++i) {
+    auto &l = verf_net->layers[i];
+    if (l.type == CONVOLUTIONAL) {
+      compare_param_updates_convolutional(iteration, verf_net, l, i,&sha256_handle);
+    }
+    else if (l.type == CONNECTED ) {
+      compare_param_updates_connected(iteration, verf_net, l, i,&sha256_handle);
+    }
+    else if(l.type == BATCHNORM) {
+      compare_param_updates_batchnorm(iteration, verf_net, l, i,&sha256_handle);
+    }
+  }
+  if (!verify_sha256_mult_rounds(&sha256_handle,auth_report.data(),nullptr,0,nullptr)) {
+    LOG_ERROR("overall hash of the layer snapshots cannot be verified!")
+    abort();
+    return false;
+  }
+  return true;
+}
+
+void verify_task_frbv() {
+  verf_task_t verf_task;
+  auto found_task = task_queue.try_dequeue(verf_task);
+  int iteration = verf_task.iter_id;
+  if (found_task) {
+    LOG_DEBUG("Found the task for iteration %d\n",iteration)
+    set_network_batch_randomness(iteration,*verf_network_);
+    setup_layers_iteration_seed(*verf_network_,iteration);
+    if (iteration == 1) {
+      // any other iteration except 1st
+    }
+    else {
+      // load weights and final weight updates form step i - 1
+      LOG_DEBUG(COLORED_STR(RED, "loading weights and updates from previous iteration: %d\n"),iteration-1)
+      save_load_params_and_update_snapshot_frbv(false,iteration-1,verf_network_.get());
+    }
+
+    // do forward, backward
+    auto avg_cost = train_verify_in_enclave_frbv(iteration,network_.get(),verf_network_.get());
+    LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
+    // compare weight updates with with reported ones
+    
+    if (!compare_param_updates_with_report_frbv(iteration,verf_network_.get())){
+
+    }
+    else {
+      LOG_OUT("Verified iteration %d\n",iteration)
+    }
+  }
+}
+
+void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, network* net,
+                                     int iteration, int size,int low,int high) {
+  std::set<int> selected_ids;
+  // LOG_DEBUG("preparing inputs for verification network in iteration %d,low:%d,high:%d\n",iteration,low,high)
+  while (selected_ids.size() < size) {
+    int id = net->iter_batch_rng->getRandomInt(low, high);
+    if (selected_ids_prev.count(id) == 0 && selected_ids_prev.count(id) == 0) {
+      selected_ids_prev.insert(id);
+      selected_ids.insert(id);
+    }
+  }
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  int ind = 0;
+  const auto required_img_elems = dsconfigs.objPtr->img_label_meta()->image_meta()->width() *
+  dsconfigs.objPtr->img_label_meta()->image_meta()->height() *
+  dsconfigs.objPtr->img_label_meta()->image_meta()->channels() ;
+  const auto required_img_bytes = required_img_elems * sizeof(float);
+  const auto required_lbl_elems = dsconfigs.objPtr->img_label_meta()->label_meta()->numClasses();
+  const auto required_lbl_byets = required_lbl_elems * sizeof(float);
+  std::vector<uint8_t> cont_bytes(*plain_image_label_auth_bytes,0);
+  auto net_input = net->input->getItemsInRange(0, net->input->getBufferSize());
+  auto net_truth = net->truth->getItemsInRange(0, net->truth->getBufferSize());
+  for (const auto id : selected_ids) {
+    ret = ocall_load_dec_images(id,cont_bytes.data(),cont_bytes.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_load_dec_images caused problem\n")
+    auto auth_buff = flatbuffers::GetRoot<CMAC128Auth>(cont_bytes.data());
+    auto auth = construct_aad_input_nochange(id);
+    if (!verify_cmac128_single_round(auth_buff->content()->Data(), auth_buff->content()->size(), 
+      auth_buff->mac()->Data(), (uint8_t*)&auth,sizeof(auth))) {
+        LOG_ERROR("cmac12 for image with id %d not verified\n",id);
+        abort();
+    }
+    auto imglabel = flatbuffers::GetRoot<PlainImageLabel>(auth_buff->content()->Data());
+    std::memcpy(net_input.get()+(ind*required_img_elems), imglabel->img_content()->Data(), required_img_bytes);
+
+    if (net->truth) {
+      std::memcpy(net_truth.get()+(ind*required_lbl_elems), imglabel->label_content()->Data(), required_lbl_byets);
+    }
+    ++ind;
+  }
+  net->input->setItemsInRange(0, net->input->getBufferSize(),net_input);
+  net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
+}
+
+void start_training_verification(int iteration) {
+  // sgx_sha256_hash_t report;
+  std::vector<uint8_t> report(SGX_SHA256_HASH_SIZE,0);
+  send_batch_seed_to_gpu(iteration);
+  set_network_batch_randomness(iteration,*network_);
+  setup_layers_iteration_seed(*network_,iteration);
+  auto ret = ocall_gpu_train_report_frbv(iteration,report.data(),SGX_SHA256_HASH_SIZE);
+  CHECK_SGX_SUCCESS(ret, "ocall_gpu_train_report_frbv caused an issue\n");
+  // get a cmac on the report with iteration and put it outisde
+  auto aad_report = construct_aad_frbv_report_nochange_ts(iteration, iteration);
+  sgx_cmac_state_handle_t cmac_handle = nullptr;
+  ret = sgx_cmac128_init(&enclave_cmac_key, &cmac_handle);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_init caused problem!\n")
+  auto auth_report = generate_auth_flatbuff(report, &aad_report, &cmac_handle);
+  ret = sgx_cmac128_close(cmac_handle);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_close caused problem!\n")
+  // save_auth_step_report outside
+  ret = ocall_save_auth_report_frbv(iteration,auth_report.data(),auth_report.size());
+  CHECK_SGX_SUCCESS(ret, "ocall_save_auth_report_frbv caused problem!\n")
+  // apply the computed updates (in GPU) that will be added up to weights step in enclave
+  apply_weight_updates(iteration, network_.get());
+  apply_clipping_then_update(network_.get());
+
+  // snapshot weights and updates afterwards so maybe used for verification
+  save_load_params_and_update_snapshot_frbv(true,iteration,network_.get());
+  
+  // in case you do not want GPU performing update phase, let the GPU get the updates from SGX
+  ret = ocall_use_sgx_new_weights_momentum_grads(iteration);
+  CHECK_SGX_SUCCESS(ret, "ocall_use_sgx_new_weights_momentum_grads caused problem!\n")
+  
+  // check if it should be added to verification queue
+  const auto verf_rand = sgx_root_rng->getRandomFloat(0.0,1.0);
+  verf_task_t task;
+  task.iter_id = iteration;
+  task.verf_ = verf_variations_t::FRBV;
+  std::memcpy(task.task.frvb_task.reported_hash, report.data(), SGX_SHA256_HASH_SIZE);
+  if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
+    task_queue.enqueue(task);
+    LOG_DEBUG("Task has been put for verification!\n")
+    verify_task_frbv();
+  }
+  else {
+    LOG_DEBUG("Task has not been put for verification!\n")
+  }
+  // abort();
+
+  // if q has element try verifying to see
+  // load weights and final weight updates form step i - 1
+  // do forward, backward
+  // compare weight updates with with reported ones
 }

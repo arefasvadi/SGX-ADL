@@ -116,7 +116,12 @@ void set_network_batch_randomness(const int iteration,network & net_);
 
 
 #include "../../third_party/darknet/include/darknet.h"
+char *get_layer_string(LAYER_TYPE a);
 #include "pcg_basic.h"
+
+std::array<uint64_t, 16> generate_random_seed_from(PRNG &rng);
+void setup_layers_iteration_seed(network& net, int iteration);
+
 extern int
 printf(const char *fmt, ...);
 

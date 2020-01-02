@@ -11,7 +11,7 @@
         //"args": ["../test/config/imagenet_sample/resnet152-train-config.json"],
         //"args": ["../test/config/idash/idash-test-config.json"],
 
-        "args": ["--loc", "../test/config/cifar10/run_configs/locations/loc_cifar_small_train_integrity_0.fb", "--tasktype", "train"],
+        "args": ["--loc", "../test/config/cifar10/run_configs/locations/loc_cifar_small_fc_train_integrity_0.fb", "--tasktype", "train"],
         "cwd": "${workspaceRoot}/build",
         "MIMode": "gdb",
         //"miDebuggerPath": "/opt/intel/sdk-2.7/sgxsdk/bin/sgx-gdb",

@@ -56,6 +56,9 @@ sgx_ec256_private_t      enclave_sig_sk_key;
 sgx_ec256_public_t       client_sig_pk_key;
 
 uint64_t session_id;
+uint32_t plain_dataset_size;
+uint32_t integrity_set_dataset_size;
+std::unique_ptr<size_t> plain_image_label_auth_bytes;
 
 FlatBufferedContainerT<TaskConfig> task_config = {};
 FlatBufferedContainerT<DataConfig> dsconfigs   = {};
@@ -68,8 +71,12 @@ std::deque<uint32_t> integ_set_ids;
 
 integrity_set_func                      choose_integrity_set = {};
 std::unique_ptr<net_init_load_net_func> net_init_loader_ptr  = nullptr;
-std::unique_ptr<integ_verf_variations>  verf_scheme_ptr      = nullptr;
+std::unique_ptr<net_context_variations> net_context_ = nullptr;
+
+std::unique_ptr<verf_variations_t>  verf_scheme_ptr      = nullptr;
 std::shared_ptr<network> network_ = nullptr;
+std::shared_ptr<network> verf_network_ = nullptr;
+moodycamel::ConcurrentQueue<verf_task_t> task_queue;
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 static std::shared_ptr<sgt::BlockedBuffer<float, 2>> plain_ds_2d_x;
@@ -758,7 +765,15 @@ void ecall_initial_sort() {
 }
 
 void ecall_start_training() {
-  
+#ifdef USE_SGX_LAYERWISE
+LOG_DEBUG("Starting the training\n")
+if (*net_context_ == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT) {
+  for (int i=1;i<2;++i) {
+    start_training_verification(i);
+  }
+  abort();
+}
+#endif  
 #if 0
   LOG_TRACE("entered in %s\n", __func__)
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -983,7 +998,7 @@ void ecall_handle_gemm_all(int thread_num) {
   if (!task.first.TA && !task.first.TB) {
     // LOG_DEBUG("+calling gemm_nn for thread %d\n", thread_num)
     // gemm_nn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
-    #if 0
+    #if 1
     int i, j, k;
     for (i = task.first.starterM; i < task.first.M; ++i) {
       for (k = 0; k < task.first.K; ++k) {

@@ -38,7 +38,7 @@ elseif(CUSTOM_ENABLE_BLOCKING)
 endif()
 
 option(CUDA_VERBOSE_BUILD "Create verbose CUDA build" ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CUDA_STANDARD 14)
 
 
@@ -238,7 +238,7 @@ add_trusted_library(DARKNET_T
 #    $<$<STREQUAL:${DARKNET_SGX_MODE},SGX_LAYERWISE>:${DARKNET_SOURCE_FILES_SGX_LAYERWISE}>
 #    $<$<STREQUAL:${DARKNET_SGX_MODE},>:${DARKNET_SOURCE_FILES_SGX_BLOCK}>
     ${Trusted_Home}/src/darknet-addons.cpp 
-    ${Trusted_Home}/src/pcg_basic.c
+    ${Trusted_Home}/src/pcg_basic.cpp
   EDL
     ${Trusted_Edl}
   EDL_SEARCH_PATHS
@@ -394,19 +394,29 @@ list(REMOVE_ITEM DARKNET_U_SOURCE_FILES
   third_party/darknet/src/yolo_layer.cpp
 )
 
-add_library(DARKNET_U_GPU STATIC ${DARKNET_GPU_SOURCE_FILES}
-                                 #${DARKNET_SOURCE_FILES}
-                                 #${DARKNET_T_SOURCES}
+add_library(DARKNET_U_GPU SHARED ${DARKNET_GPU_SOURCE_FILES}
+                                 ${DARKNET_U_SOURCE_FILES}
                                  )
 set_target_properties(DARKNET_U_GPU 
-                        PROPERTIES
-                        #INTERPROCEDURAL_OPTIMIZATION TRUE
-                        CUDA_SEPERABLE_COMPILATION ON
-                        POSITION_INDEPENDENT_CODE ON
-                        CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-target_include_directories(DARKNET_U_GPU PRIVATE ${Untrusted_Home}/include  ${CUDA_INCLUDE_DIRS} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-target_link_libraries(DARKNET_U_GPU PRIVATE curand cublas cuda)
-target_compile_definitions(DARKNET_U_GPU PRIVATE -DGPU)
+                      PROPERTIES
+                      #INTERPROCEDURAL_OPTIMIZATION TRUE
+                      CUDA_SEPERABLE_COMPILATION ON
+                      POSITION_INDEPENDENT_CODE ON
+                      CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+target_include_directories(DARKNET_U_GPU PUBLIC ${Untrusted_Home}/include  ${CUDA_INCLUDE_DIRS} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+target_link_libraries(DARKNET_U_GPU PRIVATE curand cublas cudart)
+# ^
+# |
+# cuda 
+# ${CUDA_LIBRARIES}
+# ${CUDA_CUBLAS_LIBRARIES}
+# ${CUDA_curand_LIBRARY}
+
+target_compile_definitions(
+DARKNET_U_GPU 
+  PUBLIC -DGPU -DSGX_VERIFIES 
+  PRIVATE -DONLY_GPU
+)
 #clang_tidy_check(DARKNET_U_GPU)
 attatch_clang_tidy_to_target(DARKNET_U_GPU)
 
@@ -430,7 +440,7 @@ set(App_Cpp_Files
   #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
   #${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
 
-  ${DARKNET_U_SOURCE_FILES}
+  # ${DARKNET_U_SOURCE_FILES}
 
   )
 
@@ -452,10 +462,28 @@ ${CUDA_INCLUDE_DIRS}
 #/usr/include/cryptopp
 #${FOONATHAN_MEMORY_INCLUDE_DIR}
 )
-target_link_libraries(${Untrusted_Lib_Name} PRIVATE DARKNET_U_GPU OpenSSL::Crypto OpenSSL::SSL Threads::Threads  cryptopp
-  #PUBLIC foonathan_memory
+message(STATUS "CUDA_LIBRARIES: ${CUDA_LIBRARIES} CUDA_CUBLAS_LIBRARIES: ${CUDA_CUBLAS_LIBRARIES} CUDA_curand_LIBRARY: ${CUDA_curand_LIBRARY}")
+target_link_libraries(${Untrusted_Lib_Name} 
+PRIVATE
+DARKNET_U_GPU  
+OpenSSL::Crypto 
+# OpenSSL::SSL 
+# Threads::Threads  
+# cryptopp
+# curand 
+# cublas 
+# cudart
+# cuda
+# ${CUDA_LIBRARIES}
+# ${CUDA_CUBLAS_LIBRARIES}
+# ${CUDA_curand_LIBRARY}
+#PUBLIC
+  #foonathan_memory
+
 )
+# target_link_directories(${Untrusted_Lib_Name} PUBLIC /usr/local/cuda/lib64)
 target_compile_definitions(${Untrusted_Lib_Name} PUBLIC -DGPU -DSGX_VERIFIES)
+# add_dependencies(${Untrusted_Lib_Name} ${Trusted_Name})
 attatch_clang_tidy_to_target(${Untrusted_Lib_Name})
 #clang_tidy_check(${Untrusted_Lib_Name})
 
@@ -469,7 +497,19 @@ add_untrusted_executable(
   EDL_SEARCH_PATHS
     ${SGX_SDK}/include
 )
-target_link_libraries(${Untrusted_Name} PRIVATE ${Untrusted_Lib_Name})
+
+# add_executable(${Untrusted_Name} ${Untrusted_Home}/src/main.cpp)
+# target_link_directories(${Untrusted_Name} PUBLIC /usr/local/cuda/lib64)
+target_include_directories(${Untrusted_Name} PRIVATE ${Untrusted_Home}/include ${SGX_INCLUDE_DIR})
+target_link_libraries(${Untrusted_Name} PRIVATE ${Untrusted_Lib_Name}
+# curand 
+# cublas 
+# cudart
+# cuda
+# ${CUDA_LIBRARIES}
+# ${CUDA_CUBLAS_LIBRARIES}
+# ${CUDA_curand_LIBRARY}
+)
 attatch_clang_tidy_to_target(${Untrusted_Name})
 #clang_tidy_check(${Untrusted_Name})
 
@@ -480,16 +520,21 @@ set(TEST_SRC_FILES
   ./test/unittests/Record-tests.cpp
   #./test/unittests/memory-pool-tests.cpp
 )
-add_executable(SGXALDUnitTests ${TEST_SRC_FILES})
-target_include_directories(SGXALDUnitTests PRIVATE ${GTEST_INCLUDE_DIRS} ${SGX_INCLUDE_DIR} 
-#${FOONATHAN_MEMORY_INCLUDE_DIR}
-)
-set_target_properties(SGXALDUnitTests PROPERTIES NTERPROCEDURAL_OPTIMIZATION TRUE)
-target_compile_definitions(SGXALDUnitTests PUBLIC -DGPU -DSGX_VERIFIES)
-target_link_libraries(SGXALDUnitTests PRIVATE ${GTEST_BOTH_LIBRARIES} ${Untrusted_Lib_Name})
-attatch_clang_tidy_to_target(SGXALDUnitTests)
-#clang_tidy_check(SGXALDUnitTests)
-add_test(gtest_unittests SGXALDUnitTests)
+
+# whole test section commented
+
+# add_executable(SGXALDUnitTests ${TEST_SRC_FILES})
+# target_include_directories(SGXALDUnitTests PRIVATE ${GTEST_INCLUDE_DIRS} ${SGX_INCLUDE_DIR} 
+# #${FOONATHAN_MEMORY_INCLUDE_DIR}
+# )
+# set_target_properties(SGXALDUnitTests PROPERTIES NTERPROCEDURAL_OPTIMIZATION TRUE)
+# target_compile_definitions(SGXALDUnitTests PUBLIC -DGPU -DSGX_VERIFIES)
+# target_link_libraries(SGXALDUnitTests PRIVATE ${GTEST_BOTH_LIBRARIES} ${Untrusted_Lib_Name})
+# attatch_clang_tidy_to_target(SGXALDUnitTests)
+# #clang_tidy_check(SGXALDUnitTests)
+# add_test(gtest_unittests SGXALDUnitTests)
+
+# whole test section commented
 
 # Just to see the generated dependencies
 # add_custom_target(graphviz ALL

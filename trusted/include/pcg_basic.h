@@ -33,9 +33,9 @@
 
 #include <inttypes.h>
 
-#if __cplusplus
-extern "C" {
-#endif
+// #if __cplusplus
+// extern "C" {
+// #endif
 
 struct pcg_state_setseq_64 {    // Internals are *Private*.
     uint64_t state;             // RNG state.  All values are possible.
@@ -71,8 +71,8 @@ uint32_t pcg32_random_r(pcg32_random_t* rng);
 uint32_t pcg32_boundedrand(uint32_t bound);
 uint32_t pcg32_boundedrand_r(pcg32_random_t* rng, uint32_t bound);
 
-#if __cplusplus
-}
-#endif
+// #if __cplusplus
+// }
+// #endif
 
 #endif // PCG_BASIC_H_INCLUDED

@@ -23,14 +23,14 @@ else()
 endif()
 
 message(STATUS "the found sgx-sdk root dir is ${SGX_PATH}")
-
+# SGX_COMMON_CFLAGS
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-    set(SGX_COMMON_CFLAGS -m32)
+    set(SGX_COMMON_FLAGS -m32)
     set(SGX_LIBRARY_PATH ${SGX_PATH}/lib32)
     set(SGX_ENCLAVE_SIGNER ${SGX_PATH}/bin/x86/sgx_sign)
     set(SGX_EDGER8R ${SGX_PATH}/bin/x86/sgx_edger8r)
 else()
-    set(SGX_COMMON_CFLAGS "-march=native -m64 -mavx -mavx2 -mssse3 -msse3 -msse4.1 -msse4.2 -msse4a")
+    set(SGX_COMMON_FLAGS "-march=native -m64 -mavx -mavx2 -mssse3 -msse3 -msse4.1 -msse4.2 -msse4a")
     set(SGX_LIBRARY_PATH ${SGX_PATH}/lib64)
     set(SGX_ENCLAVE_SIGNER ${SGX_PATH}/bin/x64/sgx_sign)
     set(SGX_EDGER8R ${SGX_PATH}/bin/x64/sgx_edger8r)
@@ -67,25 +67,32 @@ if(SGX_FOUND)
         set(SGX_TSVC_LIB sgx_tservice_sim)
     endif()
 
-    set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS} -Wpedantic -Wall -Wextra")
-
     if(SGX_MODE STREQUAL "Debug")
-        set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}  -O0 -g -g3 -ggdb -DDEBUG -UNDEBUG -UEDEBUG")
+        set(SGX_COMMON_FLAGS "${SGX_COMMON_FLAGS}  -O0 -g -g3 -ggdb -DDEBUG -UNDEBUG -UEDEBUG")
     elseif(SGX_MODE STREQUAL "PreRelease")
-        set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}  -O3 -UDEBUG -DNDEBUG -DEDEBUG")
+        set(SGX_COMMON_FLAGS "${SGX_COMMON_FLAGS}  -O3 -UDEBUG -DNDEBUG -DEDEBUG")
     elseif(SGX_MODE STREQUAL "Release")
-        set(SGX_COMMON_CFLAGS "${SGX_COMMON_CFLAGS}  -O3 -UDEBUG -DNDEBUG -UEDEBUG")
+        set(SGX_COMMON_FLAGS "${SGX_COMMON_FLAGS}  -O3 -UDEBUG -DNDEBUG -UEDEBUG")
     else()
         message(FATAL_ERROR "SGX_MODE ${SGX_MODE} is not Debug, PreRelease or Release.")
     endif()
 
+    set(SGX_COMMON_FLAGS "${SGX_COMMON_FLAGS} \
+        -Wall -Wextra -Wpedantic -Winit-self -Wpointer-arith -Wreturn-type \
+        -Waddress -Wsequence-point -Wformat-security \
+        -Wmissing-include-dirs -Wfloat-equal -Wundef -Wshadow \
+        -Wcast-align -Wcast-qual -Wconversion -Wredundant-decls")
+    
+    set(SGX_COMMON_CFLAGS "${SGX_COMMON_FLAGS} -Wjump-misses-init -Wstrict-prototypes -Wunsuffixed-float-constants")
+    set(SGX_COMMON_CXXFLAGS "${SGX_COMMON_FLAGS} -Wnon-virtual-dtor")
+
     set(ENCLAVE_INC_FLAGS "-I${SGX_INCLUDE_DIR} -I${SGX_TLIBC_INCLUDE_DIR} -I${SGX_LIBCXX_INCLUDE_DIR} -I${SGX_INTRINSICS_INCLUDE_DIR}")
     set(ENCLAVE_C_FLAGS "${SGX_COMMON_CFLAGS} -nostdinc -fvisibility=hidden -fpie -fstack-protector-strong ${ENCLAVE_INC_FLAGS}")
-    set(ENCLAVE_CXX_FLAGS "${ENCLAVE_C_FLAGS} -nostdinc++")
+    set(ENCLAVE_CXX_FLAGS "${SGX_COMMON_CXXFLAGS} -nostdinc++ -nostdinc -fvisibility=hidden -fpie -fstack-protector-strong ${ENCLAVE_INC_FLAGS}")
 
-    set(APP_INC_FLAGS "-I${SGX_PATH}/include")
+    set(APP_INC_FLAGS "-I${SGX_INCLUDE_DIR}")
     set(APP_C_FLAGS "${SGX_COMMON_CFLAGS} -fPIC -Wno-attributes ${APP_INC_FLAGS}")
-    set(APP_CXX_FLAGS "${APP_C_FLAGS}")
+    set(APP_CXX_FLAGS "${SGX_COMMON_CXXFLAGS} -fPIC -Wno-attributes ${APP_INC_FLAGS}")
 
     function(_build_edl_obj edl edl_search_paths use_prefix)
         get_filename_component(EDL_NAME ${edl} NAME_WE)
@@ -137,7 +144,8 @@ if(SGX_FOUND)
                                                     INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
+        # ${SGX_COMMON_CFLAGS} \
+        target_link_libraries(${target} PRIVATE "-Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
             -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
@@ -184,10 +192,11 @@ if(SGX_FOUND)
         #     string(APPEND EXTLIB_LIST ${EXTLIB})
         #     add_dependencies(${target} ${EXTLIB})
         # endforeach()
-
-        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
+        # ${SGX_COMMON_CFLAGS} \
+        target_link_libraries(${target} PRIVATE "-Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
+            -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
             -Wl,--start-group ${TLIB_LIST} -lsgx_tstdc -lsgx_tcxx -lsgx_tkey_exchange -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
             -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
@@ -270,14 +279,19 @@ if(SGX_FOUND)
         endforeach()
 
         add_library(${target} ${mode} ${SGX_SRCS} ${EDL_U_SRCS})
+        
+        # target_compile_options(${target} PRIVATE "${APP_CXX_FLAGS}")
+        # set_target_properties(${target} PROPERTIES 
+        #     INTERPROCEDURAL_OPTIMIZATION TRUE
+        # )
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS}
                                         INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
-                                         -L${SGX_LIBRARY_PATH} \
+        # ${SGX_COMMON_CFLAGS} \
+        #  -l${SGX_USVC_LIB} \
+        #  -lsgx_ukey_exchange \
+        target_link_libraries(${target} PRIVATE "-L${SGX_LIBRARY_PATH} \
                                          -l${SGX_URTS_LIB} \
-                                         -l${SGX_USVC_LIB} \
-                                         -lsgx_ukey_exchange \
                                          -lpthread")
 
         set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.h")
@@ -317,14 +331,20 @@ if(SGX_FOUND)
         endforeach()
 
         add_executable(${target} ${SGX_SRCS} ${EDL_U_SRCS})
+
+        # target_compile_options(${target} PRIVATE "${APP_CXX_FLAGS}")
+        # set_target_properties(${target} PROPERTIES 
+        #     INTERPROCEDURAL_OPTIMIZATION TRUE
+        # )
+
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS}
                                         INTERPROCEDURAL_OPTIMIZATION TRUE)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
-                                         -L${SGX_LIBRARY_PATH} \
+        # ${SGX_COMMON_CFLAGS} \
+        #  -l${SGX_USVC_LIB} \
+        #  -lsgx_ukey_exchange \
+        target_link_libraries(${target} PRIVATE "-L${SGX_LIBRARY_PATH} \
                                          -l${SGX_URTS_LIB} \
-                                         -l${SGX_USVC_LIB} \
-                                         -lsgx_ukey_exchange \
                                          -lpthread")
 
         set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.h")

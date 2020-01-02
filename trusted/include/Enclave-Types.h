@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include "common-structures.h"
+#include "sgx_tcrypto.h"
 
 typedef struct iteration_randomness_seed_{
   iteration_seed_t it_seed;
@@ -31,11 +32,15 @@ typedef struct integrity_set_func_ {
   integrity_set_select_obliv_variations type_;
 } integrity_set_func;
 
-typedef enum class integ_verf_variations_ {
+typedef enum class verf_variations_t_ {
   FRBV = 0,
   FRBRMMV,
   LVV,
-}integ_verf_variations;
+}verf_variations_t;
+
+typedef struct verf_prob_t_ {
+  float prob = 0;
+}verf_prob_t;
 
 typedef enum class net_context_variations_
 {
@@ -51,7 +56,7 @@ typedef enum class net_context_variations_
 } net_context_variations;
 
 typedef struct net_init_training_integrity_layered_args_ {
-  
+  float verif_prob;
 } net_init_training_integrity_layered_args;
 
 typedef struct net_init_load_net_func_ {
@@ -59,7 +64,10 @@ typedef struct net_init_load_net_func_ {
     void (*init_train_integ_layered)(
         const net_init_training_integrity_layered_args*);
   } invokable;
-  net_context_variations net_context;
+  union {
+    net_init_training_integrity_layered_args init_train_integ_layered_params;
+  }invokable_params;
+  net_context_variations* net_context;
 } net_init_load_net_func;
 
 typedef enum class generic_comp_variations_ {
@@ -96,3 +104,15 @@ typedef struct additional_auth_data_ {
   } comp_compsubcomp_w_wo_ts;
   generic_comp_variations type_;
 } additional_auth_data;
+
+typedef struct verf_task_frbv_t_ {
+  sgx_sha256_hash_t reported_hash;
+}verf_task_frbv_t;
+
+typedef struct verf_task_t_ {
+  int iter_id;
+  union {
+    verf_task_frbv_t frvb_task;
+  } task;
+  verf_variations_t verf_; 
+}verf_task_t;

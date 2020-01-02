@@ -23,13 +23,14 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <unordered_set>
 
 #include "Record/VectorRecordSet.h"
 #include "cryptopp/eccrypto.h"
 #include "cryptopp/osrng.h"
 #include "cryptopp/pubkey.h"
 #include "hexString.h"
-
+#include <openssl/sha.h>
 #define MAX_PATH FILENAME_MAX
 
 //#include "Channel/BasicChannel.hpp"
@@ -94,6 +95,8 @@ FlatBufferedContainerT<TrainLocationsConfigs>   trainlocconfigs = {};
 FlatBufferedContainerT<PredictLocationsConfigs> predlocconfigs = {};
 FlatBufferedContainerT<DataConfig> dsconfigs = {};
 FlatBufferedContainerT<ArchConfig> archconfigs = {};
+train_batch_step_report_snapshot_fbv_t train_iterations_snapshots;
+train_batch_step_snapshot_snapshot_frbv_t enclave_train_iterations_snapshots;
 
 std::unique_ptr<PRNG> pub_root_rng;
 std::deque<std::vector<uint8_t>> enc_integ_set;
@@ -228,6 +231,14 @@ print_log(const char *str) {
   fprintf(stderr, "%s\n", str);
 }
 
+void gen_sha256(const uint8_t* msg, const size_t msg_len, uint8_t* out) {
+  SHA256_CTX sha256;
+  std::memset(out, 0, SHA256_DIGEST_LENGTH);
+  SHA256_Init(&sha256);
+  SHA256_Update(&sha256, msg, msg_len);
+  SHA256_Final(out, &sha256);
+}
+
 void
 main_logger(int level, const char *file, int line, const char *format, ...) {
   char    buf[BUFSIZ] = {'\0'};
@@ -237,46 +248,46 @@ main_logger(int level, const char *file, int line, const char *format, ...) {
   switch (level) {
     case LOG_TYPE_TRACE:
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_CYAN
                       "-------------------------" ANSI_COLOR_RESET "\n");
       buf_ptr = buf_ptr + size;
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_CYAN "[TRACE] -- %s:%d" ANSI_COLOR_RESET "\n",
                       file,
                       line);
       buf_ptr = buf_ptr + size;
 
       va_start(ap, format);
-      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      size    = vsnprintf(buf_ptr, 16*ONE_KB, format, ap);
       buf_ptr = buf_ptr + size;
       va_end(ap);
       size = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_CYAN
                       "-------------------------" ANSI_COLOR_RESET "\n");
       print_log(buf);
       break;
     case LOG_TYPE_DEBUG:
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_MAGENTA
                       "-------------------------" ANSI_COLOR_RESET "\n");
       buf_ptr = buf_ptr + size;
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_MAGENTA "[DEBUG] -- %s:%d" ANSI_COLOR_RESET
                                          "\n",
                       file,
                       line);
       buf_ptr = buf_ptr + size;
       va_start(ap, format);
-      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      size    = vsnprintf(buf_ptr, 16*ONE_KB, format, ap);
       buf_ptr = buf_ptr + size;
       va_end(ap);
       size = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_MAGENTA
                       "-------------------------" ANSI_COLOR_RESET "\n");
       print_log(buf);
@@ -284,22 +295,22 @@ main_logger(int level, const char *file, int line, const char *format, ...) {
 
     case LOG_TYPE_INFO:
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_BLUE
                       "-------------------------" ANSI_COLOR_RESET "\n");
       buf_ptr = buf_ptr + size;
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_BLUE "[INFO] -- %s:%d" ANSI_COLOR_RESET "\n",
                       file,
                       line);
       buf_ptr = buf_ptr + size;
       va_start(ap, format);
-      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      size    = vsnprintf(buf_ptr, 16*ONE_KB, format, ap);
       buf_ptr = buf_ptr + size;
       va_end(ap);
       size = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_BLUE
                       "-------------------------" ANSI_COLOR_RESET "\n");
       print_log(buf);
@@ -307,67 +318,67 @@ main_logger(int level, const char *file, int line, const char *format, ...) {
 
     case LOG_TYPE_WARN:
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_YELLOW
                       "-------------------------" ANSI_COLOR_RESET "\n");
       buf_ptr = buf_ptr + size;
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_YELLOW "[WARNING] -- %s:%d" ANSI_COLOR_RESET
                                         "\n",
                       file,
                       line);
       buf_ptr = buf_ptr + size;
       va_start(ap, format);
-      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      size    = vsnprintf(buf_ptr, 16*ONE_KB, format, ap);
       buf_ptr = buf_ptr + size;
       va_end(ap);
       size = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_YELLOW
                       "-------------------------" ANSI_COLOR_RESET "\n");
       print_log(buf);
       break;
     case LOG_TYPE_ERROR:
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_RED
                       "-------------------------" ANSI_COLOR_RESET "\n");
       buf_ptr = buf_ptr + size;
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_RED "[ERROR] -- %s:%d" ANSI_COLOR_RESET "\n",
                       file,
                       line);
       buf_ptr = buf_ptr + size;
       va_start(ap, format);
-      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      size    = vsnprintf(buf_ptr, 16*ONE_KB, format, ap);
       buf_ptr = buf_ptr + size;
       va_end(ap);
       size = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_RED
                       "-------------------------" ANSI_COLOR_RESET "\n");
       print_log(buf);
       break;
     case LOG_TYPE_OUT:
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_GREEN
                       "-------------------------" ANSI_COLOR_RESET "\n");
       buf_ptr = buf_ptr + size;
       size    = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_GREEN "[OUT] -- %s:%d" ANSI_COLOR_RESET "\n",
                       file,
                       line);
       buf_ptr = buf_ptr + size;
       va_start(ap, format);
-      size    = vsnprintf(buf_ptr, 4096, format, ap);
+      size    = vsnprintf(buf_ptr, 16*ONE_KB, format, ap);
       buf_ptr = buf_ptr + size;
       va_end(ap);
       size = snprintf(buf_ptr,
-                      4096,
+                      16*ONE_KB,
                       ANSI_COLOR_GREEN
                       "-------------------------" ANSI_COLOR_RESET "\n");
       print_log(buf);
@@ -583,7 +594,6 @@ void ocall_add_rand_integset(uint8_t* enc_integ, size_t enc_integ_len) {
 
 }
 
-
 void ocall_add_dec_images(uint8_t* dec_image, size_t dec_len) {
   // We need to have a policy for storage of rand integset!
   // on disk or in memory!
@@ -591,6 +601,11 @@ void ocall_add_dec_images(uint8_t* dec_image, size_t dec_len) {
   std::memcpy(image_in.data(), dec_image, dec_len);
   dec_img_set.emplace_back(std::move(image_in));
 }
+
+void ocall_load_dec_images(uint32_t ind,uint8_t* dec_image, size_t dec_len) {
+  // LOG_DEBUG("ocall_load_dec_images requested size %lu vs real size %lu for index %d\n",dec_len,dec_img_set[ind].size(),ind)
+  std::memcpy(dec_image, dec_img_set[ind].data(), dec_len);
+} 
 
 
 void
@@ -981,41 +996,493 @@ ocall_generate_recset(int         rec_set_type,
 //   LOG_DEBUG("provided root seed from enclave:\n<\"%s\">\n",hex_seed.c_str())
 // }
 
-void ocall_gpu_get_iteration_seed(int iteration,
-       uint8_t* batch_seed, 
-       size_t batch_seed_len,
-       uint8_t* layers_seed,
-       size_t layers_seed_len) {
-
-std::array<uint64_t,16> temp_seed;
-// LOG_DEBUG("for batch %d, the generated seeds for PRNGs are recieved from enclave:\n"
-//     "1. <" COLORED_STR(RED,"%s") ">\n"
-//     "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
-//     iteration,bytesToHexString(batch_seed, 
-//       batch_seed_len).c_str(),
-//     bytesToHexString(layers_seed, 
-//       layers_seed_len).c_str())
-if (network_) {
-  std::memcpy(temp_seed.data(),batch_seed,batch_seed_len);
-  network_->iter_batch_rng = 
-  std::shared_ptr<PRNG>(new PRNG(temp_seed));
-  std::memcpy(temp_seed.data(),layers_seed,layers_seed_len);
-  network_->layer_rng_deriver = std::shared_ptr<PRNG>(new PRNG(temp_seed));
+void
+ocall_gpu_get_iteration_seed(int      iteration,
+                             uint8_t *batch_seed,
+                             size_t   batch_seed_len,
+                             uint8_t *layers_seed,
+                             size_t   layers_seed_len) {
+  std::array<uint64_t, 16> temp_seed;
+  LOG_DEBUG("for batch %d, the generated seeds for PRNGs are recieved from enclave:\n"
+      "1. <" COLORED_STR(RED,"%s") ">\n"
+      "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
+      iteration,bytesToHexString(batch_seed,
+        batch_seed_len).c_str(),
+      bytesToHexString(layers_seed,
+        layers_seed_len).c_str())
+  if (network_) {
+    std::memcpy(temp_seed.data(), batch_seed, batch_seed_len);
+    network_->iter_batch_rng = std::shared_ptr<PRNG>(new PRNG(temp_seed));
+    std::memcpy(temp_seed.data(), layers_seed, layers_seed_len);
+    network_->layer_rng_deriver = std::shared_ptr<PRNG>(new PRNG(temp_seed));
+    setup_layers_iteration_seed(*network_, iteration);
+  } else {
+    LOG_WARN(
+        "FIXME!\nInconsistent API -- either change the net directly or "
+        "variables\n")
+    // this is the first call to set init weights for training
+    LOG_DEBUG("Received the iteration 0 seeds!\n")
+    std::memcpy(temp_seed.data(), batch_seed, batch_seed_len);
+    batch_inp_rng = std::shared_ptr<PRNG>(new PRNG(temp_seed));
+    std::memcpy(temp_seed.data(), layers_seed, layers_seed_len);
+    batch_layers_rng = std::shared_ptr<PRNG>(new PRNG(temp_seed));
+    prepare_gpu();
+  }
 }
-else {
-  LOG_DEBUG("FIXME!\nInconsistent API -- either change the net directly or variables\n")
-  // this is the first call to set init weights for training
-  LOG_DEBUG("Received the iteration 0 seeds!\n")
-  std::memcpy(temp_seed.data(),batch_seed,batch_seed_len);
-  batch_inp_rng = 
-  std::shared_ptr<PRNG>(new PRNG(temp_seed));
-  std::memcpy(temp_seed.data(),layers_seed,layers_seed_len);
-  batch_layers_rng = std::shared_ptr<PRNG>(new PRNG(temp_seed));
-  prepare_gpu();
+
+void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, int iteration, int size,int low,int high) {
+  
+  // LOG_DEBUG("size:%d,low:%d,high:%d,\nnet_batch:%d,net_inputs:%d,net_truths:%d\n",
+  //   size,low,high,network_->batch,network_->inputs,network_->truths);
+  std::set<int> selected_ids;
+  while (selected_ids.size() < size) {
+    int id = network_->iter_batch_rng->getRandomInt(low, high);
+    if (selected_ids_prev.count(id) == 0 && selected_ids_prev.count(id) == 0) {
+      selected_ids_prev.insert(id);
+      selected_ids.insert(id);
+    }
+  }
+  // LOG_DEBUG("selected_ids size:%d\n",selected_ids.size());
+  int ind = 0;
+  const auto required_img_elems = dsconfigs.objPtr->img_label_meta()->image_meta()->width() *
+  dsconfigs.objPtr->img_label_meta()->image_meta()->height() *
+  dsconfigs.objPtr->img_label_meta()->image_meta()->channels() ;
+  const auto required_img_bytes = required_img_elems * sizeof(float);
+  const auto required_lbl_elems = dsconfigs.objPtr->img_label_meta()->label_meta()->numClasses();
+  const auto required_lbl_byets = required_lbl_elems* sizeof(float);
+  for (const auto id : selected_ids) {
+    // LOG_DEBUG("here index:%d,id:%d\n",ind,id)
+    const auto cont_bytes = dec_img_set.at(id);
+    const auto auth_buff = flatbuffers::GetRoot<CMAC128Auth>(cont_bytes.data());
+    const auto imglabel = flatbuffers::GetRoot<PlainImageLabel>(auth_buff->content()->Data());
+    std::memcpy(network_->input+(ind*required_img_elems), imglabel->img_content()->Data(), required_img_bytes);
+    if (network_->truth) {
+      std::memcpy(network_->truth+(ind*required_lbl_elems), imglabel->label_content()->Data(), required_lbl_byets);
+    }
+    // LOG_DEBUG("finished index:%d,id:%d\n",ind,id)
+    ++ind;
+  }
 }
 
+void
+forward_network_frbv(network *netp) {
+  network net = *netp;
+  cuda_set_device(net.gpu_index);
+  cuda_push_array(net.input_gpu, net.input, net.inputs * net.batch);
+  if (net.truth) {
+    cuda_push_array(net.truth_gpu, net.truth, net.truths * net.batch);
+  }
+  int i;
+  for (i = 0; i < net.n; ++i) {
+    net.index = i;
+    layer l   = net.layers[i];
+    // LOG_DEBUG("GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+    if (l.delta_gpu) {
+      // LOG_DEBUG("layer has delta! GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+      fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
+    }
+    l.forward_gpu_sgx_verifies(l, net);
+    net.input_gpu = l.output_gpu;
+    net.input     = l.output;
+    if (l.truth) {
+      net.truth_gpu = l.output_gpu;
+      net.truth     = l.output;
+    }
+    // LOG_DEBUG("finished GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+  }
+  pull_network_output(netp);
+  if (netp->train) {
+    calc_network_cost(netp);
+  }
+}
+
+void
+backward_network_frbv(network *netp) {
+  int     i;
+  network net  = *netp;
+  network orig = net;
+  cuda_set_device(net.gpu_index);
+  for (i = net.n - 1; i >= 0; --i) {
+    layer l = net.layers[i];
+    // LOG_DEBUG("GPU sgx verifies backward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+    if (l.stopbackward)
+      break;
+    if (i == 0) {
+      net = orig;
+    } else {
+      layer prev    = net.layers[i - 1];
+      net.input     = prev.output;
+      net.delta     = prev.delta;
+      net.input_gpu = prev.output_gpu;
+      net.delta_gpu = prev.delta_gpu;
+    }
+    net.index = i;
+    l.backward_gpu_sgx_verifies(l, net);
+    // LOG_DEBUG("finished GPU sgx verifies backward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+  }
+}
+
+void
+update_network_frbv(network *netp,bool perform_gpu_update) {
+  network net = *netp;
+  cuda_set_device(net.gpu_index);
+  int         i;
+  update_args a   = {0};
+  a.batch         = net.batch * net.subdivisions;
+  a.learning_rate = get_current_rate(netp);
+  a.momentum      = net.momentum;
+  a.decay         = net.decay;
+  a.adam          = net.adam;
+  a.B1            = net.B1;
+  a.B2            = net.B2;
+  a.eps           = net.eps;
+  a.grad_clip     = net.gradient_clip;
+  ++*net.t;
+  a.t = (*net.t);
+  if (perform_gpu_update) {
+    for (i = 0; i < net.n; ++i) {
+      layer l = net.layers[i];
+      if (l.update_gpu_sgx_verifies) {
+        // LOG_DEBUG("GPU sgx verifies update layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+        l.update_gpu_sgx_verifies(l, a);
+        // LOG_DEBUG("finished GPU sgx verifies update layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+      }
+    }
+  }
+}
+
+void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
+  float avg_cost = 0;
+  std::set<int> selected_ids;
+  network_->train = 1;
+  while (true) {
+    // prepare batch
+    setup_iteration_inputs_training(selected_ids,
+      iteration, network_->batch, 0, dec_img_set.size());
+    *(network_->seen) += network_->batch;
+    // forward gpu
+    LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
+    forward_network_frbv(network_.get());
+    avg_cost += *network_->cost;
+    // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
+    LOG_DEBUG("GPU: finished call forward\n")
+    // backward gpu
+    LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
+    backward_network_frbv(network_.get());
+    LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
+    if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
+      LOG_DEBUG(COLORED_STR(BRIGHT_RED,"GPU Step: average cost for iteration %d is : %f\n"),iteration,avg_cost/(network_->subdivisions * (network_->batch)))
+      break;
+    }
+  }
+  // get snapshot -- since we're taking weight updates we should do it here before applying update
+  prepare_train_snapshot_frbv(iteration);
+  uint8_t *rep
+      = train_iterations_snapshots.step_net_reports[iteration].net_sha256.data();
+  // LOG_DEBUG("rep pointer is null==%d and report pointer is null==%d\n",(rep == nullptr),(report==nullptr))
+  std::memcpy(report, rep, SHA256_DIGEST_LENGTH);
+  report_len = SHA256_DIGEST_LENGTH;
+  // update gpu
+  // LOG_DEBUG("GPU: starting to call update for iteration %d\n", iteration)
+  // update_network_frbv(network_.get(),true);
+  // LOG_DEBUG("GPU: finished to call update for iteration %d\n", iteration)
+  // instead we get the updated waits from sgx!
+  std::string indices = "GPU selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+  for (const auto ind:selected_ids) {
+    indices += std::to_string(ind)+",";
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+  // std::exit(1);
 
 }
+
+void
+ocall_gpu_train_report_frbv(int iteration, uint8_t *report, size_t report_len) {
+  // train for one batch
+  if (!network_) {
+    LOG_ERROR("net empty\n");
+    abort();
+  }
+  if (network_->gpu_index >= 0) {
+    LOG_DEBUG("net gpu index: %d\n", network_->gpu_index); 
+    train_network_frbv(iteration,report,report_len);
+  }
+  
+}
+
+void use_sgx_new_weights_momentum_grads_convolutional(int iteration,layer& l,int layer_index) {
+  auto& iter_snapshot = enclave_train_iterations_snapshots.step_net_reports[iteration];
+  auto& layer_snapshot = iter_snapshot.net_layers_reports[layer_index];
+  size_t       buff_ind = 0;
+  size_t size_bytes =0;
+  size_t total_bytes = count_layer_paramas_updates_bytes(l);
+  
+  // bias and updates
+  size_bytes = l.nbiases*sizeof(float);
+  
+  std::memcpy(l.biases, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.biases_gpu, l.biases, l.nbiases);
+  buff_ind += size_bytes;
+
+  std::memcpy(l.bias_updates, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.nbiases);
+  buff_ind += size_bytes;
+
+  // weights and updates
+  size_bytes = (l.nweights)*sizeof(float);
+  std::memcpy(l.weights, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.weights_gpu, l.weights, l.nweights);
+  buff_ind += size_bytes;
+
+  std::memcpy(l.weight_updates, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.nweights);
+  buff_ind += size_bytes;
+  // batchnorm weights and updates
+  if (l.batch_normalize) {
+    size_bytes = l.nbiases *sizeof(float);
+    std::memcpy(l.scales, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.scales_gpu, l.scales, l.nbiases);
+    buff_ind += size_bytes;
+
+    std::memcpy(l.scale_updates, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.scale_updates_gpu, l.scale_updates, l.nbiases);
+    buff_ind += size_bytes;
+
+    std::memcpy(l.rolling_mean, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.rolling_mean_gpu, l.rolling_mean, l.nbiases);
+    buff_ind += size_bytes;
+
+    std::memcpy(l.rolling_variance, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.rolling_variance_gpu, l.rolling_variance, l.nbiases);
+    buff_ind += size_bytes;
+  }
+  if (buff_ind != total_bytes) {
+    LOG_ERROR("size mismatch\n")
+    abort();
+  }
+}
+
+void use_sgx_new_weights_momentum_grads_connected(int iteration,layer& l,int layer_index) {
+  auto& iter_snapshot = enclave_train_iterations_snapshots.step_net_reports[iteration];
+  auto& layer_snapshot = iter_snapshot.net_layers_reports[layer_index];
+  size_t       buff_ind = 0;
+  size_t size_bytes =0;
+  size_t total_bytes = count_layer_paramas_updates_bytes(l);
+  
+  // bias and updates
+  size_bytes = l.nbiases*sizeof(float);
+  
+  std::memcpy(l.biases, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.biases_gpu, l.biases, l.nbiases);
+  buff_ind += size_bytes;
+
+  std::memcpy(l.bias_updates, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.nbiases);
+  buff_ind += size_bytes;
+
+  // weights and updates
+  size_bytes = (l.nweights)*sizeof(float);
+  std::memcpy(l.weights, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.weights_gpu, l.weights, l.nweights);
+  buff_ind += size_bytes;
+
+  std::memcpy(l.weight_updates, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.nweights);
+  buff_ind += size_bytes;
+  // batchnorm weights and updates
+  if (l.batch_normalize) {
+    size_bytes = l.nbiases *sizeof(float);
+    std::memcpy(l.scales, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.scales_gpu, l.scales, l.nbiases);
+    buff_ind += size_bytes;
+
+    std::memcpy(l.scale_updates, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.scale_updates_gpu, l.scale_updates, l.nbiases);
+    buff_ind += size_bytes;
+
+    std::memcpy(l.rolling_mean, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.rolling_mean_gpu, l.rolling_mean, l.nbiases);
+    buff_ind += size_bytes;
+
+    std::memcpy(l.rolling_variance, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+    cuda_push_array(l.rolling_variance_gpu, l.rolling_variance, l.nbiases);
+    buff_ind += size_bytes;
+  }
+  if (buff_ind != total_bytes) {
+    LOG_ERROR("size mismatch\n")
+    abort();
+  }
+}
+
+void use_sgx_new_weights_momentum_grads_batchnorm(int iteration,layer& l,int layer_index) {
+  auto& iter_snapshot = enclave_train_iterations_snapshots.step_net_reports[iteration];
+  auto& layer_snapshot = iter_snapshot.net_layers_reports[layer_index];
+  size_t       buff_ind = 0;
+  size_t size_bytes =0;
+  size_t total_bytes = count_layer_paramas_updates_bytes(l);
+  size_bytes = l.c *sizeof(float);
+  std::memcpy(l.scales, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.scales_gpu, l.scales, l.c);
+  buff_ind += size_bytes;
+
+  std::memcpy(l.scale_updates, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.scale_updates_gpu, l.scale_updates, l.c);
+  buff_ind += size_bytes;
+
+  std::memcpy(l.rolling_mean, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.rolling_mean_gpu, l.rolling_mean, l.c);
+  buff_ind += size_bytes;
+
+  std::memcpy(l.rolling_variance, &layer_snapshot.layer_params_updates_bytes[buff_ind], size_bytes);
+  cuda_push_array(l.rolling_variance_gpu, l.rolling_variance, l.c);
+  buff_ind += size_bytes;
+  if (buff_ind != total_bytes) {
+    LOG_ERROR("size mismatch\n")
+    abort();
+  }
+}
+
+void ocall_use_sgx_new_weights_momentum_grads(int iteration) {
+  for (int i=0;i<network_->n;++i) {
+    auto &l = network_->layers[i];
+    if (l.type == CONVOLUTIONAL) {
+      use_sgx_new_weights_momentum_grads_convolutional(iteration,l,i);
+    }
+    else if (l.type == CONNECTED ) {
+      use_sgx_new_weights_momentum_grads_connected(iteration,l,i);
+    }
+    else if(l.type == BATCHNORM) {
+      use_sgx_new_weights_momentum_grads_batchnorm(iteration,l,i);
+    }
+  }
+}
+
+void
+ocall_load_layer_report_frbv(int      iteration,
+                             int      layer_index,
+                             size_t      start,
+                             uint8_t *buff,
+                             size_t   buff_len,
+                             uint8_t *layer_sha,
+                             size_t   layer_sha_len) {
+  const auto &layer_rep = train_iterations_snapshots.step_net_reports[iteration]
+                              .net_layers_reports[layer_index];
+  if (layer_sha != nullptr) {
+    std::memcpy(
+        layer_sha, layer_rep.layer_updates_sha256.data(), layer_sha_len);
+  }
+  if (buff!=nullptr) {
+    // LOG_DEBUG("ocall_load_layer_report_frbv for index %lu with size %lu and buff len %lu\n",start,layer_rep.layer_updates_bytes.size(),buff_len);
+    std::memcpy(buff, &layer_rep.layer_updates_bytes[start], buff_len);
+    // LOG_DEBUG("ocall_load_layer_report_frbv for index %lu\n",start);
+  }
+}
+
+void ocall_load_auth_report_frbv(int iteration,uint8_t* auth_report,size_t report_len,
+          uint8_t* mac, size_t mac_len, uint8_t* aad, size_t aad_len) {
+  auto auth_flatbuffer = flatbuffers::GetRoot<CMAC128Auth>(train_iterations_snapshots.step_net_reports[iteration].auth_net_sha256.data());
+  if (report_len != auth_flatbuffer->content()->size()) {
+    LOG_ERROR("Unexpected size mismatch\n");
+    abort();
+  }
+  std::memcpy(auth_report, auth_flatbuffer->content()->Data(), report_len);
+  if (mac_len != auth_flatbuffer->mac()->size()) {
+    LOG_ERROR("Unexpected size mismatch\n");
+    abort();
+  }
+  std::memcpy(mac, auth_flatbuffer->mac()->Data(), auth_flatbuffer->mac()->size());
+  if (aad_len != auth_flatbuffer->aad()->size()) {
+    LOG_ERROR("Unexpected size mismatch\n");
+    abort();
+  }
+  std::memcpy(aad, auth_flatbuffer->aad()->Data(), auth_flatbuffer->aad()->size());
+}
+
+void ocall_save_auth_report_frbv(int iteration,uint8_t* auth_report,size_t report_len) {
+
+  auto auth_rep = std::vector<uint8_t>(report_len,0);
+  std::memcpy(auth_rep.data(), auth_report, report_len);
+  train_iterations_snapshots.step_net_reports[iteration].auth_net_sha256 = std::move(auth_rep);
+}
+
+void
+ocall_save_enclaves_layer_params_updates_frbv(int      iteration,
+                                              int      layer_index,
+                                              size_t   start,
+                                              uint8_t *buff,
+                                              size_t   buff_len,
+                                              uint8_t* aad,
+                                              size_t aad_len,
+                                              uint8_t *layer_cmac,
+                                              size_t   layer_cmac_len) {
+  if (enclave_train_iterations_snapshots.step_net_reports.count(iteration) == 0) {
+    enclave_train_iterations_snapshots.step_net_reports[iteration] = network_batch_step_snapshot_frbv_t{};
+  }
+  auto& iter_snapshot = enclave_train_iterations_snapshots.step_net_reports[iteration];
+  if (iter_snapshot.net_layers_reports.count(layer_index) == 0) {
+    iter_snapshot.net_layers_reports[layer_index] = layer_batch_step_snapshot_frbv_t{};
+    iter_snapshot.net_layers_reports[layer_index].aad = std::vector<uint8_t>(0);
+    iter_snapshot.net_layers_reports[layer_index].layer_cmac_128 = std::vector<uint8_t>(AES_CMAC_TAG_SIZE,0);
+    iter_snapshot.net_layers_reports[layer_index].layer_params_updates_bytes = std::vector<uint8_t>(buff_len,0);
+  }
+  auto& layer_snapshot = iter_snapshot.net_layers_reports[layer_index];
+  if (aad != nullptr && layer_snapshot.aad.size() == 0) {
+    layer_snapshot.aad.resize(aad_len);
+    std::memcpy(layer_snapshot.aad.data(), aad, aad_len);
+  }
+  if (layer_cmac != nullptr) {
+    assert(AES_CMAC_TAG_SIZE == layer_cmac_len);
+    std::memcpy(layer_snapshot.layer_cmac_128.data(), layer_cmac,layer_cmac_len);
+  }
+  if (buff != nullptr) {
+    if (layer_snapshot.layer_params_updates_bytes.size() < start + buff_len) {
+      layer_snapshot.layer_params_updates_bytes.resize(start+buff_len);
+    }
+    std::memcpy(&layer_snapshot.layer_params_updates_bytes[start], buff, buff_len);
+  }
+}
+
+void
+ocall_load_enclaves_layer_params_updates_frbv(int      iteration,
+                                              int      layer_index,
+                                              size_t   start,
+                                              uint8_t *buff,
+                                              size_t   buff_len,
+                                              uint8_t* aad,
+                                              size_t aad_len,
+                                              uint8_t *layer_cmac,
+                                              size_t   layer_cmac_len) {
+  
+  auto& iter_snapshot = enclave_train_iterations_snapshots.step_net_reports[iteration];
+  auto& layer_snapshot = iter_snapshot.net_layers_reports[layer_index];
+  if (aad != nullptr) {
+    std::memcpy(aad,layer_snapshot.aad.data(), aad_len);
+  }
+  if (layer_cmac != nullptr) {
+    assert(AES_CMAC_TAG_SIZE == layer_cmac_len);
+    std::memcpy(layer_cmac,layer_snapshot.layer_cmac_128.data(),layer_cmac_len);
+  }
+  if (buff != nullptr) {
+    std::memcpy(buff,&layer_snapshot.layer_params_updates_bytes[start], buff_len);
+  }
+}
+
+std::array<uint64_t, 16> generate_random_seed_from(PRNG &rng) {
+  std::array<uint64_t, 16> temp_seed;
+  std::memset(temp_seed.data(), 0, 16*sizeof(float));
+  for (int j=0;j<16;++j) {
+    temp_seed[j] = rng.getRandomUint64();
+  }
+  return temp_seed;
+}
+
+void setup_layers_iteration_seed(network& net, int iteration) {
+  for (int i=0;i < net.n;++i) {
+    net.layers[i].layer_rng = std::shared_ptr<PRNG>(new PRNG(generate_random_seed_from(*(net.layer_rng_deriver))));
+  }
+}
+
 
 void
 parse_location_configs(const std::string &location_conf_file,
@@ -1136,17 +1603,31 @@ prepare_enclave(const std::string &location_conf_file,
   load_sec_keys_into_enclave();
   load_task_config_into_enclave();
   load_dataset_config_into_enclave();
-  load_network_config_into_enclave();  
+  load_network_config_into_enclave();
+  start_task();  
+}
+
+void start_task() {
+  if (trainlocconfigs.objPtr != nullptr) {
+    // fire verification thread inside enclave first
+    auto res = ecall_start_training(global_eid);
+    CHECK_SGX_SUCCESS(res, "ecall_start_training caused problem!\n")
+  }
+  else {
+    LOG_ERROR("Not implemented\n")
+    abort();
+  }
 }
 
 void
 prepare_gpu() {
 #if defined(GPU) && defined(SGX_VERIFIES)
+  cuda_set_device(gpu_index);
   auto net_ = load_network(
       (char *)archconfigs.objPtr->mutable_contents()->Data(), NULL, 1);
  network_
       = std::shared_ptr<network>(net_, free_delete());
-  LOG_DEBUG(
+  LOG_OUT(
       "GPU loaded the network with following values\n"
       "GPU batch size   : %d\n"
       "GPU subdiv size  : %d\n"
@@ -1154,7 +1635,7 @@ prepare_gpu() {
       network_->batch,
       network_->subdivisions,
       (network_->batch * network_->subdivisions))
-  
+  prepare_train_snapshot_frbv(0);
   // LOG_DEBUG("net_rng iter state : " COLORED_STR(RED,"%s\n") "layer_rng_deriver iter state: " COLORED_STR(BRIGHT_GREEN,"%s\n"),bytesToHexString((const uint8_t*)network_->iter_batch_rng->getState().data(),sizeof(uint64_t)*16).c_str(),bytesToHexString((const uint8_t*)network_->layer_rng_deriver->getState().data(),sizeof(uint64_t)*16).c_str());
 
   // LOG_DEBUG("net_rng iter 0 first int : %d\n",network_->iter_batch_rng->getRandomInt());
@@ -1164,6 +1645,51 @@ prepare_gpu() {
       "This program needs to be compiled with following flags:\n"
       "-DGPU and -DSGX_VERIFIES")
 #endif
+}
+
+void
+prepare_train_snapshot_frbv(int iter_num) {
+  LOG_DEBUG("preparing snapshot for iteration %d and gpu index index: %d\n",iter_num,network_->gpu_index);
+  uint8_t *                                buff        = nullptr;
+  uint8_t *                                buff_sha256 = nullptr;
+  network_batch_step_report_snapshot_fbv_t network_iter_report;
+  // create initial sha256 for this step
+  auto net_sha256 = std::vector<uint8_t>(SHA256_DIGEST_LENGTH,0);
+  std::vector<uint8_t> temp_net_sha256;
+
+  // first item is the iteration number
+  temp_net_sha256.reserve(64);
+  // No need. It will be cmaced in enclave
+  // {
+  //   uint8_t* iter_ptr = (uint8_t*)&iter_num;
+  //   for (int j=0;j < sizeof(iter_num);++j) {
+  //     temp_net_sha256.push_back(iter_ptr[j]);
+  //   }
+  // }
+  for (int i = 0; i < network_->n; ++i) {
+    auto &l = network_->layers[i];
+    if (l.type == CONVOLUTIONAL || l.type == CONNECTED || l.type == BATCHNORM) {
+      size_t total_bytes = count_layer_paramas_bytes(l);
+      // LOG_DEBUG("total bytes for layer %d (%s): %lu\n",i,get_layer_string(l.type),total_bytes)
+      layer_batch_step_report_snapshot_fbv_t l_report;
+      l.create_snapshot_for_sgx(l, *network_, &buff, &buff_sha256);
+      for(int j=0;j<SHA256_DIGEST_LENGTH;++j) {
+        temp_net_sha256.push_back(buff_sha256[j]);
+      }
+      l_report.layer_updates_bytes.resize(total_bytes);
+      std::memcpy(l_report.layer_updates_bytes.data() , buff, total_bytes);
+      delete[] buff;
+      l_report.layer_updates_sha256.resize(SHA256_DIGEST_LENGTH);
+      std::memcpy(l_report.layer_updates_sha256.data() , buff_sha256, SHA256_DIGEST_LENGTH);
+      delete[] buff_sha256;
+      network_iter_report.net_layers_reports[i] = std::move(l_report);
+    }
+  }
+  gen_sha256(temp_net_sha256.data(),temp_net_sha256.size() , net_sha256.data());
+  network_iter_report.net_sha256 = net_sha256;
+  train_iterations_snapshots.step_net_reports[iter_num]
+      = std::move(network_iter_report);
+  LOG_DEBUG("finished preparing snapshot for iteration %d and gpu index index: %d\n",iter_num,network_->gpu_index);
 }
 
 void

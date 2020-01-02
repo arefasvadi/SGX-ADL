@@ -84,7 +84,14 @@
         "valarray": "cpp",
         "variant": "cpp"
     },
+    "C_Cpp.autocomplete": "Disabled",
+    "C_Cpp.formatting": "Disabled",
+    "C_Cpp.errorSquiggles": "Disabled",
+    "C_Cpp.intelliSenseEngine": "Disabled",
     "ccls.index.multiVersion": 1,
+    "ccls.highlight.function.face": ["enabled"],
+    "ccls.highlight.type.face": ["enabled"],
+    "ccls.highlight.variable.face": ["enabled"],
     "ccls.highlighting.bold.templateParameters": false,
     "ccls.highlighting.bold.typeAliases": false,
     "ccls.highlighting.bold.types": false,
@@ -93,5 +100,7 @@
     "ccls.highlighting.bold.enums": false,
     "python.formatting.provider": "yapf",
     "editor.mouseWheelZoom": true,
+    "ccls.launch.command": "/usr/bin/ccls",
+    "cmake.configureOnOpen": false,
     //"cmake.copyCompileCommands": "${workspaceRoot}/"
 }

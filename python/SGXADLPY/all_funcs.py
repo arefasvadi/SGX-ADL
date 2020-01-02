@@ -358,6 +358,7 @@ def process_cifar_10():
         "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_gpu_subdiv_1_enclavesubdive_2.cfg",
         
         "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobatchnorm.cfg",
         
     ]
     cifar10_out_dir = "/home/aref/projects/SGX-ADL/test/config/cifar10/"

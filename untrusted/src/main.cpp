@@ -70,65 +70,65 @@ main(int argc, char *argv[]) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   if (old_version) {
     LOG_DEBUG("Running in old version\n")
-    run_config = process_json_config(old_json_conf_file);
-    initialize_data(tr_pub_params,
-                    test_pub_params,
-                    predict_pub_params,
-                    plain_dataset,
-                    encrypted_dataset,
-                    plain_test_dataset,
-                    encrypted_test_dataset,
-                    plain_predict_dataset,
-                    encrypted_predict_dataset,
-                    crypto_engine);
+    // run_config = process_json_config(old_json_conf_file);
+    // initialize_data(tr_pub_params,
+    //                 test_pub_params,
+    //                 predict_pub_params,
+    //                 plain_dataset,
+    //                 encrypted_dataset,
+    //                 plain_test_dataset,
+    //                 encrypted_test_dataset,
+    //                 plain_predict_dataset,
+    //                 encrypted_predict_dataset,
+    //                 crypto_engine);
 
-    LOG_INFO(
-        "Size of plain data is: %fMB\n",
-        (double)(plain_dataset.size() * sizeof(plain_dataset[0])) / (1 << 20));
+    // LOG_INFO(
+    //     "Size of plain data is: %fMB\n",
+    //     (double)(plain_dataset.size() * sizeof(plain_dataset[0])) / (1 << 20));
 
-    LOG_INFO("Size of encrypted data is: %fMB\n",
-             (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0]))
-                 / (1 << 20));
+    // LOG_INFO("Size of encrypted data is: %fMB\n",
+    //          (double)(encrypted_dataset.size() * sizeof(encrypted_dataset[0]))
+    //              / (1 << 20));
 
-    ret = ecall_enclave_init(global_eid,
-                             (unsigned char *)(&run_config.common_config),
-                             sizeof(run_config.common_config));
-    CHECK_SGX_SUCCESS(ret, "ecall init enclave caused problem!\n")
+    // ret = ecall_enclave_init(global_eid,
+    //                          (unsigned char *)(&run_config.common_config),
+    //                          sizeof(run_config.common_config));
+    // CHECK_SGX_SUCCESS(ret, "ecall init enclave caused problem!\n")
 
-    if (run_config.common_config.task == DNNTaskType::TASK_TRAIN_SGX) {
-      LOG_DEBUG("starting the training...\n");
-      ret = ecall_start_training(global_eid);
-      if (ret != SGX_SUCCESS) {
-        LOG_ERROR("ecall start training caused problem! Error code is %#010X\n",
-                  ret);
-        abort();
-      }
-      LOG_DEBUG("finished the training\n");
-    } else if (run_config.common_config.task
-               == DNNTaskType::TASK_TRAIN_GPU_VERIFY_SGX) {
-      LOG_ERROR("Verify train SGX not implemented\n");
-      abort();
-    } else if (run_config.common_config.task == DNNTaskType::TASK_TEST_SGX) {
-      LOG_ERROR("TEST NOT IMPLEMENTED\n");
-      abort();
-    } else if (run_config.common_config.task
-               == DNNTaskType::TASK_TEST_GPU_VERIFY_SGX) {
-      LOG_ERROR("Verify test SGX not implemented\n");
-      abort();
-    } else if (run_config.common_config.task == DNNTaskType::TASK_INFER_SGX) {
-      LOG_DEBUG("starting the prediction...\n");
-      ret = ecall_start_predicting(global_eid);
-      if (ret != SGX_SUCCESS) {
-        LOG_ERROR(
-            "ecall start predicting caused problem! Error code is %#010X\n",
-            ret);
-        abort();
-      }
-    } else if (run_config.common_config.task
-               == DNNTaskType::TASK_INFER_GPU_VERIFY_SGX) {
-      LOG_ERROR("Verify predict SGX not implemented\n");
-      abort();
-    }
+    // if (run_config.common_config.task == DNNTaskType::TASK_TRAIN_SGX) {
+    //   LOG_DEBUG("starting the training...\n");
+    //   ret = ecall_start_training(global_eid);
+    //   if (ret != SGX_SUCCESS) {
+    //     LOG_ERROR("ecall start training caused problem! Error code is %#010X\n",
+    //               ret);
+    //     abort();
+    //   }
+    //   LOG_DEBUG("finished the training\n");
+    // } else if (run_config.common_config.task
+    //            == DNNTaskType::TASK_TRAIN_GPU_VERIFY_SGX) {
+    //   LOG_ERROR("Verify train SGX not implemented\n");
+    //   abort();
+    // } else if (run_config.common_config.task == DNNTaskType::TASK_TEST_SGX) {
+    //   LOG_ERROR("TEST NOT IMPLEMENTED\n");
+    //   abort();
+    // } else if (run_config.common_config.task
+    //            == DNNTaskType::TASK_TEST_GPU_VERIFY_SGX) {
+    //   LOG_ERROR("Verify test SGX not implemented\n");
+    //   abort();
+    // } else if (run_config.common_config.task == DNNTaskType::TASK_INFER_SGX) {
+    //   LOG_DEBUG("starting the prediction...\n");
+    //   ret = ecall_start_predicting(global_eid);
+    //   if (ret != SGX_SUCCESS) {
+    //     LOG_ERROR(
+    //         "ecall start predicting caused problem! Error code is %#010X\n",
+    //         ret);
+    //     abort();
+    //   }
+    // } else if (run_config.common_config.task
+    //            == DNNTaskType::TASK_INFER_GPU_VERIFY_SGX) {
+    //   LOG_ERROR("Verify predict SGX not implemented\n");
+    //   abort();
+    // }
   }
 
   else {
