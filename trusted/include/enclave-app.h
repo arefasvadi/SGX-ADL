@@ -13,10 +13,49 @@
 #include "rand/PRNGHelper.h"
 #include "concurrentqueue.h"
 #include  <unordered_set>
+#include <queue>
 //#include "../../third_party/libxsmm/include/libxsmm.h"
 //#include "blasfeo_s_blas.h"
 
 //void blasfeo_sgemm(char *ta, char *tb, int *pm, int *pn, int *pk, float *alpha, float *A, int *plda, float *B, int *pldb, float *beta, float *C, int *pldc);
+
+#define OCALL_LOAD_LAYER_REPRT_FRBV(ret,iteration,layer_index,buff_ind,buff,size_bytes,layer_sha,layer_sha_len) \
+    {   \
+        const size_t interim_buff_len = (64 * ONE_KB)    \
+        int q = size_bytes / (interim_buff_len); \
+        int r = size_bytes % (interim_buff_len); \
+        uint8_t* sh_buff = layer_sha.data() \
+        size_t sh_len = layer_sha_len \
+        for (int ii = 0; ii < q; ++i) { \
+            ret = ocall_load_layer_report_frbv( \
+                iteration, \
+                layer_index, \
+                buff_ind+ii*interim_buff_len, \
+                buff+ii*interim_buff_len, \
+                interim_buff_len, \
+                sh_buff, \
+                sh_len); \
+            CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n") \
+            if (ii == 0) { \
+                sh_buff = nullptr; \
+                sh_len = 0; \
+            }\
+        } \
+        if (r != 0) { \
+            ret = ocall_load_layer_report_frbv( \
+                    iteration, \
+                    layer_index, \
+                    buff_ind+interim_buff_len*q, \
+                    buff+interim_buff_len*q, \
+                    r, \
+                    sh_buff, \
+                    sh_len); \
+            CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n") \
+        } \
+    }
+
+#define OCALL_LOAD_LAYER_REPRT_FRBMMV(ret,iteration,layer_index,buff_ind,buff,size_bytes,layer_sha,layer_sha_len) 0
+
 
 bool float_equal(const float a,const float b);
 
@@ -48,14 +87,15 @@ gen_verify_cmac128_multiple_rounds(const bool generate,
                                uint8_t*                 aad,
                                size_t                   aad_len);
 
-void start_training_verification(int iteration);
+void start_training_verification_frbv(int iteration);
+void start_training_verification_frbmmv(int iteration);
 
 void apply_weight_updates(int iteration,network* net);
 
 void
 apply_clipping_then_update(network* netp);
 
-void save_load_params_and_update_snapshot_frbv(bool save,int iteration,network* net);
+void save_load_params_and_update_snapshot_(bool save,int iteration,network* net);
 
 std::array<uint64_t, 16> generate_random_seed_from(PRNG &rng);
 void setup_layers_iteration_seed(network& net, int iteration);
@@ -74,7 +114,8 @@ additional_auth_data construct_aad_frbv_comp_subcomp_nots(uint32_t comp_id,uint3
 //                                    const additional_auth_data* aad,uint8_t* iv,sgx_aes_gcm_128bit_tag_t* tag);
 
 void verify_task_frbv();
-void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, network* net,
+void verify_task_frbmmv();
+void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, network* net,
                                      int iteration, int size,int low,int high);
 std::vector<uint8_t>
 generate_image_label_flatb_from_actual_bytes(const std::vector<uint8_t> in_vec);

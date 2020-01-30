@@ -32,6 +32,10 @@ extern FlatBufferedContainerT<PredictLocationsConfigs> predlocconfigs;
 extern FlatBufferedContainerT<DataConfig> dsconfigs;
 extern FlatBufferedContainerT<ArchConfig> archconfigs;
 extern train_batch_step_report_snapshot_fbv_t train_iterations_snapshots;
+extern train_batch_step_snapshot_snapshot_frbmmv_t train_iterations_snapshots_frbmmv;
+extern std::unique_ptr<verf_variations_t> main_verf_task_variation_;
+extern int gpu_iteration;
+
 // extern std::vector<uint8_t> trainlocconfigs_bytes;
 // extern std::vector<uint8_t> predlocconfigs_bytes;
 

@@ -9,6 +9,7 @@
 #include "sgx_trts.h"
 #include "util.h"
 #include <unordered_set>
+#include <queue>
 
 bool
 verify_sha256_single_round(const uint8_t* provided_sha256,
@@ -388,7 +389,7 @@ set_pub_priv_seeds() {
   }
   else {
     for (int i=0;i<16;++i) {
-      pub_rand_root_seed[i] = 10;
+      pub_rand_root_seed[i] = 29;
     }
   }
   
@@ -402,7 +403,7 @@ set_pub_priv_seeds() {
   }
   else {
     for (int i=0;i<16;++i) {
-      sgx_rand_root_seed[i] = 7;
+      sgx_rand_root_seed[i] = 19;
     }
     session_id = 1;
   }
@@ -896,9 +897,9 @@ init_net_train_integ_layered(
       "enclave batch size   : %d\n"
       "enclave subdiv size  : %d\n"
       "processings per batch : %d\n",
-      network_->batch,
-      network_->enclave_subdivisions,
-      (network_->batch * network_->enclave_subdivisions))
+      verf_network_->batch,
+      verf_network_->enclave_subdivisions,
+      (verf_network_->batch * verf_network_->enclave_subdivisions))
   // LOG_DEBUG("net_rng iter state : " COLORED_STR(RED,"%s\n") "layer_rng_deriver iter state: " COLORED_STR(BRIGHT_GREEN,"%s\n"),
   // bytesToHexString((const uint8_t*)network_->iter_batch_rng->getState().data(),sizeof(uint64_t)*16).c_str(),bytesToHexString((const uint8_t*)network_->layer_rng_deriver->getState().data(),sizeof(uint64_t)*16).c_str());
   
@@ -942,7 +943,8 @@ void apply_weight_updates_convolutional(int                     iteration,
     
     auto l_bias_updates
         = l.bias_updates->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -950,7 +952,13 @@ void apply_weight_updates_convolutional(int                     iteration,
         size_bytes,
         layer_sha.data(),
         SGX_SHA256_HASH_SIZE);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_bias_updates.get(), size_bytes, 
+        layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0,nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -960,6 +968,7 @@ void apply_weight_updates_convolutional(int                     iteration,
     l.bias_updates->setItemsInRange(
         start,end, l_bias_updates);
   }
+  LOG_DEBUG("passed bias!\n")
   // load weight updates
   {
     start = 0;
@@ -967,7 +976,8 @@ void apply_weight_updates_convolutional(int                     iteration,
     size_bytes = (end - start)*sizeof(float);
     auto l_weight_updates
         = l.weight_updates->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -975,7 +985,15 @@ void apply_weight_updates_convolutional(int                     iteration,
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+        size_bytes, nullptr,0, 
+        0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -985,7 +1003,7 @@ void apply_weight_updates_convolutional(int                     iteration,
     l.weight_updates->setItemsInRange(
         start,end, l_weight_updates);
   }
-
+  LOG_DEBUG("passed weights!\n")
   // batchnorm updates
   if (l.batch_normalize) {
     start = 0;
@@ -993,7 +1011,8 @@ void apply_weight_updates_convolutional(int                     iteration,
     size_bytes = (end - start)*sizeof(float);
     auto l_scale_updates
         = l.scale_updates->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -1001,19 +1020,27 @@ void apply_weight_updates_convolutional(int                     iteration,
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
                               (uint8_t*)l_scale_updates.get(),
                               size_bytes,
-                              nullptr);
+                              nullptr);                  
     l.scale_updates->setItemsInRange(
-        start,end, l_scale_updates);
+        start,end, l_scale_updates);    
 
     auto l_rolling_mean
         = l.rolling_mean->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -1021,7 +1048,14 @@ void apply_weight_updates_convolutional(int                     iteration,
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }       
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -1033,7 +1067,9 @@ void apply_weight_updates_convolutional(int                     iteration,
 
     auto l_rolling_variance
         = l.rolling_variance->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+    
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -1042,6 +1078,13 @@ void apply_weight_updates_convolutional(int                     iteration,
         nullptr,
         0);
     CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -1051,6 +1094,7 @@ void apply_weight_updates_convolutional(int                     iteration,
     l.rolling_variance->setItemsInRange(
         start,end, l_rolling_variance);
   }
+  LOG_DEBUG("passed bn!\n")
   if (buff_ind != total_bytes) {
                 LOG_ERROR("size mismatch\n")
                 abort();
@@ -1066,6 +1110,18 @@ void apply_weight_updates_convolutional(int                     iteration,
   }
   // hash is part of the overall hash
   verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+  if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+    // grab hashes of MM results!
+    ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0);
+    verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+
+    if (layer_index >=1 && network_->layers[layer_index-1].delta) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE);
+      verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+    }
+  }
 }
 
 void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_sha_state_handle_t* sha256_handle) {
@@ -1087,7 +1143,8 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
     size_bytes = (end - start)*sizeof(float);
     auto l_bias_updates
         = l.bias_updates->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -1095,7 +1152,13 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
         size_bytes,
         layer_sha.data(),
         SGX_SHA256_HASH_SIZE);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_bias_updates.get(), size_bytes, 
+        layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0,nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -1113,15 +1176,24 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
       end = (i+1)*enclave_update_batch*l.inputs;
       size_bytes = (end - start)*sizeof(float);
       auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
-      ret = ocall_load_layer_report_frbv(
-        iteration,
-        layer_index,
-        buff_ind,
-        (uint8_t*)l_weight_updates.get(),
-        size_bytes,
-        nullptr,
-        0);
-      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+        ret = ocall_load_layer_report_frbv(
+          iteration,
+          layer_index,
+          buff_ind,
+          (uint8_t*)l_weight_updates.get(),
+          size_bytes,
+          nullptr,
+          0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      }
+      else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+        ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+          size_bytes, nullptr,0, 
+          0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+      }
+      
       buff_ind += size_bytes;
       verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -1135,15 +1207,24 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
       end = q*enclave_update_batch*l.inputs+r*l.inputs;
       size_bytes = (end - start)*sizeof(float);
       auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
-      ret = ocall_load_layer_report_frbv(
-        iteration,
-        layer_index,
-        buff_ind,
-        (uint8_t*)l_weight_updates.get(),
-        size_bytes,
-        nullptr,
-        0);
-      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+        ret = ocall_load_layer_report_frbv(
+          iteration,
+          layer_index,
+          buff_ind,
+          (uint8_t*)l_weight_updates.get(),
+          size_bytes,
+          nullptr,
+          0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      }
+      else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+        ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_weight_updates.get(),
+          size_bytes, nullptr,0, 
+          0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+      }
+      
       buff_ind += size_bytes;
       verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -1160,7 +1241,8 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
     size_bytes = (end - start)*sizeof(float);
     auto l_scale_updates
         = l.scale_updates->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -1168,8 +1250,15 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
-    buff_ind += l.scale_updates->getBufferSize() * sizeof(float);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_scale_updates.get(),
+      size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    buff_ind += size_bytes;
+
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
                               (uint8_t*)l_scale_updates.get(),
@@ -1180,7 +1269,8 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
 
     auto l_rolling_mean
         = l.rolling_mean->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -1188,8 +1278,15 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
-    buff_ind += l.rolling_mean->getBufferSize() * sizeof(float);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_mean.get(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    buff_ind += size_bytes;
+
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
                               (uint8_t*)l_rolling_mean.get(),
@@ -1200,7 +1297,8 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
 
     auto l_rolling_variance
         = l.rolling_variance->getItemsInRange(0, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -1208,8 +1306,15 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
-    buff_ind += l.rolling_variance->getBufferSize() * sizeof(float);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)l_rolling_variance.get(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
+    buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
                               (uint8_t*)l_rolling_variance.get(),
@@ -1233,6 +1338,19 @@ void apply_weight_updates_connected(int iteration,layer& l,int layer_index, sgx_
   }
   // hash is part of the overall hash
   verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+
+  if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+    // grab hashes of MM results!
+    ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0);
+    verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+
+    if (layer_index >=1 && network_->layers[layer_index-1].delta) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE);
+      verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+    }
+  }
 }
 
 void apply_weight_updates_batchnorm(int iteration,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
@@ -1360,7 +1478,7 @@ void apply_weight_updates(int iteration,network* net) {
   auto auth_report = std::vector<uint8_t>(SGX_SHA256_HASH_SIZE, 0);
   auto mac_report  = std::vector<uint8_t>(SGX_CMAC_MAC_SIZE, 0);
   additional_auth_data aad_report = {};
-  auto                 ret        = ocall_load_auth_report_frbv(iteration,
+  auto                 ret        = ocall_load_auth_report(iteration,
                                          auth_report.data(),
                                          auth_report.size(),
                                          mac_report.data(),
@@ -1368,7 +1486,7 @@ void apply_weight_updates(int iteration,network* net) {
                                          (uint8_t*)&aad_report,
                                          sizeof(aad_report));
 
-  CHECK_SGX_SUCCESS(ret, "ocall_load_auth_report_frbv caused problem\n")
+  CHECK_SGX_SUCCESS(ret, "ocall_load_auth_report caused problem\n")
   if (!verify_cmac128_single_round(auth_report.data(),
                                    auth_report.size(),
                                    mac_report.data(),
@@ -1393,6 +1511,7 @@ void apply_weight_updates(int iteration,network* net) {
   verify_sha256_mult_rounds(&sha256_handle,nullptr,nullptr,0,nullptr);
   for (int i=0;i<net->n;++i) {
     auto &l = net->layers[i];
+    LOG_DEBUG("processing layer %d of type %s\n",i,get_layer_string(l.type))
     if (l.type == CONVOLUTIONAL) {
       apply_weight_updates_convolutional(iteration,l,i,&sha256_handle);
     }
@@ -1415,8 +1534,8 @@ void save_load_params_and_update_snapshot_convolutional_frbv(bool save,int itera
   sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
   std::vector<uint8_t>   layer_cmac(SGX_CMAC_MAC_SIZE, 0);
   auto aad = construct_aad_frbv_comp_subcomp_nots(iteration,layer_index);
-  size_t start = 0;
-  size_t end = 0;
+  size_t start =  0;
+  size_t end   =  0;
   size_t size_bytes =0;
   size_t total_bytes = count_layer_paramas_updates_bytes(l);
   if (save) {
@@ -2009,10 +2128,9 @@ void save_load_params_and_update_snapshot_batchnorm_frbv(bool save,int iteration
         abort();
       }
   }
-
 }
 
-void save_load_params_and_update_snapshot_frbv(bool save,int iteration, network* net) {
+void save_load_params_and_update_snapshot_(bool save,int iteration, network* net) {
   
   for (int i=0;i<net->n;++i) {
     auto &l = net->layers[i];
@@ -2034,9 +2152,10 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
   verf_net->train = 1;
   float avg_cost = 0;
   std::set<int> selected_ids;
+  std::queue<int> queued_ids;
   while(true) {
     // Load input to the verf_network
-    setup_iteration_inputs_training(selected_ids,verf_net,iteration,verf_net->batch,0,plain_dataset_size);
+    setup_iteration_inputs_training(queued_ids,selected_ids,verf_net,iteration,verf_net->batch,0,plain_dataset_size-1);
     *verf_net->seen += verf_net->batch;
     forward_network(verf_net);
     avg_cost += *verf_net->cost;
@@ -2049,6 +2168,172 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
   std::string indices = "verification selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
   for (const auto ind:selected_ids) {
     indices += std::to_string(ind)+",";
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+  indices = "verification selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+  while(!queued_ids.empty()){
+    int ind = queued_ids.front();
+    indices += std::to_string(ind)+",";
+    queued_ids.pop();
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+  return avg_cost/(verf_net->enclave_subdivisions * (verf_net->batch));
+}
+
+void preload_MM_outputs_forward(network* net,int iteration,int enclave_subdiv) {
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  for(int i=0;i<net->n;++i) {
+    layer &l = net->layers[i];
+    if (l.type == CONNECTED) {
+      size_t total_elems = l.output->getBufferSize();
+      auto l_output = l.output->getItemsInRange(0, total_elems);
+      size_t start = enclave_subdiv*total_elems*sizeof(float);
+      ret = ocall_load_layer_report_frbmmv(iteration,i,
+        0,nullptr,0,nullptr,0,
+        start,(uint8_t*)l_output.get(),total_elems*sizeof(float),nullptr,0,
+        0,nullptr,0,nullptr,0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+      l.output->setItemsInRange(0, total_elems, l_output);
+    }
+    else if (l.type == CONVOLUTIONAL) {
+      size_t total_elems = l.output->getBufferSize();
+      auto l_output = l.output->getItemsInRange(0, total_elems);
+      size_t start = enclave_subdiv*total_elems*sizeof(float);
+      {
+        const size_t interim_buff_size = (64 * ONE_KB);
+        int q = (total_elems*sizeof(float)) / interim_buff_size;
+        int r = (total_elems*sizeof(float)) % interim_buff_size;
+        for (int j=0;j<q;++j) {
+          ret = ocall_load_layer_report_frbmmv(iteration,i,
+            0,nullptr,0,nullptr,0,
+            start+j*interim_buff_size,(uint8_t*)l_output.get()+j*interim_buff_size,interim_buff_size,nullptr,0,
+            0,nullptr,0,nullptr,0);
+          CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+        }
+        if (r != 0) {
+          ret = ocall_load_layer_report_frbmmv(iteration,i,
+            0,nullptr,0,nullptr,0,
+            start+q*interim_buff_size,(uint8_t*)l_output.get()+q*interim_buff_size,r,nullptr,0,
+            0,nullptr,0,nullptr,0);
+          CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+        }
+      }
+      l.output->setItemsInRange(0, total_elems, l_output);
+    }
+  }
+}
+
+void preload_MM_outputs_prev_delta_backward(network* net,int iteration,int enclave_subdiv) {
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  for(int i=0;i<net->n;++i) {
+    layer &l = net->layers[i];
+    if (l.type == CONNECTED) {
+      // new MM prev delta
+      if (i>=1 && net->layers[i-1].delta) {
+        size_t total_elems = net->layers[i-1].delta->getBufferSize();
+        auto net_delta = net->layers[i-1].delta->getItemsInRange(0, total_elems);
+        size_t start = enclave_subdiv*total_elems*sizeof(float);
+        ret = ocall_load_layer_report_frbmmv(iteration,i,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0,
+          start,(uint8_t*)net_delta.get(),total_elems*sizeof(float),nullptr,0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+        net->layers[i-1].delta->setItemsInRange(0, total_elems,net_delta);
+      }
+    }
+  }
+}
+
+void preload_MM_weight_updates_backward(network* net,int iteration) {
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  for(int i=0;i<net->n;++i) {
+    layer &l = net->layers[i];
+    if (l.type == CONNECTED) {
+      std::memset(l.right_rand_weight_updates, 0, sizeof(double)*l.outputs);
+      for (int j=0;j<l.inputs;++j) {
+        l.input_rand_weight_updates[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+                    std::numeric_limits<float>::max());
+      }
+      // new MM weight updates
+      int q = l.outputs / l.enclave_layered_batch;
+      int r = l.outputs % l.enclave_layered_batch;
+      size_t start = (l.nbiases*sizeof(float));
+      for (int j=0;j<q;++j) {
+        auto l_weight_updates = l.weight_updates->getItemsInRange(j*l.enclave_layered_batch*l.inputs, 
+                                                                  (j+1)*l.enclave_layered_batch*l.inputs);
+        ret = ocall_load_layer_report_frbmmv(iteration,i,
+          start+j*l.enclave_layered_batch*l.inputs*sizeof(float),
+          (uint8_t*)l_weight_updates.get(),
+          l.enclave_layered_batch*l.inputs*sizeof(float),
+          nullptr,0,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+        l.weight_updates->setItemsInRange(j*l.enclave_layered_batch*l.inputs, (j+1)*l.enclave_layered_batch*l.inputs,l_weight_updates);
+      }
+      if (r!=0) {
+        auto l_weight_updates = l.weight_updates->getItemsInRange(q*l.enclave_layered_batch*l.inputs, q*l.enclave_layered_batch*l.inputs+r*l.inputs);
+        ret = ocall_load_layer_report_frbmmv(iteration,i,
+          start+q*l.enclave_layered_batch*l.inputs*sizeof(float),
+          (uint8_t*)l_weight_updates.get(),
+          r*l.inputs*sizeof(float),
+          nullptr,0,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+        l.weight_updates->setItemsInRange(q*l.enclave_layered_batch*l.inputs, q*l.enclave_layered_batch*l.inputs+r*l.inputs,l_weight_updates);
+      }
+    }
+    else if (l.type == CONVOLUTIONAL) {
+      // new MM weight updates
+      std::memset(l.right_rand_weight_updates, 0, sizeof(double)*(l.n/l.groups));
+      for (int j=0;j< (l.c / l.groups * l.size * l.size);++j) {
+        l.input_rand_weight_updates[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+                    std::numeric_limits<float>::max());
+      }
+      size_t total_elements = l.weight_updates->getBufferSize();
+      size_t start = (l.nbiases*sizeof(float));
+      auto weight_updates = l.weight_updates->getItemsInRange(0, total_elements);
+      ret = ocall_load_layer_report_frbmmv(iteration,i,start,(uint8_t*)weight_updates.get(),total_elements*sizeof(float)
+        ,nullptr,0,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+      l.weight_updates->setItemsInRange(0, total_elements, weight_updates);
+    }
+  }
+}
+
+float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* verf_net) {
+  verf_net->sgx_net_verifies = 1;
+  *verf_net->seen = (iteration-1)*(verf_net->batch)*(verf_net->enclave_subdivisions);
+  verf_net->train = 1;
+  float avg_cost = 0;
+  int subdiv = 0;
+  std::set<int> selected_ids;
+  std::queue<int> queued_ids;
+  preload_MM_weight_updates_backward(verf_net,iteration);
+  while(true) {
+    // Load input to the verf_network
+    setup_iteration_inputs_training(queued_ids, selected_ids,verf_net,iteration,
+        verf_net->batch,0,plain_dataset_size-1);
+    *verf_net->seen += verf_net->batch;
+    preload_MM_outputs_forward(verf_net,iteration,subdiv);
+    forward_network(verf_net);
+    avg_cost += *verf_net->cost;
+    LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
+    preload_MM_outputs_prev_delta_backward(verf_net,iteration,subdiv);
+    backward_network(verf_net);
+    subdiv++;
+    if(((*verf_net->seen)/verf_net->batch)%verf_net->enclave_subdivisions == 0) {
+      break;
+    }
+  }
+  std::string indices = "verification selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+  for (const auto ind:selected_ids) {
+    indices += std::to_string(ind)+",";
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+  indices = "verification selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+  while(!queued_ids.empty()){
+    int ind = queued_ids.front();
+    indices += std::to_string(ind)+",";
+    queued_ids.pop();
   }
   indices += std::string("]\n");
   LOG_DEBUG("%s",indices.c_str())
@@ -2089,7 +2374,8 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
 
     auto l_bias_updates
         = l.bias_updates->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2097,7 +2383,14 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
         size_bytes,
         layer_sha.data(),
         SGX_SHA256_HASH_SIZE);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(), size_bytes, 
+        layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0,nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2105,11 +2398,11 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_bias_updates[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_bias_updates[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_bias_updates[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for bias do not match! Layer %d of type %s, at index %u with difference %f, (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_bias_updates[i]),temp_vec[i],l_bias_updates[i])
         // abort();
@@ -2127,7 +2420,8 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
 
     auto l_weight_updates
         = l.weight_updates->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2135,7 +2429,15 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+        size_bytes, nullptr,0, 
+        0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2143,11 +2445,11 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
-      if (!float_equal(temp_vec[i],  l_weight_updates[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_weight_updates[i]);
-        if (diff > max_diff) {
+      auto diff = std::fabs(temp_vec[i] - l_weight_updates[i]);
+      if (diff > max_diff) {
           max_diff = diff;
-        }
+      }
+      if (!float_equal(temp_vec[i],  l_weight_updates[i])) {
         // LOG_ERROR("reported updates and computed for weights do not match! Layer %d of type %s, at index %u with difference %f (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_weight_updates[i]),temp_vec[i],l_weight_updates[i])
         // abort();
@@ -2165,7 +2467,8 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
 
     auto l_scale_updates
         = l.scale_updates->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2173,7 +2476,14 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2181,11 +2491,11 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_scale_updates[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for scale updates do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_scale_updates[i]),temp_vec[i],l_scale_updates[i])
         // abort();
@@ -2196,7 +2506,8 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
 
     auto l_rolling_mean
         = l.rolling_mean->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2204,7 +2515,14 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2212,11 +2530,11 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_rolling_mean[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for rolling mean do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_mean[i]),temp_vec[i],l_rolling_mean[i])
         // abort();
@@ -2227,7 +2545,8 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
 
     auto l_rolling_variance
         = l.rolling_variance->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2235,7 +2554,14 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2243,11 +2569,11 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_rolling_variance[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for rolling variance do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_variance[i]),temp_vec[i],l_rolling_variance[i])
         // abort();
@@ -2271,14 +2597,26 @@ void compare_param_updates_convolutional(int iteration,network* verf_net,layer& 
   }
   // hash is part of the overall hash
   verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+  if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+    // grab hashes of MM results!
+    ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0);
+    verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+
+    if (layer_index >=1 && verf_net->layers[layer_index-1].delta) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE);
+      verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+    }
+  }
 }
 
 void compare_param_updates_connected(int iteration,network* verf_net,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
   int enclave_update_batch = l.enclave_layered_batch / 2;
   int q = l.outputs / enclave_update_batch;
   int r = l.outputs % enclave_update_batch;
-  // LOG_DEBUG(COLORED_STR(BRIGHT_YELLOW, "layer enclave batch for connected is %d with halved:%d,q=%d,r=%d,batch=%d,inputs=%d,outputs=%d\n"),
-  // l.enclave_layered_batch,enclave_update_batch,q,r,l.batch,l.inputs,l.outputs)
+  LOG_DEBUG(COLORED_STR(BRIGHT_YELLOW, "layer enclave batch for connected is %d with halved:%d,q=%d,r=%d,batch=%d,inputs=%d,outputs=%d\n"),
+  l.enclave_layered_batch,enclave_update_batch,q,r,l.batch,l.inputs,l.outputs)
   uint64_t total_bytes   = count_layer_paramas_bytes(l);
   size_t       buff_ind = 0;
   sgx_status_t ret      = SGX_ERROR_UNEXPECTED;
@@ -2300,7 +2638,8 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
 
     auto l_bias_updates
         = l.bias_updates->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2308,7 +2647,14 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
         size_bytes,
         layer_sha.data(),
         SGX_SHA256_HASH_SIZE);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(), size_bytes, 
+        layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0,nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2316,11 +2662,11 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_bias_updates[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_bias_updates[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_bias_updates[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for bias do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_bias_updates[i]),temp_vec[i],l_bias_updates[i])
         // abort();
@@ -2338,15 +2684,24 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
       size_bytes = (end - start)*sizeof(float);
       temp_vec.resize((end - start));
       auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
-      ret = ocall_load_layer_report_frbv(
-        iteration,
-        layer_index,
-        buff_ind,
-        (uint8_t*)temp_vec.data(),
-        size_bytes,
-        nullptr,
+      if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+        ret = ocall_load_layer_report_frbv(
+          iteration,
+          layer_index,
+          buff_ind,
+          (uint8_t*)temp_vec.data(),
+          size_bytes,
+          nullptr,
         0);
-      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      }
+      else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+        ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+          size_bytes, nullptr,0, 
+          0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+      }
+      
       buff_ind += size_bytes;
       verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2354,11 +2709,11 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
                               size_bytes,
                               nullptr);
       for (uint32_t j = 0; j < (end - start); ++j) {
+        auto diff = std::fabs(temp_vec[j] - l_weight_updates[j]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
         if (!float_equal(temp_vec[j],  l_weight_updates[j])) {
-          auto diff = std::fabs(temp_vec[j] - l_weight_updates[j]);
-          if (diff > max_diff) {
-            max_diff = diff;
-          }
           // LOG_ERROR("reported updates and computed for weights do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
           //         layer_index,get_layer_string(l.type),j,std::fabs(temp_vec[j] - l_weight_updates[j]),temp_vec[j],l_weight_updates[j])
           // abort();
@@ -2371,15 +2726,24 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
       temp_vec.resize((end - start));
       size_bytes = (end - start)*sizeof(float);
       auto l_weight_updates = l.weight_updates->getItemsInRange(start,end);
-      ret = ocall_load_layer_report_frbv(
-        iteration,
-        layer_index,
-        buff_ind,
-        (uint8_t*)temp_vec.data(),
-        size_bytes,
-        nullptr,
-        0);
-      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+        ret = ocall_load_layer_report_frbv(
+          iteration,
+          layer_index,
+          buff_ind,
+          (uint8_t*)temp_vec.data(),
+          size_bytes,
+          nullptr,
+          0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      }
+      else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+        ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+          size_bytes, nullptr,0, 
+          0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+        CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+      }
+      
       buff_ind += size_bytes;
       verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2387,11 +2751,11 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
                               size_bytes,
                               nullptr);
       for (uint32_t i = 0; i < (end - start); ++i) {
+        auto diff = std::fabs(temp_vec[i] - l_weight_updates[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+        }
         if (!float_equal(temp_vec[i], l_weight_updates[i])) {
-          auto diff = std::fabs(temp_vec[i] - l_weight_updates[i]);
-          if (diff > max_diff) {
-            max_diff = diff;
-          }
           // LOG_ERROR("reported updates and computed for weights do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
           //         layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_weight_updates[i]),temp_vec[i],l_weight_updates[i])
           // abort();
@@ -2402,7 +2766,6 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
     max_diff = 0.0f;
   }
   // batchnorm updates
-  // batchnorm updates
   if (l.batch_normalize) {
     start = 0;
     end = l.scale_updates->getBufferSize();
@@ -2411,7 +2774,8 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
 
     auto l_scale_updates
         = l.scale_updates->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2419,7 +2783,14 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2427,11 +2798,11 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_scale_updates[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for scale updates do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_scale_updates[i]),temp_vec[i],l_scale_updates[i])
         // abort();
@@ -2442,7 +2813,8 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
 
     auto l_rolling_mean
         = l.rolling_mean->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2450,7 +2822,14 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2458,11 +2837,11 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_rolling_mean[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for rolling mean do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_mean[i]),temp_vec[i],l_rolling_mean[i])
         // abort();
@@ -2473,7 +2852,8 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
 
     auto l_rolling_variance
         = l.rolling_variance->getItemsInRange(start, end);
-    ret = ocall_load_layer_report_frbv(
+    if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+      ret = ocall_load_layer_report_frbv(
         iteration,
         layer_index,
         buff_ind,
@@ -2481,7 +2861,14 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
         size_bytes,
         nullptr,
         0);
-    CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n")
+    }
+    else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, buff_ind, (uint8_t*)temp_vec.data(),
+        size_bytes,nullptr,0,0, nullptr, 0,nullptr, 0, 0, nullptr, 0, nullptr, 0);
+      CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
+    }
+    
     buff_ind += size_bytes;
     verify_sha256_mult_rounds(&layer_updates_sha256_handle,
                               nullptr,
@@ -2489,11 +2876,11 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
                               size_bytes,
                               nullptr);
     for (uint32_t i = 0; i < (end - start); ++i) {
+      auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (!float_equal(temp_vec[i],  l_rolling_variance[i])) {
-        auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-        }
         // LOG_ERROR("reported updates and computed for rolling variance do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
         //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_variance[i]),temp_vec[i],l_rolling_variance[i])
         // abort();
@@ -2517,6 +2904,18 @@ void compare_param_updates_connected(int iteration,network* verf_net,layer& l,in
   }
   // hash is part of the overall hash
   verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+  if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+    // grab hashes of MM results!
+    ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE, 0, nullptr, 0, nullptr, 0);
+    verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+
+    if (layer_index >=1 && verf_net->layers[layer_index-1].delta) {
+      ret = ocall_load_layer_report_frbmmv(iteration, layer_index, 0, nullptr, 0, 
+              nullptr, 0, 0, nullptr, 0, nullptr, 0, 0, nullptr, 0, layer_sha.data(), SGX_SHA256_HASH_SIZE);
+      verify_sha256_mult_rounds(sha256_handle,nullptr,layer_sha.data(),layer_sha.size(),nullptr);
+    }
+  }
 }
 
 void compare_param_updates_batchnorm(int iteration,network* verf_net,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
@@ -2555,11 +2954,11 @@ void compare_param_updates_batchnorm(int iteration,network* verf_net,layer& l,in
                             size_bytes,
                             nullptr);
   for (uint32_t i = 0; i < (end - start); ++i) {
+    auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
+    if (diff > max_diff) {
+      max_diff = diff;
+    }
     if (!float_equal(temp_vec[i],  l_scale_updates[i])) {
-      auto diff = std::fabs(temp_vec[i] - l_scale_updates[i]);
-      if (diff > max_diff) {
-        max_diff = diff;
-      }
       // LOG_ERROR("reported updates and computed for scale updates do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
       //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_scale_updates[i]),temp_vec[i],l_scale_updates[i])
       // abort();
@@ -2586,11 +2985,11 @@ void compare_param_updates_batchnorm(int iteration,network* verf_net,layer& l,in
                             size_bytes,
                             nullptr);
   for (uint32_t i = 0; i < (end - start); ++i) {
+    auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
+    if (diff > max_diff) {
+      max_diff = diff;
+    }
     if (!float_equal(temp_vec[i],  l_rolling_mean[i])) {
-      auto diff = std::fabs(temp_vec[i] - l_rolling_mean[i]);
-      if (diff > max_diff) {
-        max_diff = diff;
-      }
       // LOG_ERROR("reported updates and computed for rolling mean do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
       //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_mean[i]),temp_vec[i],l_rolling_mean[i])
       // abort();
@@ -2617,11 +3016,11 @@ void compare_param_updates_batchnorm(int iteration,network* verf_net,layer& l,in
                             size_bytes,
                             nullptr);
   for (uint32_t i = 0; i < (end - start); ++i) {
+    auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
+    if (diff > max_diff) {
+      max_diff = diff;
+    }
     if (!float_equal(temp_vec[i],  l_rolling_variance[i])) {
-      auto diff = std::fabs(temp_vec[i] - l_rolling_variance[i]);
-      if (diff > max_diff) {
-        max_diff = diff;
-      }
       // LOG_ERROR("reported updates and computed for rolling variance do not match! Layer %d of type %s, at index %u with difference %f  (%f,%f)\n",
       //           layer_index,get_layer_string(l.type),i,std::fabs(temp_vec[i] - l_rolling_variance[i]),temp_vec[i],l_rolling_variance[i])
       // abort();
@@ -2654,7 +3053,7 @@ bool compare_param_updates_with_report_frbv(int iteration, network* verf_net) {
   auto auth_report = std::vector<uint8_t>(SGX_SHA256_HASH_SIZE, 0);
   auto mac_report  = std::vector<uint8_t>(SGX_CMAC_MAC_SIZE, 0);
   additional_auth_data aad_report = {};
-  auto                 ret        = ocall_load_auth_report_frbv(iteration,
+  auto                 ret        = ocall_load_auth_report(iteration,
                                          auth_report.data(),
                                          auth_report.size(),
                                          mac_report.data(),
@@ -2662,7 +3061,7 @@ bool compare_param_updates_with_report_frbv(int iteration, network* verf_net) {
                                          (uint8_t*)&aad_report,
                                          sizeof(aad_report));
 
-  CHECK_SGX_SUCCESS(ret, "ocall_load_auth_report_frbv caused problem\n")
+  CHECK_SGX_SUCCESS(ret, "ocall_load_auth_report caused problem\n")
   if (!verify_cmac128_single_round(auth_report.data(),
                                    auth_report.size(),
                                    mac_report.data(),
@@ -2688,6 +3087,7 @@ bool compare_param_updates_with_report_frbv(int iteration, network* verf_net) {
   sgx_sha_state_handle_t sha256_handle = nullptr;
   verify_sha256_mult_rounds(&sha256_handle,nullptr,nullptr,0,nullptr);
   for (int i=0;i<verf_net->n;++i) {
+    // LOG_DEBUG("Proceeding comapring updates for index %d\n",i)
     auto &l = verf_net->layers[i];
     if (l.type == CONVOLUTIONAL) {
       compare_param_updates_convolutional(iteration, verf_net, l, i,&sha256_handle);
@@ -2700,7 +3100,7 @@ bool compare_param_updates_with_report_frbv(int iteration, network* verf_net) {
     }
   }
   if (!verify_sha256_mult_rounds(&sha256_handle,auth_report.data(),nullptr,0,nullptr)) {
-    LOG_ERROR("overall hash of the layer snapshots cannot be verified!")
+    LOG_ERROR("overall hash of the layer snapshots cannot be verified!\n")
     abort();
     return false;
   }
@@ -2721,7 +3121,7 @@ void verify_task_frbv() {
     else {
       // load weights and final weight updates form step i - 1
       LOG_DEBUG(COLORED_STR(RED, "loading weights and updates from previous iteration: %d\n"),iteration-1)
-      save_load_params_and_update_snapshot_frbv(false,iteration-1,verf_network_.get());
+      save_load_params_and_update_snapshot_(false,iteration-1,verf_network_.get());
     }
 
     // do forward, backward
@@ -2735,18 +3135,59 @@ void verify_task_frbv() {
     else {
       LOG_OUT("Verified iteration %d\n",iteration)
     }
+    // delete info before step i: i-1 so forth
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ret = ocall_delete_snapshots_after_verification(iteration);
+    CHECK_SGX_SUCCESS(ret, "ocall_delete_snapshots_after_verification caused problem!\n")
   }
 }
 
-void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, network* net,
+
+void verify_task_frbmmv() {
+  verf_task_t verf_task;
+  auto found_task = task_queue.try_dequeue(verf_task);
+  int iteration = verf_task.iter_id;
+  if (found_task) {
+    LOG_DEBUG("Found the task for iteration %d\n",iteration)
+    set_network_batch_randomness(iteration,*verf_network_);
+    setup_layers_iteration_seed(*verf_network_,iteration);
+    if (iteration == 1) {
+      // any other iteration except 1st
+    }
+    else {
+      // load weights and final weight updates form step i - 1
+      LOG_DEBUG(COLORED_STR(RED, "loading weights and updates from previous iteration: %d\n"),iteration-1)
+      save_load_params_and_update_snapshot_(false,iteration-1,verf_network_.get());
+    }
+
+    // do forward, backward
+    auto avg_cost = train_verify_in_enclave_frbmmv(iteration,network_.get(),verf_network_.get());
+    LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
+    // compare weight updates with with reported ones
+    
+    if (!compare_param_updates_with_report_frbv(iteration,verf_network_.get())){
+
+    }
+    else {
+      LOG_OUT("Verified iteration %d\n",iteration)
+    }
+    // delete info before step i: i-1 so forth
+    sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+    ret = ocall_delete_snapshots_after_verification(iteration);
+    CHECK_SGX_SUCCESS(ret, "ocall_delete_snapshots_after_verification caused problem!\n")
+  }
+}
+
+void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, network* net,
                                      int iteration, int size,int low,int high) {
-  std::set<int> selected_ids;
+  std::queue<int> selected_ids;
   // LOG_DEBUG("preparing inputs for verification network in iteration %d,low:%d,high:%d\n",iteration,low,high)
   while (selected_ids.size() < size) {
     int id = net->iter_batch_rng->getRandomInt(low, high);
-    if (selected_ids_prev.count(id) == 0 && selected_ids_prev.count(id) == 0) {
+    if (selected_ids_prev.count(id) == 0) {
       selected_ids_prev.insert(id);
-      selected_ids.insert(id);
+      selected_ids.push(id);
+      queued_ids.push(id);
     }
   }
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -2760,7 +3201,9 @@ void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, network* 
   std::vector<uint8_t> cont_bytes(*plain_image_label_auth_bytes,0);
   auto net_input = net->input->getItemsInRange(0, net->input->getBufferSize());
   auto net_truth = net->truth->getItemsInRange(0, net->truth->getBufferSize());
-  for (const auto id : selected_ids) {
+  while(!selected_ids.empty()) {
+  // for (const auto id : selected_ids) {
+    int id = selected_ids.front();
     ret = ocall_load_dec_images(id,cont_bytes.data(),cont_bytes.size());
     CHECK_SGX_SUCCESS(ret, "ocall_load_dec_images caused problem\n")
     auto auth_buff = flatbuffers::GetRoot<CMAC128Auth>(cont_bytes.data());
@@ -2777,12 +3220,13 @@ void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, network* 
       std::memcpy(net_truth.get()+(ind*required_lbl_elems), imglabel->label_content()->Data(), required_lbl_byets);
     }
     ++ind;
+    selected_ids.pop();
   }
   net->input->setItemsInRange(0, net->input->getBufferSize(),net_input);
   net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
 }
 
-void start_training_verification(int iteration) {
+void start_training_verification_frbv(int iteration) {
   // sgx_sha256_hash_t report;
   std::vector<uint8_t> report(SGX_SHA256_HASH_SIZE,0);
   send_batch_seed_to_gpu(iteration);
@@ -2806,25 +3250,27 @@ void start_training_verification(int iteration) {
   apply_clipping_then_update(network_.get());
 
   // snapshot weights and updates afterwards so maybe used for verification
-  save_load_params_and_update_snapshot_frbv(true,iteration,network_.get());
+  save_load_params_and_update_snapshot_(true,iteration,network_.get());
   
   // in case you do not want GPU performing update phase, let the GPU get the updates from SGX
   ret = ocall_use_sgx_new_weights_momentum_grads(iteration);
   CHECK_SGX_SUCCESS(ret, "ocall_use_sgx_new_weights_momentum_grads caused problem!\n")
   
-  // check if it should be added to verification queue
-  const auto verf_rand = sgx_root_rng->getRandomFloat(0.0,1.0);
-  verf_task_t task;
-  task.iter_id = iteration;
-  task.verf_ = verf_variations_t::FRBV;
-  std::memcpy(task.task.frvb_task.reported_hash, report.data(), SGX_SHA256_HASH_SIZE);
-  if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
-    task_queue.enqueue(task);
-    LOG_DEBUG("Task has been put for verification!\n")
-    verify_task_frbv();
-  }
-  else {
-    LOG_DEBUG("Task has not been put for verification!\n")
+  if (1) {
+    // check if it should be added to verification queue
+    const auto verf_rand = sgx_root_rng->getRandomFloat(0.0,1.0);
+    verf_task_t task;
+    task.iter_id = iteration;
+    task.verf_ = verf_variations_t::FRBV;
+    std::memcpy(task.task.frvb_task.reported_hash, report.data(), SGX_SHA256_HASH_SIZE);
+    if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
+      task_queue.enqueue(task);
+      LOG_DEBUG("Task has been put for verification!\n")
+      verify_task_frbv();
+    }
+    else {
+      LOG_DEBUG("Task has not been put for verification!\n")
+    }
   }
   // abort();
 
@@ -2832,4 +3278,51 @@ void start_training_verification(int iteration) {
   // load weights and final weight updates form step i - 1
   // do forward, backward
   // compare weight updates with with reported ones
+}
+
+void start_training_verification_frbmmv(int iteration) {
+
+  std::vector<uint8_t> report(SGX_SHA256_HASH_SIZE,0);
+  send_batch_seed_to_gpu(iteration);
+  set_network_batch_randomness(iteration,*network_);
+  setup_layers_iteration_seed(*network_,iteration);
+  auto ret = ocall_gpu_train_report_frbmmv(iteration,report.data(),SGX_SHA256_HASH_SIZE);
+  CHECK_SGX_SUCCESS(ret, "ocall_gpu_train_report_frbmmv caused an issue\n");
+  // get a cmac on the report with iteration and put it outisde
+  auto aad_report = construct_aad_frbv_report_nochange_ts(iteration, iteration);
+  sgx_cmac_state_handle_t cmac_handle = nullptr;
+  ret = sgx_cmac128_init(&enclave_cmac_key, &cmac_handle);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_init caused problem!\n")
+  auto auth_report = generate_auth_flatbuff(report, &aad_report, &cmac_handle);
+  ret = sgx_cmac128_close(cmac_handle);
+  CHECK_SGX_SUCCESS(ret, "sgx_cmac128_close caused problem!\n")
+  // save_auth_step_report outside
+  ret = ocall_save_auth_report_frbmmv(iteration,auth_report.data(),auth_report.size());
+  CHECK_SGX_SUCCESS(ret, "ocall_save_auth_report_frbmmv caused problem!\n")
+  // apply the computed updates (in GPU) that will be added up to weights step in enclave
+  apply_weight_updates(iteration, network_.get());
+  apply_clipping_then_update(network_.get());
+
+  // snapshot weights and updates afterwards so maybe used for verification
+  save_load_params_and_update_snapshot_(true,iteration,network_.get());
+  
+  // in case you do not want GPU performing update phase, let the GPU get the updates from SGX
+  ret = ocall_use_sgx_new_weights_momentum_grads(iteration);
+  CHECK_SGX_SUCCESS(ret, "ocall_use_sgx_new_weights_momentum_grads caused problem!\n")
+  if (1) {
+    // check if it should be added to verification queue
+    const auto verf_rand = sgx_root_rng->getRandomFloat(0.0,1.0);
+    verf_task_t task;
+    task.iter_id = iteration;
+    task.verf_ = verf_variations_t::FRBRMMV;
+    std::memcpy(task.task.frvb_task.reported_hash, report.data(), SGX_SHA256_HASH_SIZE);
+    if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
+      task_queue.enqueue(task);
+      LOG_DEBUG("Task has been put for verification!\n")
+      verify_task_frbmmv();
+    }
+    else {
+      LOG_DEBUG("Task has not been put for verification!\n")
+    }
+  }
 }

@@ -65,3 +65,9 @@ struct free_delete
 typedef struct iteration_seed_t_{
   uint64_t batch_layer_seed[32];
 } iteration_seed_t;
+
+typedef enum class verf_variations_t_ {
+  FRBV = 0,
+  FRBRMMV,
+  LVV,
+}verf_variations_t;

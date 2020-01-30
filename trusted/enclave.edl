@@ -119,8 +119,11 @@ enclave {
        [in, size=layers_seed_len] uint8_t* layers_seed,size_t layers_seed_len);
 
        void ocall_gpu_train_report_frbv(int iteration,[out, size=report_len] uint8_t* report,size_t report_len);
+       void ocall_gpu_train_report_frbmmv(int iteration,[out, size=report_len] uint8_t* report,size_t report_len);
+
        void ocall_save_auth_report_frbv(int iteration,[in, size=report_len] uint8_t* auth_report,size_t report_len);
-       void ocall_load_auth_report_frbv(int iteration,
+       void ocall_save_auth_report_frbmmv(int iteration,[in, size=report_len] uint8_t* auth_report,size_t report_len);
+       void ocall_load_auth_report(int iteration,
               [out, size=report_len] uint8_t* auth_report,
               size_t report_len,
               [out, size=mac_len] uint8_t* mac,
@@ -132,6 +135,17 @@ enclave {
               size_t start,
               [out,size=buff_len] uint8_t* buff,size_t buff_len,
               [out,size=layer_sha_len] uint8_t* layer_sha,size_t layer_sha_len);
+
+       void ocall_load_layer_report_frbmmv(int iteration,int layer_index,
+              size_t start_updates,
+              [out,size=buff_updates_len] uint8_t* buff_updates,size_t buff_updates_len,
+              [out,size=layer_updates_sha_len] uint8_t* layer_updates_sha,size_t layer_updates_sha_len,
+              size_t start_mmout,
+              [out,size=layer_MM_out_len] uint8_t* layer_MM_out,size_t layer_MM_out_len,
+              [out,size=lmm_shaout_len] uint8_t*lmm_shaout,size_t lmm_shaout_len,
+              size_t start_prevdelta,
+              [out,size=lmm_prev_delta_len] uint8_t* lmm_prev_delta,size_t lmm_prev_delta_len,
+              [out,size=lmm_shapdelta_len] uint8_t*lmm_shapdelta,size_t lmm_shapdelta_len);
        
        void ocall_save_enclaves_layer_params_updates_frbv(int iteration,int layer_index,
               size_t start,
@@ -146,6 +160,7 @@ enclave {
               [out,size=layer_cmac_len] uint8_t* layer_cmac,size_t layer_cmac_len);
 
        void ocall_use_sgx_new_weights_momentum_grads(int iteration);
+       void ocall_delete_snapshots_after_verification(int iteration);
 
        };
 };

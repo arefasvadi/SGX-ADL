@@ -9,9 +9,9 @@
 // later remove this to CMAKE
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
-#ifndef USE_GEMM_THREADING_SGX
-#define USE_GEMM_THREADING_SGX
-#endif
+// #ifndef USE_GEMM_THREADING_SGX
+// #define USE_GEMM_THREADING_SGX
+// #endif
 
 //#define MEASURE_SWITCHLESS_PERF
 #ifdef MEASURE_SWITCHLESS_PERF

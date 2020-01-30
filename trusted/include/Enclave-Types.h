@@ -32,12 +32,6 @@ typedef struct integrity_set_func_ {
   integrity_set_select_obliv_variations type_;
 } integrity_set_func;
 
-typedef enum class verf_variations_t_ {
-  FRBV = 0,
-  FRBRMMV,
-  LVV,
-}verf_variations_t;
-
 typedef struct verf_prob_t_ {
   float prob = 0;
 }verf_prob_t;

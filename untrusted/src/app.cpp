@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 #include <unordered_set>
-
+#include <queue>
 #include "Record/VectorRecordSet.h"
 #include "cryptopp/eccrypto.h"
 #include "cryptopp/osrng.h"
@@ -97,6 +97,10 @@ FlatBufferedContainerT<DataConfig> dsconfigs = {};
 FlatBufferedContainerT<ArchConfig> archconfigs = {};
 train_batch_step_report_snapshot_fbv_t train_iterations_snapshots;
 train_batch_step_snapshot_snapshot_frbv_t enclave_train_iterations_snapshots;
+train_batch_step_snapshot_snapshot_frbmmv_t train_iterations_snapshots_frbmmv;
+std::unique_ptr<verf_variations_t> main_verf_task_variation_;
+int gpu_iteration = 0;
+
 
 std::unique_ptr<PRNG> pub_root_rng;
 std::deque<std::vector<uint8_t>> enc_integ_set;
@@ -1030,16 +1034,17 @@ ocall_gpu_get_iteration_seed(int      iteration,
   }
 }
 
-void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, int iteration, int size,int low,int high) {
+void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, int iteration, int size,int low,int high) {
   
   // LOG_DEBUG("size:%d,low:%d,high:%d,\nnet_batch:%d,net_inputs:%d,net_truths:%d\n",
   //   size,low,high,network_->batch,network_->inputs,network_->truths);
-  std::set<int> selected_ids;
+  std::queue<int> selected_ids;
   while (selected_ids.size() < size) {
     int id = network_->iter_batch_rng->getRandomInt(low, high);
-    if (selected_ids_prev.count(id) == 0 && selected_ids_prev.count(id) == 0) {
+    if (selected_ids_prev.count(id) == 0) {
       selected_ids_prev.insert(id);
-      selected_ids.insert(id);
+      selected_ids.push(id);
+      queued_ids.push(id);
     }
   }
   // LOG_DEBUG("selected_ids size:%d\n",selected_ids.size());
@@ -1050,8 +1055,10 @@ void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, int itera
   const auto required_img_bytes = required_img_elems * sizeof(float);
   const auto required_lbl_elems = dsconfigs.objPtr->img_label_meta()->label_meta()->numClasses();
   const auto required_lbl_byets = required_lbl_elems* sizeof(float);
-  for (const auto id : selected_ids) {
+  while(!selected_ids.empty()) {
+  // for (const auto id : selected_ids) {
     // LOG_DEBUG("here index:%d,id:%d\n",ind,id)
+    int id = selected_ids.front();
     const auto cont_bytes = dec_img_set.at(id);
     const auto auth_buff = flatbuffers::GetRoot<CMAC128Auth>(cont_bytes.data());
     const auto imglabel = flatbuffers::GetRoot<PlainImageLabel>(auth_buff->content()->Data());
@@ -1061,11 +1068,12 @@ void setup_iteration_inputs_training(std::set<int> &selected_ids_prev, int itera
     }
     // LOG_DEBUG("finished index:%d,id:%d\n",ind,id)
     ++ind;
+    selected_ids.pop();
   }
 }
 
 void
-forward_network_frbv(network *netp) {
+forward_network_(network *netp) {
   network net = *netp;
   cuda_set_device(net.gpu_index);
   cuda_push_array(net.input_gpu, net.input, net.inputs * net.batch);
@@ -1080,7 +1088,9 @@ forward_network_frbv(network *netp) {
     if (l.delta_gpu) {
       // LOG_DEBUG("layer has delta! GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
       fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
+      fill_cpu(l.outputs * l.batch, 0, l.delta, 1);
     }
+
     l.forward_gpu_sgx_verifies(l, net);
     net.input_gpu = l.output_gpu;
     net.input     = l.output;
@@ -1097,7 +1107,7 @@ forward_network_frbv(network *netp) {
 }
 
 void
-backward_network_frbv(network *netp) {
+backward_network_(network *netp) {
   int     i;
   network net  = *netp;
   network orig = net;
@@ -1123,7 +1133,7 @@ backward_network_frbv(network *netp) {
 }
 
 void
-update_network_frbv(network *netp,bool perform_gpu_update) {
+update_network_(network *netp,bool perform_gpu_update) {
   network net = *netp;
   cuda_set_device(net.gpu_index);
   int         i;
@@ -1154,21 +1164,23 @@ update_network_frbv(network *netp,bool perform_gpu_update) {
 void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
   float avg_cost = 0;
   std::set<int> selected_ids;
+  std::queue<int> queued_ids;
+  gpu_iteration = iteration;
   network_->train = 1;
   while (true) {
     // prepare batch
-    setup_iteration_inputs_training(selected_ids,
-      iteration, network_->batch, 0, dec_img_set.size());
+    setup_iteration_inputs_training(queued_ids,selected_ids,
+      iteration, network_->batch, 0, dec_img_set.size()-1);
     *(network_->seen) += network_->batch;
     // forward gpu
     LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
-    forward_network_frbv(network_.get());
+    forward_network_(network_.get());
     avg_cost += *network_->cost;
     // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     LOG_DEBUG("GPU: finished call forward\n")
     // backward gpu
     LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
-    backward_network_frbv(network_.get());
+    backward_network_(network_.get());
     LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
     if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
       LOG_DEBUG(COLORED_STR(BRIGHT_RED,"GPU Step: average cost for iteration %d is : %f\n"),iteration,avg_cost/(network_->subdivisions * (network_->batch)))
@@ -1184,12 +1196,20 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
   report_len = SHA256_DIGEST_LENGTH;
   // update gpu
   // LOG_DEBUG("GPU: starting to call update for iteration %d\n", iteration)
-  // update_network_frbv(network_.get(),true);
+  // update_network_(network_.get(),true);
   // LOG_DEBUG("GPU: finished to call update for iteration %d\n", iteration)
   // instead we get the updated waits from sgx!
   std::string indices = "GPU selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
   for (const auto ind:selected_ids) {
     indices += std::to_string(ind)+",";
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+  indices = "GPU selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+  while(!queued_ids.empty()){
+    int ind = queued_ids.front();
+    indices += std::to_string(ind)+",";
+    queued_ids.pop();
   }
   indices += std::string("]\n");
   LOG_DEBUG("%s",indices.c_str())
@@ -1207,6 +1227,74 @@ ocall_gpu_train_report_frbv(int iteration, uint8_t *report, size_t report_len) {
   if (network_->gpu_index >= 0) {
     LOG_DEBUG("net gpu index: %d\n", network_->gpu_index); 
     train_network_frbv(iteration,report,report_len);
+  }
+  
+}
+
+void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
+  float avg_cost = 0;
+  std::set<int> selected_ids;
+  std::queue<int> queued_ids;
+  gpu_iteration = iteration;
+  network_->train = 1;
+  while (true) {
+    // prepare batch
+    setup_iteration_inputs_training(queued_ids, selected_ids,
+      iteration, network_->batch, 0, dec_img_set.size()-1);
+    *(network_->seen) += network_->batch;
+    // forward gpu
+    // LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
+    forward_network_(network_.get());
+    avg_cost += *network_->cost;
+    // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
+    // LOG_DEBUG("GPU: finished call forward\n")
+    // backward gpu
+    // LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
+    backward_network_(network_.get());
+    // LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
+    if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
+      LOG_DEBUG(COLORED_STR(BRIGHT_RED,"GPU Step: average cost for iteration %d is : %f\n"),iteration,avg_cost/(network_->subdivisions * (network_->batch)))
+      break;
+    }
+  }
+  // get snapshot -- since we're taking weight updates we should do it here before applying update
+  prepare_train_snapshot_frbmmv(iteration);
+  uint8_t *rep
+      = train_iterations_snapshots_frbmmv.step_net_reports[iteration].net_sha256.data();
+  // LOG_DEBUG("rep pointer is null==%d and report pointer is null==%d\n",(rep == nullptr),(report==nullptr))
+  std::memcpy(report, rep, SHA256_DIGEST_LENGTH);
+  report_len = SHA256_DIGEST_LENGTH;
+  // update gpu
+  // LOG_DEBUG("GPU: starting to call update for iteration %d\n", iteration)
+  // update_network_(network_.get(),true);
+  // LOG_DEBUG("GPU: finished to call update for iteration %d\n", iteration)
+  // instead we get the updated waits from sgx!
+  std::string indices = "GPU selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+  for (const auto ind:selected_ids) {
+    indices += std::to_string(ind)+",";
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+  indices = "GPU selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+  while(!queued_ids.empty()){
+    int ind = queued_ids.front();
+    indices += std::to_string(ind)+",";
+    queued_ids.pop();
+  }
+  indices += std::string("]\n");
+  LOG_DEBUG("%s",indices.c_str())
+}
+
+void
+ocall_gpu_train_report_frbmmv(int iteration, uint8_t *report, size_t report_len) {
+  // train for one batch
+  if (!network_) {
+    LOG_ERROR("net empty\n");
+    abort();
+  }
+  if (network_->gpu_index >= 0) {
+    LOG_DEBUG("net gpu index: %d\n", network_->gpu_index); 
+    train_network_frbmmv(iteration,report,report_len);
   }
   
 }
@@ -1358,6 +1446,39 @@ void ocall_use_sgx_new_weights_momentum_grads(int iteration) {
   }
 }
 
+void ocall_delete_snapshots_after_verification(int iteration) {
+  
+  for (int i=iteration-1;i>=0;--i) {
+    if (enclave_train_iterations_snapshots.step_net_reports.count(i) > 0) {
+      enclave_train_iterations_snapshots.step_net_reports.erase(i);
+    }
+    else {
+      break;
+    }
+  }
+  
+  if (*main_verf_task_variation_ == verf_variations_t_::FRBV) {
+    for (int i=iteration-1;i>=0;--i) {
+      if (train_iterations_snapshots.step_net_reports.count(i) > 0) {
+        train_iterations_snapshots.step_net_reports.erase(i);
+      }
+      else {
+        break;
+      }
+    }
+  }
+  else if (*main_verf_task_variation_ == verf_variations_t_::FRBRMMV) {
+    for (int i=iteration-1;i>=0;--i) {
+      if (train_iterations_snapshots_frbmmv.step_net_reports.count(i) > 0) {
+        train_iterations_snapshots_frbmmv.step_net_reports.erase(i);
+      }
+      else {
+        break;
+      }
+    }
+  }
+}
+
 void
 ocall_load_layer_report_frbv(int      iteration,
                              int      layer_index,
@@ -1379,9 +1500,59 @@ ocall_load_layer_report_frbv(int      iteration,
   }
 }
 
-void ocall_load_auth_report_frbv(int iteration,uint8_t* auth_report,size_t report_len,
+void ocall_load_layer_report_frbmmv(int iteration,int layer_index,
+              size_t start_updates,
+              uint8_t* buff_updates,size_t buff_updates_len,
+              uint8_t* layer_updates_sha,size_t layer_updates_sha_len,
+              size_t start_mmout,
+              uint8_t* layer_MM_out,size_t layer_MM_out_len,
+              uint8_t*lmm_shaout,size_t lmm_shaout_len,
+              size_t start_prevdelta,
+              uint8_t* lmm_prev_delta,size_t lmm_prev_delta_len,
+              uint8_t*lmm_shapdelta,size_t lmm_shapdelta_len) {
+  const auto &layer_rep
+      = train_iterations_snapshots_frbmmv.step_net_reports[iteration]
+            .net_layers_reports[layer_index];
+  if (layer_updates_sha != nullptr) {
+    std::memcpy(layer_updates_sha,
+                layer_rep.layer_updates_sha256.data(),
+                layer_updates_sha_len);
+  }
+  if (buff_updates != nullptr) {
+    std::memcpy(buff_updates,
+                &layer_rep.layer_updates_bytes[start_updates],
+                buff_updates_len);
+  }
+  if (lmm_shaout != nullptr) {
+    std::memcpy(
+        lmm_shaout, layer_rep.layer_MM_out_sha256.data(), lmm_shaout_len);
+  }
+  if (layer_MM_out != nullptr) {
+    std::memcpy(layer_MM_out,
+                &layer_rep.layer_forward_MM_outputs[start_mmout],
+                layer_MM_out_len);
+  }
+  if (lmm_shapdelta != nullptr) {
+    std::memcpy(lmm_shapdelta,
+                layer_rep.layer_MM_delata_prev_sha256.data(),
+                lmm_shapdelta_len);
+  }
+  if (lmm_prev_delta != nullptr) {
+    std::memcpy(lmm_prev_delta,
+                &layer_rep.layer_backward_MM_prev_delta[start_prevdelta],
+                lmm_prev_delta_len);
+  }
+}
+
+void ocall_load_auth_report(int iteration,uint8_t* auth_report,size_t report_len,
           uint8_t* mac, size_t mac_len, uint8_t* aad, size_t aad_len) {
-  auto auth_flatbuffer = flatbuffers::GetRoot<CMAC128Auth>(train_iterations_snapshots.step_net_reports[iteration].auth_net_sha256.data());
+  const CMAC128Auth* auth_flatbuffer = nullptr;
+  if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+    auth_flatbuffer = flatbuffers::GetRoot<CMAC128Auth>(train_iterations_snapshots.step_net_reports[iteration].auth_net_sha256.data());
+  }
+  else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+    auth_flatbuffer = flatbuffers::GetRoot<CMAC128Auth>(train_iterations_snapshots_frbmmv.step_net_reports[iteration].auth_net_sha256.data());
+  }
   if (report_len != auth_flatbuffer->content()->size()) {
     LOG_ERROR("Unexpected size mismatch\n");
     abort();
@@ -1404,6 +1575,12 @@ void ocall_save_auth_report_frbv(int iteration,uint8_t* auth_report,size_t repor
   auto auth_rep = std::vector<uint8_t>(report_len,0);
   std::memcpy(auth_rep.data(), auth_report, report_len);
   train_iterations_snapshots.step_net_reports[iteration].auth_net_sha256 = std::move(auth_rep);
+}
+
+void ocall_save_auth_report_frbmmv(int iteration,uint8_t* auth_report,size_t report_len) {
+  auto auth_rep = std::vector<uint8_t>(report_len,0);
+  std::memcpy(auth_rep.data(), auth_report, report_len);
+  train_iterations_snapshots_frbmmv.step_net_reports[iteration].auth_net_sha256 = std::move(auth_rep);
 }
 
 void
@@ -1603,6 +1780,8 @@ prepare_enclave(const std::string &location_conf_file,
   load_sec_keys_into_enclave();
   load_task_config_into_enclave();
   load_dataset_config_into_enclave();
+  main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
+      new verf_variations_t(verf_variations_t::FRBV));
   load_network_config_into_enclave();
   start_task();  
 }
@@ -1635,7 +1814,12 @@ prepare_gpu() {
       network_->batch,
       network_->subdivisions,
       (network_->batch * network_->subdivisions))
-  prepare_train_snapshot_frbv(0);
+  if (*main_verf_task_variation_ == verf_variations_t::FRBV) {
+    // prepare_train_snapshot_frbv(0);
+  }
+  else if (*main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+    // prepare_train_snapshot_frbmmv(0);
+  }
   // LOG_DEBUG("net_rng iter state : " COLORED_STR(RED,"%s\n") "layer_rng_deriver iter state: " COLORED_STR(BRIGHT_GREEN,"%s\n"),bytesToHexString((const uint8_t*)network_->iter_batch_rng->getState().data(),sizeof(uint64_t)*16).c_str(),bytesToHexString((const uint8_t*)network_->layer_rng_deriver->getState().data(),sizeof(uint64_t)*16).c_str());
 
   // LOG_DEBUG("net_rng iter 0 first int : %d\n",network_->iter_batch_rng->getRandomInt());
@@ -1690,6 +1874,68 @@ prepare_train_snapshot_frbv(int iter_num) {
   train_iterations_snapshots.step_net_reports[iter_num]
       = std::move(network_iter_report);
   LOG_DEBUG("finished preparing snapshot for iteration %d and gpu index index: %d\n",iter_num,network_->gpu_index);
+}
+
+void prepare_train_snapshot_frbmmv(int iter_num) {
+  LOG_DEBUG("preparing snapshot for iteration %d and gpu index index: %d\n",iter_num,network_->gpu_index);
+  uint8_t *                                buff        = nullptr;
+  uint8_t *                                buff_sha256 = nullptr;
+  if (train_iterations_snapshots_frbmmv.step_net_reports.count(gpu_iteration) == 0) {
+        train_iterations_snapshots_frbmmv.step_net_reports[gpu_iteration] = std::move(network_batch_step_snapshot_frbmmv_t());
+  }
+  auto& network_iter_report = train_iterations_snapshots_frbmmv.step_net_reports[gpu_iteration];
+  // create initial sha256 for this step
+  auto net_sha256 = std::vector<uint8_t>(SHA256_DIGEST_LENGTH,0);
+  std::vector<uint8_t> temp_net_sha256;
+  // first item is the iteration number
+  temp_net_sha256.reserve(64);
+
+  for (int i = 0; i < network_->n; ++i) {
+    auto &l = network_->layers[i];
+    if (l.type == CONVOLUTIONAL || l.type == CONNECTED || l.type == BATCHNORM) {
+      // bool prev_delta = false;
+      // if (i>=1 && network_->layers[i-1].delta_gpu) {
+      //   prev_delta = true;
+      // }
+      if (network_iter_report.net_layers_reports.count(i) == 0) {
+        network_iter_report.net_layers_reports[i] = std::move(layer_batch_step_snapshot_frbmmv_t());
+      }
+      auto& l_report = network_iter_report.net_layers_reports[i];
+      size_t total_bytes = count_layer_paramas_bytes(l);
+      // LOG_DEBUG("total bytes for layer %d (%s): %lu\n",i,get_layer_string(l.type),total_bytes)
+      // layer_batch_step_report_snapshot_fbv_t l_report;
+      l.create_snapshot_for_sgx(l, *network_, &buff, &buff_sha256);
+      for(int j=0;j<SHA256_DIGEST_LENGTH;++j) {
+        temp_net_sha256.push_back(buff_sha256[j]);
+      }
+      l_report.layer_updates_sha256.resize(SHA256_DIGEST_LENGTH);
+      std::memcpy(l_report.layer_updates_sha256.data() , buff_sha256, SHA256_DIGEST_LENGTH);
+      delete[] buff_sha256;
+      l_report.layer_updates_bytes.resize(total_bytes);
+      std::memcpy(l_report.layer_updates_bytes.data() , buff, total_bytes);
+      delete[] buff;
+      if (l_report.layer_forward_MM_outputs.size() > 0) {
+        l_report.layer_MM_out_sha256.resize(SHA256_DIGEST_LENGTH);
+        gen_sha256(l_report.layer_forward_MM_outputs.data(), 
+          l_report.layer_forward_MM_outputs.size(),l_report.layer_MM_out_sha256.data());
+        for(int j=0;j<SHA256_DIGEST_LENGTH;++j) {
+          temp_net_sha256.push_back(l_report.layer_MM_out_sha256[j]);
+        }
+      }
+      if (l_report.layer_backward_MM_prev_delta.size() > 0) {
+        l_report.layer_MM_delata_prev_sha256.resize(SHA256_DIGEST_LENGTH);
+        gen_sha256(l_report.layer_backward_MM_prev_delta.data(), 
+          l_report.layer_backward_MM_prev_delta.size(),l_report.layer_MM_delata_prev_sha256.data());
+        for(int j=0;j<SHA256_DIGEST_LENGTH;++j) {
+          temp_net_sha256.push_back(l_report.layer_MM_delata_prev_sha256[j]);
+        }
+      }
+    }
+  }
+  gen_sha256(temp_net_sha256.data(),temp_net_sha256.size() , net_sha256.data());
+  network_iter_report.net_sha256 = net_sha256;
+  LOG_DEBUG("finished preparing snapshot for iteration %d and gpu index index: %d\n",iter_num,network_->gpu_index);
+
 }
 
 void

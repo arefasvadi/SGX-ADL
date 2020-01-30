@@ -48,4 +48,5 @@ extern std::unique_ptr<verf_variations_t> verf_scheme_ptr;
 extern std::shared_ptr<network> network_;
 extern std::shared_ptr<network> verf_network_;
 
+extern std::unique_ptr<verf_variations_t> main_verf_task_variation_;
 extern moodycamel::ConcurrentQueue<verf_task_t> task_queue;

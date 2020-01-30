@@ -3,6 +3,7 @@ import sys
 import os
 import numpy as np
 from Crypto.Hash import SHA256
+from PIL import Image
 import shutil
 import json
 #sys.path.append(os.path.abspath('./fbs_gen_cpde'))
@@ -41,13 +42,12 @@ def add_bytevec_to_builder(builder,bytes,length):
     return shacontents
 
 def load_cifar10():
-    (x_train, y_train), (x_test, y_test) = cifar10.load_data();
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     y_train = to_categorical(y_train,10,dtype=np.float32)
     y_test = to_categorical(y_test,10,dtype=np.float32)
     x_train = x_train.transpose(0,3,1,2)
     x_test = x_test.transpose(0,3,1,2)
     print((x_train.shape,y_train.shape),(x_test.shape,y_test.shape))
-
 
     x_train = x_train.reshape(x_train.shape[0],-1).astype(np.float32)
     x_test = x_test.reshape(x_test.shape[0],-1).astype(np.float32)
@@ -358,8 +358,10 @@ def process_cifar_10():
         "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_gpu_subdiv_1_enclavesubdive_2.cfg",
         
         "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_128.cfg",
         "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobatchnorm.cfg",
-        
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobn_gpu_subdiv_1_enclavesubdive_.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobn.cfg",
     ]
     cifar10_out_dir = "/home/aref/projects/SGX-ADL/test/config/cifar10/"
     root_seeds = [0]
@@ -424,15 +426,16 @@ def gen_ds_flatbuffs(ds_configs):
     data_conf_tr_saved = False
 
     pred_ds = conf_contents["prediction_ds"]
-    enc_pred_ds_dir = os.path.join(encrypted_ds_dir,"pred")
-    data_conf_pred_dir = os.path.join(enc_pred_ds_dir,"dataconfigs")
-    data_conf_pred_path = os.path.join(data_conf_pred_dir,"dataconfig-pred.fb")
     data_conf_pred_saved = False
+    if (not pred_ds is None):
+        enc_pred_ds_dir = os.path.join(encrypted_ds_dir,"pred")
+        data_conf_pred_dir = os.path.join(enc_pred_ds_dir,"dataconfigs")
+        data_conf_pred_path = os.path.join(data_conf_pred_dir,"dataconfig-pred.fb")
+        os.makedirs(enc_pred_ds_dir)
+        os.makedirs(data_conf_pred_dir)
 
     os.makedirs(enc_tr_ds_dir)
-    os.makedirs(enc_pred_ds_dir)
     os.makedirs(data_conf_tr_dir)
-    os.makedirs(data_conf_pred_dir)
 
     signed_task_configs_dir = os.path.join(ds_root_out_dir,"signed_tasks")
     os.makedirs(signed_task_configs_dir)
@@ -456,8 +459,9 @@ def gen_ds_flatbuffs(ds_configs):
     os.makedirs(preds_snapshot_dir)
     print('*******dataset for training*******')
     enc_ds_store_path(tr_ds,client_aes_gcm_key_file,dest_dir=enc_tr_ds_dir)
-    print('*******dataset for predecition*******')
-    enc_ds_store_path(pred_ds,client_aes_gcm_key_file,dest_dir=enc_pred_ds_dir)
+    if (not pred_ds is None):
+        print('*******dataset for predecition*******')
+        enc_ds_store_path(pred_ds,client_aes_gcm_key_file,dest_dir=enc_pred_ds_dir)
 
     # persist 
     main_config_dir = os.path.join(ds_root_out_dir,'configs')
@@ -553,10 +557,103 @@ def gen_ds_flatbuffs(ds_configs):
                             loc_f.write(location_configs_buff)
     return
 
+SAMPLE_IMGNET_DS_LIST_PATH = "/home/aref/datasets/imagenet/train.txt"
+SAMPLE_IMGNET_DS_LABELS_PATH = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/imagenet.labels.list"
+
+def imgnet_get_ds(expected_ds_size,width,height,channels,num_classes):
+    labels_dict = {} 
+    count_dict = {}
+    ds = np.zeros(shape=(expected_ds_size,channels*width*height + num_classes),dtype=np.float32)
+    # ds = []
+    # lbs = []
+    cnt = 0
+    train_lines = []
+    with open(SAMPLE_IMGNET_DS_LIST_PATH,'r') as f:
+        for sofar,line in enumerate(f):
+            train_lines.append(line[:-1])
+    
+    train_lines = np.random.choice(train_lines, size=int(1.2*expected_ds_size), replace=False, p=None)
+    
+    for sofar,line in enumerate(train_lines):
+        if (sofar == expected_ds_size - 1):
+            break
+        line = line.split(" ",)
+        cls_ = float(line[1])
+        line = "/home/aref/datasets/imagenet/train/" + line[0]
+        # read jpeg/change size to 224x224
+        im = Image.open(str(line))
+        orig_w,orig_h = im.size
+        num_channel = len(im.split())
+        if (num_channel != channels):
+            # print("{}: not enough channel for {} channels: {}".format(sofar,line,num_channel))
+            # sys.exit(1)
+            continue
+        if (orig_h != height or orig_w != width):
+            im_res = im.resize((width,height), Image.BILINEAR)
+            im = im_res
+        im = np.array(im)
+        # print("sofar: ",sofar,im.shape)
+        im = im.transpose(2,0,1)
+        im = im.flatten()
+        # print(im.shape)
+        if not cls_ in labels_dict:
+            labels_dict[cls_] = float(cnt)
+            cnt += 1
+            count_dict[cls_] = 1
+        count_dict[cls_] += 1
+        
+        lbl = to_categorical(labels_dict[cls_],num_classes=num_classes)
+        row = np.hstack((im,lbl)).astype(np.float32)
+        ds[sofar,:] = row
+
+    # ds = np.array(ds)
+            
+    print(ds.shape)
+    total_classes = len(labels_dict.keys())
+    print('total number of sample imagenet classes {}'.format(total_classes))
+    print('counts of each class: {}'.format(count_dict))
+    
+    return ds
+
+def process_imagenet_vgg16():
+    overall_ds = imgnet_get_ds(20000,224,224,3,1000)
+    securit_task_list = [EnumSecurityType.EnumSecurityType.integrity,
+                        #  EnumSecurityType.EnumSecurityType.privacy_integrity
+                         ]
+    comp_task_list = [EnumComputationTaskType.EnumComputationTaskType.training,
+                    #   EnumComputationTaskType.EnumComputationTaskType.prediction
+                    ]
+    vgg16_arch_files = [
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train.cfg",
+    ]
+    vgg16_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/"
+    root_seeds = [0]
+    vgg16_configs = {
+        "name": "vgg16_run_configs",
+        "contents":{
+            "security_t":securit_task_list,
+            "task_t":comp_task_list,
+            "root_seeds":root_seeds,
+            "num_classes":1000,
+            "width":224,
+            "height":224,
+            "channels":3,
+            "combined_ds": overall_ds,
+            "train_ds":None,
+            "test_ds":None,
+            "prediction_ds":None,
+            "acrhs" : vgg16_arch_files,
+            "out_dir":vgg16_out_dir,
+        },
+    }
+    gen_ds_flatbuffs(vgg16_configs)
+    return
+
 if __name__ == "__main__":
     
     pool = Pool(processes=6)
-    process_cifar_10()
+    # process_cifar_10()
+    process_imagenet_vgg16()
     #pass
     #process_cifar_10()
     #gen_template_task_config("/home/aref/projects/SGX-ADL/test/config/cifar10/cifar10_task_config.bin","/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg")

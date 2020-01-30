@@ -76,6 +76,7 @@ std::unique_ptr<net_context_variations> net_context_ = nullptr;
 std::unique_ptr<verf_variations_t>  verf_scheme_ptr      = nullptr;
 std::shared_ptr<network> network_ = nullptr;
 std::shared_ptr<network> verf_network_ = nullptr;
+std::unique_ptr<verf_variations_t> main_verf_task_variation_;
 moodycamel::ConcurrentQueue<verf_task_t> task_queue;
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
@@ -765,15 +766,28 @@ void ecall_initial_sort() {
 }
 
 void ecall_start_training() {
+
 #ifdef USE_SGX_LAYERWISE
-LOG_DEBUG("Starting the training\n")
-if (*net_context_ == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT) {
-  for (int i=1;i<2;++i) {
-    start_training_verification(i);
+  LOG_DEBUG("Starting the training\n")
+  const int temp_iter = 1000;
+  main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
+      new verf_variations_t(verf_variations_t::FRBV));
+
+  if (*net_context_ == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT
+      && *main_verf_task_variation_ == verf_variations_t::FRBV) {
+    for (int i = 1; i <= temp_iter; ++i) {
+      start_training_verification_frbv(i);
+    }
+    abort();
+  } else if (*net_context_
+                 == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT
+             && *main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
+    for (int i = 1; i <= temp_iter; ++i) {
+      start_training_verification_frbmmv(i);
+    }
+    abort();
   }
-  abort();
-}
-#endif  
+#endif
 #if 0
   LOG_TRACE("entered in %s\n", __func__)
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
