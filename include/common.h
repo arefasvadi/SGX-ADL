@@ -9,9 +9,9 @@
 // later remove this to CMAKE
 #define LOG_LEVEL LOG_LEVEL_DEBUG_BEYOND
 
-// #ifndef USE_GEMM_THREADING_SGX
-// #define USE_GEMM_THREADING_SGX
-// #endif
+#ifndef USE_GEMM_THREADING_SGX
+#define USE_GEMM_THREADING_SGX
+#endif
 
 //#define MEASURE_SWITCHLESS_PERF
 #ifdef MEASURE_SWITCHLESS_PERF
@@ -21,7 +21,7 @@
 
 #ifdef USE_GEMM_THREADING_SGX
 #ifndef AVAIL_THREADS
-#define AVAIL_THREADS 6
+#define AVAIL_THREADS 4
 #endif
 #endif
 
@@ -36,7 +36,7 @@
 
 #define BLOCKING_TOTAL_ITEMS_IN_CACHE (1 * ONE_KB)
 
-#define SGX_LAYERWISE_MAX_LAYER_SIZE (50 * ONE_MB)
+#define SGX_LAYERWISE_MAX_LAYER_SIZE (32 * ONE_MB)
 
 // Later define with enums and constexpr if
 // possible values CACHE_FIFO, CACHE_LRU

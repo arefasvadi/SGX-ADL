@@ -26,7 +26,7 @@ from CryptoUtils import AEnccryptDecrypt
 import flatbuffers
 from keras.datasets import cifar10,mnist
 from keras.utils import to_categorical
-from keras import backend
+#from keras import backend
 
 from tqdm import tqdm
 from multiprocessing import Pool
@@ -347,24 +347,21 @@ def process_cifar_10():
                          EnumSecurityType.EnumSecurityType.privacy_integrity]
     comp_task_list = [EnumComputationTaskType.EnumComputationTaskType.training,
                       EnumComputationTaskType.EnumComputationTaskType.prediction]
+    #cifar10_out_dir = "/home/aref/projects/SGX-ADL/test/config/cifar10/"
+    cifar10_out_dir = "/workspaces/SGX-ADL/test/config/cifar10/"
+    root_seeds = [0]
     cifar10_arch_files = [
         
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",
-        
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc.cfg",
-        
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",
-        
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_gpu_subdiv_1_enclavesubdive_2.cfg",
-        
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_2.cfg",
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_128.cfg",
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobatchnorm.cfg",
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobn_gpu_subdiv_1_enclavesubdive_.cfg",
-        "/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobn.cfg",
+        #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg",        
+        #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_gpu_subdiv_1_enclavesubdive_2.cfg",
+        #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_2.cfg",
+        #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_128.cfg",
+       
+        #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc.cfg",
+        cifar10_out_dir+"cifar_small_fc_nobn.cfg",
+        cifar10_out_dir+"cifar_small_fc_nobn_gpu_subdiv_1_enclavesubdive_2.cfg",
+        #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobatchnorm.cfg",
     ]
-    cifar10_out_dir = "/home/aref/projects/SGX-ADL/test/config/cifar10/"
-    root_seeds = [0]
     cifar_configs = {
         "name": "run_configs",
         "contents":{
@@ -625,6 +622,7 @@ def process_imagenet_vgg16():
                     ]
     vgg16_arch_files = [
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch_64_gpusub_1_encsub_64.cfg",
     ]
     vgg16_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/"
     root_seeds = [0]
@@ -652,8 +650,9 @@ def process_imagenet_vgg16():
 if __name__ == "__main__":
     
     pool = Pool(processes=6)
-    # process_cifar_10()
-    process_imagenet_vgg16()
+    process_cifar_10()
+    #process_imagenet_vgg16()
+    
     #pass
     #process_cifar_10()
     #gen_template_task_config("/home/aref/projects/SGX-ADL/test/config/cifar10/cifar10_task_config.bin","/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg")

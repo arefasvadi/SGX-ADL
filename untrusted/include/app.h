@@ -77,7 +77,8 @@ void gen_sha256(const uint8_t* msg, const size_t msg_len, uint8_t* out);
 //                        const std::string& tasktype);
 void
 prepare_enclave(const std::string& location_conf_file,
-                const std::string& tasktype);
+                const std::string& tasktype,
+                const std::string& verftype);
 
 void prepare_gpu();
 void prepare_train_snapshot_frbv(int iter_num);

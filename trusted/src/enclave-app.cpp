@@ -205,9 +205,16 @@ ecall_NOT_SECURE_send_req_keys(uint8_t *cl_pksig,
 }
 
 void
-ecall_send_signed_task_config_verify(uint8_t *task_conf, size_t task_conf_len) {
+ecall_send_signed_task_config_verify(uint8_t *task_conf, size_t task_conf_len,int verf_type) {
   auto task_config_w_sig = flatbuffers::GetMutableRoot<SignedECC>(task_conf);
-
+  if (verf_type == 0 ) {
+    main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
+      new verf_variations_t(verf_variations_t::FRBV));
+  }
+  else if (verf_type == 1) {
+    main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
+      new verf_variations_t(verf_variations_t::FRBRMMV));
+  }
   // verify sig first
   uint8_t sig_res = SGX_EC_INVALID_SIGNATURE;
   // this one causes stack overrun for our settings! so I'm taking it in heap!
@@ -769,23 +776,21 @@ void ecall_start_training() {
 
 #ifdef USE_SGX_LAYERWISE
   LOG_DEBUG("Starting the training\n")
-  const int temp_iter = 1000;
-  main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
-      new verf_variations_t(verf_variations_t::FRBV));
+  const int temp_iter = 5;
 
   if (*net_context_ == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT
       && *main_verf_task_variation_ == verf_variations_t::FRBV) {
     for (int i = 1; i <= temp_iter; ++i) {
       start_training_verification_frbv(i);
     }
-    abort();
+    //abort();
   } else if (*net_context_
                  == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT
              && *main_verf_task_variation_ == verf_variations_t::FRBRMMV) {
     for (int i = 1; i <= temp_iter; ++i) {
       start_training_verification_frbmmv(i);
     }
-    abort();
+    //abort();
   }
 #endif
 #if 0
@@ -885,43 +890,43 @@ void gemm_nn_fast(int starterM, int M, int N, int K, float ALPHA,
                     b256_1 = _mm256_loadu_ps(&B[(k_d + k)*ldb + (8 + j)]);
 
                     // FMA - Intel Haswell (2013), AMD Piledriver (2012)
-                    c256_0 = _mm256_fmadd_ps(a256_0, b256_0, c256_0);
-                    c256_1 = _mm256_fmadd_ps(a256_1, b256_0, c256_1);
-                    c256_2 = _mm256_fmadd_ps(a256_0, b256_1, c256_2);
-                    c256_3 = _mm256_fmadd_ps(a256_1, b256_1, c256_3);
+                    // c256_0 = _mm256_fmadd_ps(a256_0, b256_0, c256_0);
+                    // c256_1 = _mm256_fmadd_ps(a256_1, b256_0, c256_1);
+                    // c256_2 = _mm256_fmadd_ps(a256_0, b256_1, c256_2);
+                    // c256_3 = _mm256_fmadd_ps(a256_1, b256_1, c256_3);
 
-                    c256_4 = _mm256_fmadd_ps(a256_2, b256_0, c256_4);
-                    c256_5 = _mm256_fmadd_ps(a256_3, b256_0, c256_5);
-                    c256_6 = _mm256_fmadd_ps(a256_2, b256_1, c256_6);
-                    c256_7 = _mm256_fmadd_ps(a256_3, b256_1, c256_7);
-
-
+                    // c256_4 = _mm256_fmadd_ps(a256_2, b256_0, c256_4);
+                    // c256_5 = _mm256_fmadd_ps(a256_3, b256_0, c256_5);
+                    // c256_6 = _mm256_fmadd_ps(a256_2, b256_1, c256_6);
+                    // c256_7 = _mm256_fmadd_ps(a256_3, b256_1, c256_7);
 
 
-                    // result256 = _mm256_mul_ps(a256_0, b256_0);
-                    // c256_0 = _mm256_add_ps(result256, c256_0);
-
-                    // result256 = _mm256_mul_ps(a256_1, b256_0);
-                    // c256_1 = _mm256_add_ps(result256, c256_1);
-
-                    // result256 = _mm256_mul_ps(a256_0, b256_1);
-                    // c256_2 = _mm256_add_ps(result256, c256_2);
-
-                    // result256 = _mm256_mul_ps(a256_1, b256_1);
-                    // c256_3 = _mm256_add_ps(result256, c256_3);
 
 
-                    // result256 = _mm256_mul_ps(a256_2, b256_0);
-                    // c256_4 = _mm256_add_ps(result256, c256_4);
+                    result256 = _mm256_mul_ps(a256_0, b256_0);
+                    c256_0 = _mm256_add_ps(result256, c256_0);
 
-                    // result256 = _mm256_mul_ps(a256_3, b256_0);
-                    // c256_5 = _mm256_add_ps(result256, c256_5);
+                    result256 = _mm256_mul_ps(a256_1, b256_0);
+                    c256_1 = _mm256_add_ps(result256, c256_1);
 
-                    // result256 = _mm256_mul_ps(a256_2, b256_1);
-                    // c256_6 = _mm256_add_ps(result256, c256_6);
+                    result256 = _mm256_mul_ps(a256_0, b256_1);
+                    c256_2 = _mm256_add_ps(result256, c256_2);
 
-                    // result256 = _mm256_mul_ps(a256_3, b256_1);
-                    // c256_7 = _mm256_add_ps(result256, c256_7);
+                    result256 = _mm256_mul_ps(a256_1, b256_1);
+                    c256_3 = _mm256_add_ps(result256, c256_3);
+
+
+                    result256 = _mm256_mul_ps(a256_2, b256_0);
+                    c256_4 = _mm256_add_ps(result256, c256_4);
+
+                    result256 = _mm256_mul_ps(a256_3, b256_0);
+                    c256_5 = _mm256_add_ps(result256, c256_5);
+
+                    result256 = _mm256_mul_ps(a256_2, b256_1);
+                    c256_6 = _mm256_add_ps(result256, c256_6);
+
+                    result256 = _mm256_mul_ps(a256_3, b256_1);
+                    c256_7 = _mm256_add_ps(result256, c256_7);
                 }
                 _mm256_storeu_ps(&C[(0 + i)*ldc + (0 + j)], c256_0);
                 _mm256_storeu_ps(&C[(1 + i)*ldc + (0 + j)], c256_1);

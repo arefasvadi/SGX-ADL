@@ -60,6 +60,7 @@ if(SGX_FOUND)
         set(SGX_TRTS_LIB sgx_trts)
         set(SGX_TSVC_LIB sgx_tservice)
         set(SGX_SWITCHLESS_LIB sgx_tswitchless)
+        set(SGX_USWITCHLESS_LIB sgx_uswitchless)
     else()
         set(SGX_URTS_LIB sgx_urts_sim)
         set(SGX_USVC_LIB sgx_uae_service_sim)
@@ -114,7 +115,8 @@ if(SGX_FOUND)
 
         add_library(${target}-edlobj OBJECT ${EDL_T_C})
         set_target_properties(${target}-edlobj PROPERTIES COMPILE_FLAGS ${ENCLAVE_C_FLAGS}
-                                                          INTERPROCEDURAL_OPTIMIZATION TRUE)
+                                                          INTERPROCEDURAL_OPTIMIZATION TRUE
+                                                          POSITION_INDEPENDENT_CODE ON)
         target_include_directories(${target}-edlobj PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
         set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_t.h")
@@ -145,7 +147,8 @@ if(SGX_FOUND)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
         # ${SGX_COMMON_CFLAGS} \
-        target_link_libraries(${target} PRIVATE "-Wl,-z,relro,-z,now,-z,noexecstack \
+        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \ 
+            -Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
             -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
@@ -178,7 +181,8 @@ if(SGX_FOUND)
 
         add_library(${target} SHARED ${SGX_SRCS} $<TARGET_OBJECTS:${target}-edlobj>)
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${ENCLAVE_CXX_FLAGS}
-                                                    INTERPROCEDURAL_OPTIMIZATION TRUE)
+                                                    INTERPROCEDURAL_OPTIMIZATION TRUE
+                                                    POSITION_INDEPENDENT_CODE ON)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
         set(TLIB_LIST "")
@@ -193,7 +197,8 @@ if(SGX_FOUND)
         #     add_dependencies(${target} ${EXTLIB})
         # endforeach()
         # ${SGX_COMMON_CFLAGS} \
-        target_link_libraries(${target} PRIVATE "-Wl,-z,relro,-z,now,-z,noexecstack \
+        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
+            -Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
             -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
@@ -285,14 +290,18 @@ if(SGX_FOUND)
         #     INTERPROCEDURAL_OPTIMIZATION TRUE
         # )
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS}
-                                        INTERPROCEDURAL_OPTIMIZATION TRUE)
+                                        INTERPROCEDURAL_OPTIMIZATION TRUE
+                                        POSITION_INDEPENDENT_CODE ON)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
         # ${SGX_COMMON_CFLAGS} \
         #  -l${SGX_USVC_LIB} \
         #  -lsgx_ukey_exchange \
+        #-Wl,--whole-archive  -l${SGX_USWITCHLESS_LIB} -Wl,--no-whole-archive \
+
         target_link_libraries(${target} PRIVATE "-L${SGX_LIBRARY_PATH} \
                                          -l${SGX_URTS_LIB} \
-                                         -lpthread")
+                                         -lpthread \
+                                         -l${SGX_USVC_LIB}")
 
         set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.h")
     endfunction()
@@ -338,14 +347,19 @@ if(SGX_FOUND)
         # )
 
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS}
-                                        INTERPROCEDURAL_OPTIMIZATION TRUE)
+                                        INTERPROCEDURAL_OPTIMIZATION TRUE
+                                        POSITION_INDEPENDENT_CODE ON)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
         # ${SGX_COMMON_CFLAGS} \
         #  -l${SGX_USVC_LIB} \
         #  -lsgx_ukey_exchange \
+        #-Wl,--whole-archive  -l${SGX_USWITCHLESS_LIB} -Wl,--no-whole-archive \
+
         target_link_libraries(${target} PRIVATE "-L${SGX_LIBRARY_PATH} \
                                          -l${SGX_URTS_LIB} \
-                                         -lpthread")
+                                         -Wl,--whole-archive  -l${SGX_USWITCHLESS_LIB} -Wl,--no-whole-archive \
+                                         -lpthread \
+                                         -l${SGX_USVC_LIB}")
 
         set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.h")
     endfunction()

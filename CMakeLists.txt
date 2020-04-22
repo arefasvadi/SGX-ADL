@@ -464,9 +464,9 @@ ${CUDA_INCLUDE_DIRS}
 )
 message(STATUS "CUDA_LIBRARIES: ${CUDA_LIBRARIES} CUDA_CUBLAS_LIBRARIES: ${CUDA_CUBLAS_LIBRARIES} CUDA_curand_LIBRARY: ${CUDA_curand_LIBRARY}")
 target_link_libraries(${Untrusted_Lib_Name} 
-PRIVATE
-DARKNET_U_GPU  
-OpenSSL::Crypto 
+PRIVATE 
+  DARKNET_U_GPU
+  OpenSSL::Crypto
 # OpenSSL::SSL 
 # Threads::Threads  
 # cryptopp

@@ -19,44 +19,6 @@
 
 //void blasfeo_sgemm(char *ta, char *tb, int *pm, int *pn, int *pk, float *alpha, float *A, int *plda, float *B, int *pldb, float *beta, float *C, int *pldc);
 
-#define OCALL_LOAD_LAYER_REPRT_FRBV(ret,iteration,layer_index,buff_ind,buff,size_bytes,layer_sha,layer_sha_len) \
-    {   \
-        const size_t interim_buff_len = (64 * ONE_KB)    \
-        int q = size_bytes / (interim_buff_len); \
-        int r = size_bytes % (interim_buff_len); \
-        uint8_t* sh_buff = layer_sha.data() \
-        size_t sh_len = layer_sha_len \
-        for (int ii = 0; ii < q; ++i) { \
-            ret = ocall_load_layer_report_frbv( \
-                iteration, \
-                layer_index, \
-                buff_ind+ii*interim_buff_len, \
-                buff+ii*interim_buff_len, \
-                interim_buff_len, \
-                sh_buff, \
-                sh_len); \
-            CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n") \
-            if (ii == 0) { \
-                sh_buff = nullptr; \
-                sh_len = 0; \
-            }\
-        } \
-        if (r != 0) { \
-            ret = ocall_load_layer_report_frbv( \
-                    iteration, \
-                    layer_index, \
-                    buff_ind+interim_buff_len*q, \
-                    buff+interim_buff_len*q, \
-                    r, \
-                    sh_buff, \
-                    sh_len); \
-            CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbv caused problem!\n") \
-        } \
-    }
-
-#define OCALL_LOAD_LAYER_REPRT_FRBMMV(ret,iteration,layer_index,buff_ind,buff,size_bytes,layer_sha,layer_sha_len) 0
-
-
 bool float_equal(const float a,const float b);
 
 void

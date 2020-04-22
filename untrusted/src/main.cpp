@@ -59,6 +59,10 @@ main(int argc, char *argv[]) {
                 {"train", "predict"},
                 "choose between train and predict")
       ->required();
+  std::string verf_type;
+  new_option->add_set("--verftype", 
+    verf_type, {"RF","RMM"},
+    "choose between randomized w.o randomized MM or w randomized MM")->required();
   arg_parser.require_option(1, 1);
   CLI11_PARSE(arg_parser, argc, argv);
 
@@ -137,7 +141,7 @@ main(int argc, char *argv[]) {
               task_type.c_str())
 
     #if defined(GPU) && defined(SGX_VERIFIES)
-    prepare_enclave(location_conf_file, task_type);
+    prepare_enclave(location_conf_file, task_type,verf_type);
     //prepare_gpu();
     #endif
     

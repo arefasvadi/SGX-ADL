@@ -3,6 +3,7 @@ enclave {
     //include "../include/common-structures.h"
     // from "TrustedLibrary/Libcxx.edl" import *;
     from "sgx_tstdc.edl" import *;
+    from "sgx_tswitchless.edl" import *;
     trusted {
        
        public void ecall_setup_channel(uint64_t chan_id,int channel_type);
@@ -37,7 +38,7 @@ enclave {
                                                   [in,size=sgx_sksig_len]uint8_t* sgx_sksig,size_t sgx_sksig_len,
                                                   [in, size=sgx_sksymm_len] uint8_t* sgx_sksymm,size_t sgx_sksymm_len);
 
-       public void ecall_send_signed_task_config_verify([in,size=task_conf_len] uint8_t* task_conf, size_t task_conf_len);
+       public void ecall_send_signed_task_config_verify([in,size=task_conf_len] uint8_t* task_conf, size_t task_conf_len,int verf_type);
        public void ecall_send_data_config_dsverify([in,size=ds_conf_len] uint8_t* ds_conf, size_t ds_conf_len);
        public void ecall_send_arch_cofig_verify_init([in, size=arch_conf_len] uint8_t* arch_conf_buff, size_t arch_conf_len);
     };

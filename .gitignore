@@ -77,3 +77,4 @@ SGX-ADL-Compile-Ninja.log
 
 test/config/cifar10/run_configs/
 test/config/imagenet_sample/vgg16_run_configs
+test/config/cifar10/cifar10_task_config.bin

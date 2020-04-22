@@ -401,7 +401,7 @@ initialize_enclave() {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   // int                updated = 0;
 
-  const void *enclave_ex_p[32] = {};
+  const void *enclave_ex_p[32] = {0};
 
   us_config.num_uworkers = 2;
   us_config.num_tworkers = 2;
@@ -415,6 +415,7 @@ initialize_enclave() {
   //     ENCLAVE_FILENAME, 1, &token, &updated, &global_eid, NULL);
   ret = sgx_create_enclave_ex(ENCLAVE_FILENAME,
                               1,
+                              //SGX_DEBUG_FLAG,
                               NULL,
                               NULL,
                               &global_eid,
@@ -1725,7 +1726,8 @@ void load_task_config_into_enclave() {
      const decltype(trainlocconfigs.objPtr) &tbl_ptr = trainlocconfigs.objPtr;
      auto signed_task_config_buf = read_file_binary(tbl_ptr->signed_task_config_path()->c_str());
      //LOG_DEBUG("loaded task config file %s with size %u: bytes\n",tbl_ptr->signed_task_config_path()->c_str(),task_config.size())
-     auto res = ecall_send_signed_task_config_verify(global_eid,signed_task_config_buf.data(),signed_task_config_buf.size());
+     auto res = ecall_send_signed_task_config_verify(global_eid,signed_task_config_buf.data(),
+      signed_task_config_buf.size(),(int)*main_verf_task_variation_);
      CHECK_SGX_SUCCESS(res, "task sig verification caused an issue\n")
    }
    else if (predlocconfigs.objPtr != nullptr) {
@@ -1772,18 +1774,23 @@ load_network_config_into_enclave() {
 // send signed dataset_config to enclave
 // enclave must verify the dataset, and depending on the task will setup the
 // buffers and randomness
-void
-prepare_enclave(const std::string &location_conf_file,
-                const std::string &tasktype) {
-  int success = 0;
+void prepare_enclave(const std::string &location_conf_file,
+                const std::string &tasktype, const std::string& verftype) {
+  //int success = 0;
+  if (verftype.compare("RF") == 0) {
+    main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
+      new verf_variations_t(verf_variations_t::FRBV));
+  }
+  else if (verftype.compare("RMM") == 0) {
+    main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
+      new verf_variations_t(verf_variations_t::FRBRMMV));
+  }
   parse_location_configs(location_conf_file, tasktype);
   load_sec_keys_into_enclave();
   load_task_config_into_enclave();
   load_dataset_config_into_enclave();
-  main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
-      new verf_variations_t(verf_variations_t::FRBV));
   load_network_config_into_enclave();
-  start_task();  
+  start_task();
 }
 
 void start_task() {

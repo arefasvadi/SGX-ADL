@@ -1,0 +1,53 @@
+{
+    "name": "SGXADLCUDA-DEV",
+    //"context": "/home/aref/projects/linux-sgx",
+    //"dockerFile": "./scripts/Dockerfile",
+    "image": "scripts_sgxadl_dev_service:latest",
+    "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined", 
+        "--device=/dev/isgx","--gpus=all",],
+    //"build":{"args":{}},
+    //"build":{"target":"DevSGXADL"},
+    "mounts": [
+        "source=/tmp/aesmd,target=/var/run/aesmd,type=bind",
+        "source=/home/aref/projects/SGX-ADL,target=/projects/SGX-ADL,type=bind"
+        //"source=/dev/log,target=/dev/log,type=bind",
+        //"source=SGXADL_bashhistory,target=/commandhistory,type=volume",
+    ],
+    "settings": {
+         "terminal.integrated.shell.linux": "/bin/bash"
+    },
+    "containerUser": "aref",
+    "remoteUser": "aref",
+    "extensions": [
+        "ccls-project.ccls","ms-vscode.cmake-tools","twxs.cmake","ms-python.python",
+        "tht13.python","ms-azuretools.vscode-docker","mhutchie.git-graph",
+        "codezombiech.gitignore","donjayamanne.githistory",
+    ],
+    //"workspaceMount": "${localWorkspaceFolder}",
+    //"workspaceFolder": "/projects",
+}
+
+// {
+//     // "name": "SGXADLCUDA-DEV",
+//     // "context": "/home/aref/projects/linux-sgx",
+//     // "dockerFile": "./scripts/Dockerfile",
+//     //"runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined", 
+//     //    "--device=/dev/isgx","--gpus=all",],
+//     // "build":{"args":{}},
+//     // "build":{"target":"DevSGXADL"},
+//     //"mounts": [
+//     //    "source=/tmp/aesmd,target=/var/run/aesmd,type=bind",
+        
+//         //"source=/dev/log,target=/dev/log,type=bind",
+//         //"source=SGXADL_bashhistory,target=/commandhistory,type=volume",
+//     //],
+//     "containerUser": "aref",
+//     "remoteUser": "aref",
+//     "extensions": ["ccls-project.ccls","ms-vscode.cmake-tools","twxs.cmake","ms-python.python",
+//         "tht13.python","ms-azuretools.vscode-docker"],
+//     "settings": {
+//         "terminal.integrated.shell.linux": "/bin/bash"
+//     },
+//     "workspaceFolder": "../",
+//     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+// }

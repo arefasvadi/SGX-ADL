@@ -37,7 +37,25 @@
 #include <vector>
 
 #if defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
+void OCALL_LOAD_LAYER_REPRT_FRBV(int iteration, int layer_index, size_t buff_ind,
+                                uint8_t* buff, size_t size_bytes, uint8_t* layer_sha,
+                                size_t layer_sha_len);
+                                
+void OCALL_LOAD_LAYER_REPRT_FRBMMV(int iteration,int layer_index,
+                                  size_t buff_updates_ind,uint8_t* buff_updates,size_t size_bytes_updates,                     
+                                  uint8_t* buff_updates_sha,size_t buff_updates_sha_len,
+                                  size_t buff_mm_ind,uint8_t* buff_mm,size_t size_bytes_mm,                           
+                                  uint8_t* buff_mm_sha,size_t buff_mm_sha_len,                         
+                                  size_t buff_prevdelta_ind,uint8_t* buff_prevdelta,size_t size_bytes_prevdelta,                    
+                                  uint8_t* buff_prevdelta_sha,size_t buff_prevdelta_sha_len);
 
+void OCALL_SAVE_ENCLAVES_LAYER_PARAMS_UPDATES_FRBV(int iteration,int layer_index, size_t   start, uint8_t *buff,
+                                              size_t   buff_len, uint8_t* aad, size_t aad_len,
+                                              uint8_t *layer_cmac, size_t   layer_cmac_len);
+
+void OCALL_LOAD_ENCLAVES_LAYER_PARAMS_UPDATES_FRBV(int iteration,int layer_index, size_t   start, uint8_t *buff,
+                                              size_t   buff_len, uint8_t* aad, size_t aad_len,
+                                              uint8_t *layer_cmac, size_t   layer_cmac_len);
 #include "SpecialBuffer.hpp"
 #endif
 
