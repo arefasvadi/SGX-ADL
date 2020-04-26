@@ -31,6 +31,7 @@
 #include "cryptopp/pubkey.h"
 #include "hexString.h"
 #include <openssl/sha.h>
+#include "extras-torch.h"
 #define MAX_PATH FILENAME_MAX
 
 //#include "Channel/BasicChannel.hpp"
@@ -1735,8 +1736,7 @@ void load_task_config_into_enclave() {
    }
 }
 
-void
-load_dataset_config_into_enclave() {
+void load_dataset_config_into_enclave() {
   if (trainlocconfigs.objPtr != nullptr) {
     dsconfigs.vecBuff
         = read_file_binary(trainlocconfigs.objPtr->data_config_path()->c_str());

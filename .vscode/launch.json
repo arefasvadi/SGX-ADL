@@ -20,6 +20,36 @@
         /* "setupCommands":[{"text":"enable sgx_emmt", "description":"enable sgx memory calc","ignoreFailures": false},] */
       },
       {
+        "type": "cppdbg",
+        "request": "launch",
+        "name": "SGX ADL (CIFAR10) RMM",
+        "program": "${workspaceRoot}/build/sgxdnnapp",
+
+        "args": ["--loc", "../test/config/cifar10/run_configs/locations/loc_cifar_small_fc_nobn_train_integrity_0.fb",
+        "--tasktype", "train","--verftype","RMM"],
+        "cwd": "${workspaceRoot}/build",
+        "MIMode": "gdb",
+        //"miDebuggerPath": "/opt/intel/sdk-2.7/sgxsdk/bin/sgx-gdb",
+        "miDebuggerPath": "/opt/intel/sgxsdk/bin/sgx-gdb",
+        "stopAtEntry": true,
+        "setupCommands":[{"text":"enable sgx_emmt", "description":"enable sgx memory calc","ignoreFailures": false},]
+      },
+      {
+        "type": "cppdbg",
+        "request": "launch",
+        "name": "SGX ADL (CIFAR10) RF",
+        "program": "${workspaceRoot}/build/sgxdnnapp",
+
+        "args": ["--loc", "../test/config/cifar10/run_configs/locations/loc_cifar_small_fc_nobn_train_integrity_0.fb",
+        "--tasktype", "train","--verftype","RF"],
+        "cwd": "${workspaceRoot}/build",
+        "MIMode": "gdb",
+        //"miDebuggerPath": "/opt/intel/sdk-2.7/sgxsdk/bin/sgx-gdb",
+        "miDebuggerPath": "/opt/intel/sgxsdk/bin/sgx-gdb",
+        "stopAtEntry": true,
+        "setupCommands":[{"text":"enable sgx_emmt", "description":"enable sgx memory calc","ignoreFailures": false},]
+      },
+      {
         "name": "Current Python File",
         "type": "python",
         "request": "launch",

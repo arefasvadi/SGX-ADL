@@ -166,7 +166,8 @@ RUN git clone --depth=1 https://github.com/google/googletest.git && \
 
 RUN ln -s /usr/bin/clang-9 /usr/bin/clang && \
     ln -s /usr/bin/clang++-9 /usr/bin/clang++ && \
-    ln -sf /usr/bin/ld /usr/bin/ld.gold
+    ln -sf /usr/bin/ld /usr/bin/ld.gold && \
+    pip3 install numpy pycryptodome ecdsa Pillow flatbuffers keras tensorflow-gpu tqdm
 
 ENV SGX_SDK=${ARG_SGX_SDK}
 WORKDIR /opt/intel
@@ -179,13 +180,12 @@ COPY --from=builder /linux-sgx/external/dnnl/sgx_dnnl/include/* ${ARG_SGX_SDK}/i
 
 #RUN adduser -q --disabled-password --gecos "" --no-create-home aref
 
-#RUN adduser -q --disabled-password --gecos "" ${USERNAME} \
-#    && adduser ${USERNAME} sudo \
-#    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+WORKDIR /projects
+RUN git clone --recursive https://^Cthub.com/pytorch/pytorch --branch v1.5.0 --single-branch && cd pytorch \
+    &&  USE_NUMPY=0 BUILD_TEST=0 BUILD_CAFFE2_OPS=0 USE_SYSTEM_NCCL=0 USE_DISTRIBUTED=0 python3 setup.py install \
+    && cd .. && rm -rf pytorch
+COPY --from=builder /linux-sgx/SampleCode .
+
 USER ${USERNAME}
 
-#ENV HOME /home/${USERNAME}
-
-WORKDIR /projects
-COPY --from=builder /linux-sgx/SampleCode .
 CMD /bin/bash

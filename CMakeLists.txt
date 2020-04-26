@@ -45,6 +45,7 @@ set(CMAKE_CUDA_STANDARD 14)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Flatbuffers REQUIRED)
+find_package(Torch HINTS /usr/local/lib/python3.6/dist-packages/torch/share/cmake REQUIRED)
 #find_library(SSL_LIB libssl.a REQUIRED)
 #find_library(CRYPTO_LIB libcrypto.a REQUIRED)
 
@@ -424,6 +425,7 @@ attatch_clang_tidy_to_target(DARKNET_U_GPU)
 
 set(App_Cpp_Files
   ${Untrusted_Home}/src/app.cpp
+  ${Untrusted_Home}/src/extras-torch.cpp
   ${Untrusted_Home}/src/load-image.cpp
   ${CMAKE_SOURCE_DIR}/src/hexString.cpp
   ${CMAKE_SOURCE_DIR}/src/Record/IRecord.cpp
@@ -459,6 +461,7 @@ ${CMAKE_SOURCE_DIR}/include
 ${Untrusted_Home}
 ${Untrusted_Home}/include
 ${CUDA_INCLUDE_DIRS}
+${TORCH_INCLUDE_DIRS}
 #/usr/include/cryptopp
 #${FOONATHAN_MEMORY_INCLUDE_DIR}
 )
@@ -467,6 +470,7 @@ target_link_libraries(${Untrusted_Lib_Name}
 PRIVATE 
   DARKNET_U_GPU
   OpenSSL::Crypto
+  ${TORCH_LIBRARIES}
 # OpenSSL::SSL 
 # Threads::Threads  
 # cryptopp

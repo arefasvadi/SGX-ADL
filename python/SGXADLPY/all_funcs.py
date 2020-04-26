@@ -358,8 +358,18 @@ def process_cifar_10():
         #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_gpu_subdiv_1_enclavesubdive_128.cfg",
        
         #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc.cfg",
-        cifar10_out_dir+"cifar_small_fc_nobn.cfg",
-        cifar10_out_dir+"cifar_small_fc_nobn_gpu_subdiv_1_enclavesubdive_2.cfg",
+        os.path.join(cifar10_out_dir,"archs","cifar_small_fc_nobn_g1_e2.cfg"),
+        os.path.join(cifar10_out_dir,"archs",
+            "cifar_small_fc_nobn_g2_e2.cfg"),
+        os.path.join(cifar10_out_dir,"archs","cifar_small_avg_nobn_g1_e2.cfg"),
+        os.path.join(cifar10_out_dir,"archs",
+            "cifar_small_avg_nobn_g2_e2.cfg"),
+        os.path.join(cifar10_out_dir,"archs","cifar_small_fc_bn_g1_e2.cfg"),
+        os.path.join(cifar10_out_dir,"archs",
+            "cifar_small_fc_bn_g2_e2.cfg"),
+        os.path.join(cifar10_out_dir,"archs","cifar_small_avg_bn_g1_e2.cfg"),
+        os.path.join(cifar10_out_dir,"archs",
+            "cifar_small_avg_bn_g2_e2.cfg"),
         #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobatchnorm.cfg",
     ]
     cifar_configs = {
