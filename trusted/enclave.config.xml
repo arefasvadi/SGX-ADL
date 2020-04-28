@@ -14,4 +14,5 @@
     <DisableDebug>0</DisableDebug>
     <MiscSelect>0</MiscSelect>
     <MiscMask>0xFFFFFFFF</MiscMask>
+    <ReservedMemExecutable>1</ReservedMemExecutable>
 </EnclaveConfiguration>

@@ -13,6 +13,8 @@ struct network;
 /*
 I know global vars are a horrible solution! Later I will create factory classes!
 */
+#define SGX_RANDOM_SEED 9846581
+#define PUB_RANDOM_SEED 1013424
 
 extern int gpu_index ;
 extern CommonRunConfig comm_run_config;

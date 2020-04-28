@@ -24,6 +24,7 @@
 #include "rand/PRNG.h"
 #include "x86intrin.h"
 #include "immintrin.h"
+//#include "dnnl.hpp"
 
 //#include <x86intrin.h>
 
@@ -764,6 +765,10 @@ void ecall_check_for_sort_correctness() {
   LOG_TRACE("finished ecall check for sort correctness\n");
 }
 
+void simple_dnnl_mult() {
+
+}
+
 void ecall_initial_sort() {
   LOG_ERROR("This part needs change!\n");
   abort();
@@ -776,7 +781,7 @@ void ecall_start_training() {
 
 #ifdef USE_SGX_LAYERWISE
   LOG_DEBUG("Starting the training\n")
-  const int temp_iter = 5;
+  const int temp_iter = 10;
 
   if (*net_context_ == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT
       && *main_verf_task_variation_ == verf_variations_t::FRBV) {
@@ -1017,7 +1022,7 @@ void ecall_handle_gemm_all(int thread_num) {
   if (!task.first.TA && !task.first.TB) {
     // LOG_DEBUG("+calling gemm_nn for thread %d\n", thread_num)
     // gemm_nn(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
-    #if 1
+    #if 0
     int i, j, k;
     for (i = task.first.starterM; i < task.first.M; ++i) {
       for (k = 0; k < task.first.K; ++k) {

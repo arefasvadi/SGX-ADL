@@ -11,6 +11,12 @@
 #include <unordered_set>
 #include <queue>
 
+void gemm(int TA, int TB, int M, int N, int K, float ALPHA, 
+                    float *A, int lda, 
+                    float *B, int ldb,
+                    float BETA,
+                    float *C, int ldc);
+
 void OCALL_LOAD_LAYER_REPRT_FRBV(int iteration, int layer_index, size_t buff_ind,
                                 uint8_t* buff, size_t size_bytes, uint8_t* layer_sha,
                                 size_t layer_sha_len) {
@@ -263,9 +269,7 @@ void OCALL_LOAD_ENCLAVES_LAYER_PARAMS_UPDATES_FRBV(int iteration,int layer_index
   }
 }
 
-
-bool
-verify_sha256_single_round(const uint8_t* provided_sha256,
+bool verify_sha256_single_round(const uint8_t* provided_sha256,
                            const uint8_t* buffer,
                            const size_t   buffer_len,
                            const char*    msg) {
@@ -291,8 +295,7 @@ verify_sha256_single_round(const uint8_t* provided_sha256,
   return true;
 }
 
-bool
-verify_sha256_mult_rounds(sgx_sha_state_handle_t* sha256_handle,
+bool verify_sha256_mult_rounds(sgx_sha_state_handle_t* sha256_handle,
                           const uint8_t* provided_sha256,
                           const uint8_t* buffer,
                           const size_t   buffer_len,
@@ -363,8 +366,7 @@ bool verify_cmac128_single_round(const uint8_t* msg,const size_t msg_len,
   return true;
 }
 
-bool
-gen_verify_cmac128_multiple_rounds(bool generate,
+bool gen_verify_cmac128_multiple_rounds(bool generate,
                                sgx_cmac_state_handle_t* cmac_handle,
                                uint8_t*                 msg,
                                size_t                   msg_len,
@@ -412,8 +414,7 @@ gen_verify_cmac128_multiple_rounds(bool generate,
   return true;
 }
 
-void
-fix_task_dependent_global_vars() {
+void fix_task_dependent_global_vars() {
   choose_integrity_set.type_
       = integrity_set_select_obliv_variations::OBLIVIOUS_LEAK_INDICES;
   choose_integrity_set.invokable.obliv_indleak
@@ -467,8 +468,7 @@ fix_task_dependent_global_vars() {
   }
 }
 
-additional_auth_data
-construct_aad_input_nochange(uint32_t id) {
+additional_auth_data construct_aad_input_nochange(uint32_t id) {
   additional_auth_data auth = {};
   auth.session_id           = session_id;
   auth.comp_compsubcomp_w_wo_ts.comp_or_subcompcom_no_ts.comp_or_compsubcomp_id
@@ -522,8 +522,7 @@ additional_auth_data construct_aad_frbv_comp_subcomp_nots(uint32_t comp_id,uint3
 //   return;
 // }
 
-std::vector<uint8_t>
-generate_image_label_flatb_from_actual_bytes(
+std::vector<uint8_t> generate_image_label_flatb_from_actual_bytes(
     const std::vector<uint8_t> in_vec) {
   flatbuffers::FlatBufferBuilder builder(1024);
   std::vector<uint8_t>           flat_out;
@@ -549,8 +548,7 @@ generate_image_label_flatb_from_actual_bytes(
   return flat_out;
 }
 
-std::vector<uint8_t>
-generate_auth_flatbuff(const std::vector<uint8_t>& in_vec,
+std::vector<uint8_t> generate_auth_flatbuff(const std::vector<uint8_t>& in_vec,
                        const additional_auth_data* aad,
                        sgx_cmac_state_handle_t*    cmac_handle) {
   flatbuffers::FlatBufferBuilder builder(1024);
@@ -586,8 +584,7 @@ generate_auth_flatbuff(const std::vector<uint8_t>& in_vec,
   return flat_out;
 }
 
-std::vector<uint8_t>
-generate_enc_auth_flatbuff(const std::vector<uint8_t>& in_vec,
+std::vector<uint8_t> generate_enc_auth_flatbuff(const std::vector<uint8_t>& in_vec,
                            const additional_auth_data* aad) {
   flatbuffers::FlatBufferBuilder builder(1024);
 
@@ -630,8 +627,7 @@ generate_enc_auth_flatbuff(const std::vector<uint8_t>& in_vec,
   return flat_out;
 }
 
-void
-set_pub_priv_seeds() {
+void set_pub_priv_seeds() {
   std::array<uint64_t, 16> pub_rand_root_seed = {};
   std::array<uint64_t, 16> sgx_rand_root_seed = {};
   sgx_status_t res = SGX_ERROR_UNEXPECTED;
@@ -642,7 +638,7 @@ set_pub_priv_seeds() {
   }
   else {
     for (int i=0;i<16;++i) {
-      pub_rand_root_seed[i] = 29;
+      pub_rand_root_seed[i] = PUB_RANDOM_SEED;
     }
   }
   
@@ -656,7 +652,7 @@ set_pub_priv_seeds() {
   }
   else {
     for (int i=0;i<16;++i) {
-      sgx_rand_root_seed[i] = 19;
+      sgx_rand_root_seed[i] = SGX_RANDOM_SEED;
     }
     session_id = 1;
   }
@@ -676,8 +672,7 @@ set_pub_priv_seeds() {
   // CHECK_SGX_SUCCESS(res, "ocall_send_pub_root_seed caused problem\n")
 }
 
-void
-choose_rand_integrity_set_nonbliv(
+void choose_rand_integrity_set_nonbliv(
     const integrity_set_func_obliv_indleak_args_* args) {
   if (args->ratio < 0.0f || args->ratio > 1.0f) {
     LOG_ERROR("ratio problem\n")
@@ -777,8 +772,7 @@ choose_rand_integrity_set_nonbliv(
             not_chosen_count);
 }
 
-void
-verify_init_dataset() {
+void verify_init_dataset() {
   set_pub_priv_seeds();
   LOG_DEBUG(
       "started verifying the dataset with respect to hash provided in signed "
@@ -884,171 +878,6 @@ verify_init_dataset() {
     abort();
   }
 }
-
-// clang-format off
-// ocall to load net config
-
-// verify its hash
-//
-// initialize net config
-// depending on the task:
-//
-// Training
-  // a. Privacy + Integrity
-  // Everything runs inside enclave and intermediate results are 
-  // encrypted/versioned before being sent out.
-  // We have both modes for layered or full execution of a network
-  // b. Integrity
-  // First enclave selects a sample integrity set. This set should be kept
-  // private from the untrusted party.
-  // In case, the dataset is encrypted, a random selection would suffice based on
-  // the freshly generated randomness of enclave. It's OK to leak the ids, but
-  // from this point on, all the computation on any element of the integrity-set 
-  // is performed obliviously.
-  // However, if the dataset is in plaintext (public), it must do it obliviously, 
-  // and the selected elements are kept encrypted/authenticated outside.
-  
-  // When it fits for at least one input image to perform forw/backw/update
-
-  // Enclave loads the network and allocates the necessary buffers! For some
-  // networks all buffers
-  // inputs/outputs/weights/biases/updates/partial_gradients... can live within
-  // the SGX at least for one input batch.
-
-// In Darknet's API, you can do multiple forward/backward and do one weight
-// update. There is a division parameter in the network configuration. Sometimes
-// even for one GPU it is not feasible to have a batch of 128 images to be
-// loaded. for example VGG16 on imagenet. So it is processed in two
-// forward/backward passes each for 64 images. Then an update pass will take
-// place to change the weights based on the accumulated gradients of previous
-// backward passes. As long as the network can be processed with one input in
-// enclave, it is better to accumulate the weight updates and do an update when
-// batch size is met. In this manner,
-// * FRBV setting which computes a full bacth and compares the final weights with
-// reported one should be easy to persue.
-// * ISAV setting is fine as well since only checks the accuracy and can be
-// processed one by one will (not a problem).
-// * LVV we need to load the weights/inputs from previous iteration, compute the
-// cost. Repeat the same for the reported weights and see if it actually reduced
-// the weights. Since we need the cost for a forward pass to compute the loss
-// and gradients, we must keep the account of cost for this check and sum them
-// to see if it actually reduces.
-// * FRBRMMV it's a variation of FRBV, but for matrix multiplications we must have
-// the result and the two matrices. Since update phase does not have MM, it only
-// considers forward/backward. For MM in fully-connected, the gpu should report
-// output rows per enclave batch processing number Input layer to MM is as well
-// reported per enclave batch, and it is assumed that weights fit within
-// enclave. For conv layers, we should persue a per batch verification any way,
-// so it is fine. inputs are weight matrix, and the im2col[or not im2col? again
-// we need to check with our computation up until that point] of the input
-// filters. We can repeat this twice
-
-// When it does not fit for at least one input image to perform
-// forw/backw/update The layered approach is used. So, previous weights are
-// loaded, layer by layer and verified with the root hash, then they might go
-// out, so must be integrity checked when pulled in for other input bacth or
-// backward phase. input and outputs of layers can also be sent out Also, it is
-// possible that a single will not fit. This can be the case for Conv layers
-// when im2col applied (so they are processed in chunks of channels), or for
-// fully connected layers when there us too many weights and weights are
-// processed with the granularity of chunks od outputs. GPU must hash them for
-// MT with respect to this granularity and integrity /encryption/authentication
-// must follow this granularity.
-
-// Enclave sets the initial weights, sends it to GPU. GPU starts computation and
-// as soon as computation for a batch (iteration) finishes:
-//
-//
-// Initial Merkle Root hash is computed by enclave
-// I. Full Batch Verification  (FRBV)
-// GPU will report the root hash of the Merkle Tree for new computed weights and
-// sends it to SGX. SGX randomly decides whether it wants to move forward with
-// verification of this batch or not. If so, it will be added to a queue for
-// verification tasks. In any case, SGX will generate a mac for the reported
-// root hash with the iteration number and stores it outside. Those weights are
-// kept outside in plaintext with a mac noting the iteration number and root
-// hash.
-    //                         root_hsh
-    //                      /           \
-    //                    /              \
-    //       hsh(L[1]|L[2]).............hsh(L[N-1]|L[N])
-    //       /        \                       /   \
-    // hsh(L[1]_ws) hsh(L[2]_ws)....hsh(L[N-1]_ws) hsh(L[N]_ws)
-//
-// II. Full Batch with Randomized Matrix Multiplication Verification (FRBRMMV)
-// In order to perform a faster MM, GPU will also report a Merkle root hash on
-// all the inputs and output of the MM ops .
-//
-// For fully conntected layers:
-// this can be divided per batch/and output neurons if it is too big
-// forward:   O_(bacth,outputs) = I_(batch,inputs) X TR(W_(outputs,inputs))
-// backward:  WU_(outputs,inputs) = TR(delta_(batch,outputs)) X
-// net_input(batch,inputs)
-//            net_delta(batch,inputs) = delta_(batch,outputs) X
-//            W_(outputs,inputs)
-//
-// For conv layers assume groups is 1
-// forward: per single item in batch
-// O_(filters,(out_w x out_h)) = 
-//      W_(filters,(size x size x channels)) X 
-//      I_((size x size x channels),(out_w x out_h)) 
-// backward: per single item in batch 
-// WU_(filters,(size x size x channels)) =
-//    delta_(filters,(out_w x out_h)) X 
-//    TR(net_input((size x size x channels),(out_w x out_h)))
-// net_delta((size x size x channels),(out_w x out_h)) =
-//    TR(w_(filters,(size x size x channels))) X delta_(filters,(out_w x out_h))
-// update:
-//
-// Everytime there is a MM operation such as A_(M,N) = B_(M,K) X C_(K,N) the
-// equation will be multiplied by a random vector R_L(1,M) or R_R(N,1) depending
-// on the advantage. Without random verification the computation would take O(M
-// X N X K) where as in this case it boils down to pereference for check time or
-// random generation time becasue they bothe have the same time and space
-// complexity if N << M 
-// R_L(1,M) X A(M,N) -> Z(1,N) =? V(1,N) <- (R_L(1,M) X B_(M,K)) X C_(K,N)
-//      T(N X M)    +         T(N)      +         T(K X M) + T (N X K)
-// S(M) + S(N)
-// if M << N
-// A(M,N) X R_R(N,1) -> Z(M,1) =? V(M,1) <- B_(M,K) X (C_(K,N) X R_R(N,1))
-//      T(M X N)   +         T(M)      +         T(M X K) + T (K X N)
-// S(N) + S(M)
-//                             root_hash
-//                          /             \
-//                        /                \
-// hsh(L[1]_ws) hsh(L[1]_MM_ins_out) ..... hsh(L[N]_ws) hsh(L[N]_MM_ins_out)
-//
-// III. Loss Value Verification (LVV)
-// Whenever GPU submits new weights for an iteration, it is possible to verify
-// whether the computation actually lowered the loss with respect to a previous
-// weight set if LVV of iteration i is going to be checked, the items in batch i
-// will take a forward pass and the loss values are compared between i and i-1
-// iterations with previous and new weights. if LVV is chosen against the
-// integrity set, the computation should be done privately i.e. inputs/outputs
-// enccrypted/authenticated, oblivious computation weights only need to be
-// verified for their validity with respect to iteration/reported hash
-// IV. Integrity Set Accuracy Verification (ISAV)
-// The integrity set is used as the actual test to prevent simple attacks on
-// model All the intermediate buffers for inputs/outputs are
-// encrypted/authenticated and for this task oblivious mode of computation is
-// chosen.
-
-// Prediction
-  // SGX only performs prediction for clients if the model was signed by
-  // one of the SGX computation networks
-  // a. Privacy + Integrity
-    // Again as before everything runs in enclave and intermediate
-    // inputs/outputs/weights are kept encrypted/authenticated outside
-    // Comoutation is done in oblivious mode
-  // b. Integrity
-    // SGX obliviously chooses a random subset of the data and will keep
-    // it encrypted. It will release all the data for verification
-    // As in the case for training it can follow with
-      // I. Full verification for random selected subset and comparison
-      // II. Verification with Randomized MM for other elements in test
-        // set.
-
-// clang-format on
 
 void verify_init_net_config() {
   // verify net conf reported hash
@@ -2316,10 +2145,17 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
     // Load input to the verf_network
     setup_iteration_inputs_training(queued_ids,selected_ids,verf_net,iteration,verf_net->batch,0,plain_dataset_size-1);
     *verf_net->seen += verf_net->batch;
+    
+    std::string time_id("3 RF verf time forward pass");
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
     forward_network(verf_net);
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     avg_cost += *verf_net->cost;
     LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
+    time_id = std::string("4 RF verf time backward pass");
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
     backward_network(verf_net);
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     if(((*verf_net->seen)/verf_net->batch)%verf_net->enclave_subdivisions == 0) {
       break;
     }
@@ -2339,6 +2175,85 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
   indices += std::string("]\n");
   LOG_DEBUG("%s",indices.c_str())
   return avg_cost/(verf_net->enclave_subdivisions * (verf_net->batch));
+}
+
+void init_randomness_frbmmv(network* net,int iteration){
+  for(int li=0;li<net->n;++li) {
+    layer &l = net->layers[li];
+    if (l.type == CONNECTED) {
+      for (int j=0;j<l.outputs;++j){
+        l.frwd_outs_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+                    std::numeric_limits<float>::max());
+      }
+      std::memset(l.frwd_outs_rhs, 0, l.inputs*sizeof(float));
+      if (li>=1 && net->layers[li-1].delta) {
+        for (int j=0;j<l.inputs;++j){
+          l.bkwrd_input_delta_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+                      std::numeric_limits<float>::max());
+        }
+        std::memset(l.bkwrd_input_delta_rhs, 0, l.outputs*sizeof(float));
+      }
+      
+      // now multiply it by weights
+      int q = l.outputs / l.enclave_layered_batch;
+      int r = l.outputs % l.enclave_layered_batch;
+      for (int i=0;i<q;++i) {
+        auto l_weights = l.weights->getItemsInRange(i*l.enclave_layered_batch*l.inputs,(i+1)*l.enclave_layered_batch*l.inputs);
+        gemm(1,0,l.inputs,1,l.enclave_layered_batch,1,
+            l_weights.get(),l.inputs,
+            l.frwd_outs_rand+(i*l.enclave_layered_batch),1,
+            1,
+            l.frwd_outs_rhs,1);
+        if (li>=1 && net->layers[li-1].delta) {
+          gemm(0,0,l.enclave_layered_batch,1,l.inputs,1,
+            l_weights.get(),l.inputs,
+            l.bkwrd_input_delta_rand,1,
+            1,
+            l.bkwrd_input_delta_rhs+(i*l.enclave_layered_batch),1);
+        }
+      }
+      if (r > 0) {
+          auto l_weights = l.weights->getItemsInRange(q*l.enclave_layered_batch*l.inputs,q*l.enclave_layered_batch*l.inputs+r*l.inputs);
+          gemm(1,0,l.inputs,1,r,1,
+              l_weights.get(),l.inputs,
+              l.frwd_outs_rand+(q*l.enclave_layered_batch),1,
+              1,
+              l.frwd_outs_rhs,1
+          );
+          if (li>=1 && net->layers[li-1].delta) {
+            gemm(0,0,r,1,l.inputs,1,
+              l_weights.get(),l.inputs,
+              l.bkwrd_input_delta_rand,1,
+              1,
+              l.bkwrd_input_delta_rhs+(q*l.enclave_layered_batch),1);
+          }
+      }
+    }
+    else if (l.type == CONVOLUTIONAL) {
+      auto l_weights = l.weights->getItemsInRange(0, l.weights->getBufferSize());
+      for (int j=0;j<l.n/l.groups;++j){
+        l.frwd_outs_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+                    std::numeric_limits<float>::max());
+      }
+      std::memset(l.frwd_outs_rhs, 0, l.c/l.groups*l.size*l.size*sizeof(float));
+      gemm(0,0,
+        1,l.c/l.groups*l.size*l.size,l.n/l.groups,1,
+        l.frwd_outs_rand,l.n/l.groups,l_weights.get(),l.c/l.groups*l.size*l.size,1,
+        l.frwd_outs_rhs,l.c/l.groups*l.size*l.size);
+      if (li>=1 && net->layers[li-1].delta) {
+        for (int j=0;j<l.c/l.groups*l.size*l.size;++j){
+          l.bkwrd_input_delta_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+                      std::numeric_limits<float>::max());
+        }
+        std::memset(l.bkwrd_input_delta_rhs, 0, l.n/l.groups*sizeof(float));
+        gemm(0,1,1,l.n/l.groups,l.c/l.groups*l.size*l.size,1,
+          l.bkwrd_input_delta_rand,l.c/l.groups*l.size*l.size,
+          l_weights.get(),l.c/l.groups*l.size*l.size,
+          1,
+          l.bkwrd_input_delta_rhs,l.n/l.groups);
+      }
+    }
+  }
 }
 
 void preload_MM_outputs_forward(network* net,int iteration,int enclave_subdiv) {
@@ -2363,25 +2278,6 @@ void preload_MM_outputs_forward(network* net,int iteration,int enclave_subdiv) {
         0,nullptr,0,nullptr,0,
         start,(uint8_t*)l_output.get(),total_elems*sizeof(float),nullptr,0,
         0,nullptr,0,nullptr,0);
-      // {
-      //   const size_t interim_buff_size = (64 * ONE_KB);
-      //   int q = (total_elems*sizeof(float)) / interim_buff_size;
-      //   int r = (total_elems*sizeof(float)) % interim_buff_size;
-      //   for (int j=0;j<q;++j) {
-      //     ret = ocall_load_layer_report_frbmmv(iteration,i,
-      //       0,nullptr,0,nullptr,0,
-      //       start+j*interim_buff_size,(uint8_t*)l_output.get()+j*interim_buff_size,interim_buff_size,nullptr,0,
-      //       0,nullptr,0,nullptr,0);
-      //     CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
-      //   }
-      //   if (r != 0) {
-      //     ret = ocall_load_layer_report_frbmmv(iteration,i,
-      //       0,nullptr,0,nullptr,0,
-      //       start+q*interim_buff_size,(uint8_t*)l_output.get()+q*interim_buff_size,r,nullptr,0,
-      //       0,nullptr,0,nullptr,0);
-      //     CHECK_SGX_SUCCESS(ret, "ocall_load_layer_report_frbmmv caused problem!\n")
-      //   }
-      // }
       l.output->setItemsInRange(0, total_elems, l_output);
     }
   }
@@ -2410,9 +2306,9 @@ void preload_MM_weight_updates_backward(network* net,int iteration) {
   for(int i=0;i<net->n;++i) {
     layer &l = net->layers[i];
     if (l.type == CONNECTED) {
-      std::memset(l.right_rand_weight_updates, 0, sizeof(double)*l.outputs);
+      std::memset(l.bkwrd_weight_delta_rhs, 0, sizeof(double)*l.outputs);
       for (int j=0;j<l.inputs;++j) {
-        l.input_rand_weight_updates[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+        l.bkwrd_weight_delta_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
                     std::numeric_limits<float>::max());
       }
       // new MM weight updates
@@ -2441,9 +2337,9 @@ void preload_MM_weight_updates_backward(network* net,int iteration) {
     }
     else if (l.type == CONVOLUTIONAL) {
       // new MM weight updates
-      std::memset(l.right_rand_weight_updates, 0, sizeof(double)*(l.n/l.groups));
+      std::memset(l.bkwrd_weight_delta_rhs, 0, sizeof(double)*(l.n/l.groups));
       for (int j=0;j< (l.c / l.groups * l.size * l.size);++j) {
-        l.input_rand_weight_updates[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
+        l.bkwrd_weight_delta_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
                     std::numeric_limits<float>::max());
       }
       size_t total_elements = l.weight_updates->getBufferSize();
@@ -2457,13 +2353,14 @@ void preload_MM_weight_updates_backward(network* net,int iteration) {
 }
 
 float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* verf_net) {
-  verf_net->sgx_net_verifies = 1;
+  verf_net->sgx_net_rmm_verifies = 1;
   *verf_net->seen = (iteration-1)*(verf_net->batch)*(verf_net->enclave_subdivisions);
   verf_net->train = 1;
   float avg_cost = 0;
   int subdiv = 0;
   std::set<int> selected_ids;
   std::queue<int> queued_ids;
+  init_randomness_frbmmv(verf_net,iteration);
   preload_MM_weight_updates_backward(verf_net,iteration);
   while(true) {
     // Load input to the verf_network
@@ -2472,12 +2369,18 @@ float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* ve
     *verf_net->seen += verf_net->batch;
     preload_MM_outputs_forward(verf_net,iteration,subdiv);
     LOG_DEBUG("ready for verification forward subdiv %d\n",subdiv)
+    std::string time_id("3 RMM verf time forward pass");
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
     forward_network(verf_net);
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     avg_cost += *verf_net->cost;
     LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     preload_MM_outputs_prev_delta_backward(verf_net,iteration,subdiv);
     LOG_DEBUG("ready for verification backward subdiv %d\n",subdiv)
+    time_id = std::string("4 RMM verf time backward pass");
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
     backward_network(verf_net);
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     subdiv++;
     if(((*verf_net->seen)/verf_net->batch)%verf_net->enclave_subdivisions == 0) {
       break;
@@ -3252,7 +3155,10 @@ void verify_task_frbv() {
     }
 
     // do forward, backward
+    std::string time_id("2 RF verf time forward backward pass");
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
     auto avg_cost = train_verify_in_enclave_frbv(iteration,network_.get(),verf_network_.get());
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
     // compare weight updates with with reported ones
     
@@ -3287,7 +3193,10 @@ void verify_task_frbmmv() {
     }
 
     // do forward, backward
+    std::string time_id("2 RMM verf time forward backward pass");
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
     auto avg_cost = train_verify_in_enclave_frbmmv(iteration,network_.get(),verf_network_.get());
+    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
     // compare weight updates with with reported ones
     
@@ -3392,7 +3301,10 @@ void start_training_verification_frbv(int iteration) {
     if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
       task_queue.enqueue(task);
       LOG_DEBUG("Task has been put for verification!\n")
+      std::string time_id("1 RF verf time");
+      ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
       verify_task_frbv();
+      ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     }
     else {
       LOG_DEBUG("Task has not been put for verification!\n")
@@ -3445,7 +3357,10 @@ void start_training_verification_frbmmv(int iteration) {
     if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
       task_queue.enqueue(task);
       LOG_DEBUG("Task has been put for verification!\n")
+      std::string time_id("1 RMM verf time");
+      ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
       verify_task_frbmmv();
+      ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     }
     else {
       LOG_DEBUG("Task has not been put for verification!\n")

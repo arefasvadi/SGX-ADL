@@ -4,6 +4,7 @@ enclave {
     // from "TrustedLibrary/Libcxx.edl" import *;
     from "sgx_tstdc.edl" import *;
     from "sgx_tswitchless.edl" import *;
+    //from "sgx_pthread.edl" import *;
     trusted {
        
        public void ecall_setup_channel(uint64_t chan_id,int channel_type);

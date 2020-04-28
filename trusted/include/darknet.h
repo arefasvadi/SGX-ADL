@@ -168,11 +168,14 @@ custom_error(char *s);
 }
 #endif
 
+//#if defined(USE_SGX) && defined(USE_DNNL_GEM) && defined (GEMM_H)
+//#else
 #define error(...)               \
   do {                           \
     if (0)                       \
       custom_error(__VA_ARGS__); \
   } while (0);
+//#endif
 
 #define fprintf(...)
 //#define printf(...)
