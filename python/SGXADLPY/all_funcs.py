@@ -384,7 +384,7 @@ def process_cifar_10():
         os.path.join(cifar10_out_dir,"archs","batch_256","cifar_small_avg_bn_g1_e2_b256.cfg"),
         os.path.join(cifar10_out_dir,"archs","batch_256",
             "cifar_small_avg_bn_g2_e2_b256.cfg"),
-
+#####################
         os.path.join(cifar10_out_dir,"archs","batch_128",
             "cifar_vgg16_fc_nobn_g1_e1_b128.cfg"),
         os.path.join(cifar10_out_dir,"archs","batch_128",
@@ -405,6 +405,50 @@ def process_cifar_10():
             "cifar_vgg11_fc_nobn_g1_e2_b128.cfg"),
         os.path.join(cifar10_out_dir,"archs","batch_128",
             "cifar_vgg11_fc_nobn_g1_e4_b128.cfg"),
+
+#####################
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg16_fc2_nobn_g1_e1_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg16_fc2_nobn_g1_e2_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg16_fc2_nobn_g1_e4_b128.cfg"),
+
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg13_fc2_nobn_g1_e1_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg13_fc2_nobn_g1_e2_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg13_fc2_nobn_g1_e4_b128.cfg"),
+
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg11_fc2_nobn_g1_e1_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg11_fc2_nobn_g1_e2_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg11_fc2_nobn_g1_e4_b128.cfg"),
+
+#####################
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg16_fc3_nobn_g1_e1_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg16_fc3_nobn_g1_e2_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg16_fc3_nobn_g1_e4_b128.cfg"),
+
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg13_fc3_nobn_g1_e1_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg13_fc3_nobn_g1_e2_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg13_fc3_nobn_g1_e4_b128.cfg"),
+
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg11_fc3_nobn_g1_e1_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg11_fc3_nobn_g1_e2_b128.cfg"),
+        os.path.join(cifar10_out_dir,"archs","batch_128",
+            "cifar_vgg11_fc3_nobn_g1_e4_b128.cfg"),
         #"/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small_fc_nobatchnorm.cfg",
     ]
     cifar_configs = {

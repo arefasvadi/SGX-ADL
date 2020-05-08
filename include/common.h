@@ -1,4 +1,6 @@
 #pragma once
+#ifndef _COMMOM_H
+#define _COMMOM_H
 // #include <stdint.h>
 // #ifdef USE_SGX
 // #include "sgx_error.h"
@@ -11,11 +13,11 @@
 
 //#ifndef USE_GEMM_THREADING_SGX
 
-// #define USE_GEMM_THREADING_SGX
+//#define USE_GEMM_THREADING_SGX
 
 //#endif
 
-//#define USE_DNNL_GEM
+#define USE_DNNL_GEM
 
 #ifdef USE_DNNL_GEM
 #undef USE_GEMM_THREADING_SGX
@@ -23,7 +25,7 @@
 
 #ifdef USE_GEMM_THREADING_SGX
 #ifndef AVAIL_THREADS
-#define AVAIL_THREADS 4
+#define AVAIL_THREADS 1
 #endif
 #endif
 
@@ -247,3 +249,5 @@
 #ifndef ALL_INDICES_AT_DIMENSION
 #define ALL_INDICES_AT_DIMENSION -1
 #endif
+
+#endif // _COMMOM_H

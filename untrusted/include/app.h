@@ -83,6 +83,11 @@ prepare_enclave(const std::string& location_conf_file,
 void prepare_gpu();
 void prepare_train_snapshot_frbv(int iter_num);
 void prepare_train_snapshot_frbmmv(int iter_num);
+void
+set_timing(const char *time_id,
+                 size_t      len,
+                 int         is_it_first_call,
+                 int         is_it_last_call);
 
 void start_task();
 

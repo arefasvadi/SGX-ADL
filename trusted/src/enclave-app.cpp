@@ -24,7 +24,7 @@
 #include "rand/PRNG.h"
 #include "x86intrin.h"
 #include "immintrin.h"
-//#include "dnnl.hpp"
+#include "prepare-dnnl.h"
 
 //#include <x86intrin.h>
 
@@ -155,6 +155,7 @@ ecall_NOT_SECURE_send_req_keys(uint8_t *cl_pksig,
                                size_t   sgx_sksig_len,
                                uint8_t *sgx_sksymm,
                                size_t   sgx_sksymm_len) {
+  //simple_dnnl_mult();
   if (cl_pksig_len != sizeof(client_sig_pk_key)
       || cl_sksymm_len != SGX_AESGCM_KEY_SIZE) {
     LOG_ERROR("clients sig key size or symmetric key size does not match!\n")
@@ -766,7 +767,21 @@ void ecall_check_for_sort_correctness() {
 }
 
 void simple_dnnl_mult() {
-
+  using namespace dnnl;
+  size_t M=10,N=5,K=100;
+  std::vector<float> a(M*K,1);
+  std::vector<float> b(K*N,2);
+  std::vector<float> c(M*N,0);
+  LOG_OUT("dnnl_sgemm started\n");
+  try {
+    dnnl_sgemm('N', 'N', M, N, K, 1.0, a.data(), K, b.data(), N, 1.0, c.data(), N);
+  }
+  catch (dnnl::error &e) {
+    LOG_ERROR("dnnl_sgemm status: %d, msg: %s",e.status,e.message)
+    abort();
+  }
+  LOG_OUT("dnnl_sgemm finished\n");
+  abort();
 }
 
 void ecall_initial_sort() {
@@ -778,7 +793,6 @@ void ecall_initial_sort() {
 }
 
 void ecall_start_training() {
-
 #ifdef USE_SGX_LAYERWISE
   LOG_DEBUG("Starting the training\n")
   const int temp_iter = 10;

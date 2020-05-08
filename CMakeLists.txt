@@ -66,7 +66,7 @@ set(Trusted_Config_File "${Trusted_Home}/enclave.config.xml")
 set(Trusted_Edl "${Trusted_Home}/enclave.edl")
 set(Private_Key_File "${Trusted_Home}/private_key.pem")
 
-set(SGX_HW ON)
+set(SGX_HW off)
 if (CUSTOM_ENABLE_DEBUGING)
   set(SGX_MODE Debug CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
@@ -280,6 +280,7 @@ set(Enclave_Cpp_Files
   #${Trusted_Home}/src/IBlockable.cpp 
   ${Trusted_Home}/src/util.cpp
   ${Trusted_Home}/src/extra-util.cpp
+  ${Trusted_Home}/src/prepare-dnnl.cpp
   ${CMAKE_SOURCE_DIR}/src/hexString.cpp
   #${Trusted_Home}/src/tests.cpp
   ${Trusted_Home}/src/SpecialBufferCommon.cpp

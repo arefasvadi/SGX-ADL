@@ -129,10 +129,10 @@ FIFOCache<K, V>::Get(const K &key, const EvictionHandlerType &evict_hdl,
   // LOG_DEBUG("Cache Get was invokded for key %ld\n",key);
   const auto &key_it = cache_.find(key);
   if (key_it == cache_.cend()) {
-    char *timee =  "Cache Miss";
-    ocall_set_timing(timee,strlen(timee)+1, 1,0);
+    //char *timee =  "Cache Miss";
+    //ocall_set_timing(timee,strlen(timee)+1, 1,0);
     Put(key, std::move(read_hdl(key)), evict_hdl);
-    ocall_set_timing(timee,strlen(timee)+1, 0,0);
+    //ocall_set_timing(timee,strlen(timee)+1, 0,0);
     return std::get<0>(*(cache_[key]));
   }
 

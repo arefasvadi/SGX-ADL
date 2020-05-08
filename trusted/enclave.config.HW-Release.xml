@@ -4,12 +4,20 @@
     <StackMaxSize>0xF0000</StackMaxSize>
     <StackMinSize>0x40000</StackMinSize>
     <!-- <StackMinSize>0x100000</StackMinSize> -->
+
+    <HeapMinSize>0x5500000</HeapMinSize>
+    <HeapInitSize>0x5500000</HeapInitSize>
     <HeapMaxSize>0x5500000</HeapMaxSize>
+    <!--<HeapMinSize>0x90000000</HeapMinSize>
+    <HeapInitSize>0x90000000</HeapInitSize>
+    <HeapMaxSize>0x90000000</HeapMaxSize>-->
+    
+    
     <!-- <HeapMaxSize>0x60000000</HeapMaxSize> -->
     <!-- <HeapMaxSize>0x40000000</HeapMaxSize> -->
-    <TCSNum>9</TCSNum>
+    <TCSNum>12</TCSNum>
     <TCSMinPool>16</TCSMinPool>
-    <TCSMaxNum>32</TCSMaxNum>
+    <TCSMaxNum>64</TCSMaxNum>
     <TCSPolicy>1</TCSPolicy>
     <DisableDebug>0</DisableDebug>
     <MiscSelect>0</MiscSelect>

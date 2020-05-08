@@ -10,6 +10,7 @@
 #include "util.h"
 #include <unordered_set>
 #include <queue>
+#include "timingdefs.h"
 
 void gemm(int TA, int TB, int M, int N, int K, float ALPHA, 
                     float *A, int lda, 
@@ -2146,16 +2147,14 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
     setup_iteration_inputs_training(queued_ids,selected_ids,verf_net,iteration,verf_net->batch,0,plain_dataset_size-1);
     *verf_net->seen += verf_net->batch;
     
-    std::string time_id("3 RF verf time forward pass");
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
+    SET_START_TIMING(SGX_TIMING_FORWARD);
     forward_network(verf_net);
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
+    SET_FINISH_TIMING(SGX_TIMING_FORWARD);
     avg_cost += *verf_net->cost;
     LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
-    time_id = std::string("4 RF verf time backward pass");
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
+    SET_START_TIMING(SGX_TIMING_BACKWARD);
     backward_network(verf_net);
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
+    SET_FINISH_TIMING(SGX_TIMING_BACKWARD);
     if(((*verf_net->seen)/verf_net->batch)%verf_net->enclave_subdivisions == 0) {
       break;
     }
@@ -2369,18 +2368,16 @@ float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* ve
     *verf_net->seen += verf_net->batch;
     preload_MM_outputs_forward(verf_net,iteration,subdiv);
     LOG_DEBUG("ready for verification forward subdiv %d\n",subdiv)
-    std::string time_id("3 RMM verf time forward pass");
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
+    SET_START_TIMING(SGX_TIMING_FORWARD);
     forward_network(verf_net);
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
+    SET_FINISH_TIMING(SGX_TIMING_FORWARD);
     avg_cost += *verf_net->cost;
     LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     preload_MM_outputs_prev_delta_backward(verf_net,iteration,subdiv);
     LOG_DEBUG("ready for verification backward subdiv %d\n",subdiv)
-    time_id = std::string("4 RMM verf time backward pass");
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
+    SET_START_TIMING(SGX_TIMING_BACKWARD);
     backward_network(verf_net);
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
+    SET_FINISH_TIMING(SGX_TIMING_BACKWARD);
     subdiv++;
     if(((*verf_net->seen)/verf_net->batch)%verf_net->enclave_subdivisions == 0) {
       break;
@@ -3155,10 +3152,9 @@ void verify_task_frbv() {
     }
 
     // do forward, backward
-    std::string time_id("2 RF verf time forward backward pass");
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
+    SET_START_TIMING(SGX_TIMING_ONEPASS);
     auto avg_cost = train_verify_in_enclave_frbv(iteration,network_.get(),verf_network_.get());
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
+    SET_FINISH_TIMING(SGX_TIMING_ONEPASS);
     LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
     // compare weight updates with with reported ones
     
@@ -3193,10 +3189,9 @@ void verify_task_frbmmv() {
     }
 
     // do forward, backward
-    std::string time_id("2 RMM verf time forward backward pass");
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
+    SET_START_TIMING(SGX_TIMING_ONEPASS);
     auto avg_cost = train_verify_in_enclave_frbmmv(iteration,network_.get(),verf_network_.get());
-    ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
+    SET_FINISH_TIMING(SGX_TIMING_ONEPASS);
     LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
     // compare weight updates with with reported ones
     
@@ -3301,10 +3296,7 @@ void start_training_verification_frbv(int iteration) {
     if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
       task_queue.enqueue(task);
       LOG_DEBUG("Task has been put for verification!\n")
-      std::string time_id("1 RF verf time");
-      ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
       verify_task_frbv();
-      ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     }
     else {
       LOG_DEBUG("Task has not been put for verification!\n")
@@ -3357,10 +3349,7 @@ void start_training_verification_frbmmv(int iteration) {
     if (verf_rand <= net_init_loader_ptr->invokable_params.init_train_integ_layered_params.verif_prob) {
       task_queue.enqueue(task);
       LOG_DEBUG("Task has been put for verification!\n")
-      std::string time_id("1 RMM verf time");
-      ocall_set_timing(time_id.c_str(), time_id.size()+1, 1, 0);
       verify_task_frbmmv();
-      ocall_set_timing(time_id.c_str(), time_id.size()+1, 0, 1);
     }
     else {
       LOG_DEBUG("Task has not been put for verification!\n")

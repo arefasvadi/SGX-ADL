@@ -53,14 +53,13 @@ endif()
 if(SGX_FOUND)
     set(SGX_HW ON CACHE BOOL "Run SGX on hardware, OFF for simulation.")
     set(SGX_MODE PreRelease CACHE STRING "SGX build mode: Debug; PreRelease; Release.")
-
+    set(SGX_SWITCHLESS_LIB sgx_tswitchless)
+    set(SGX_USWITCHLESS_LIB sgx_uswitchless)
     if(SGX_HW)
         set(SGX_URTS_LIB sgx_urts)
         set(SGX_USVC_LIB sgx_uae_service)
         set(SGX_TRTS_LIB sgx_trts)
         set(SGX_TSVC_LIB sgx_tservice)
-        set(SGX_SWITCHLESS_LIB sgx_tswitchless)
-        set(SGX_USWITCHLESS_LIB sgx_uswitchless)
     else()
         set(SGX_URTS_LIB sgx_urts_sim)
         set(SGX_USVC_LIB sgx_uae_service_sim)
@@ -156,7 +155,7 @@ if(SGX_FOUND)
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
             -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
             ${LDSCRIPT_FLAG} \
-            -Wl,--defsym,__ImageBase=0")
+            -Wl,--defsym,__ImageBase=0 -Wl,--gc-sections --verbose")
     endfunction()
 
     # build enclave shared library
@@ -203,11 +202,11 @@ if(SGX_FOUND)
             -Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
-            -Wl,--start-group ${TLIB_LIST} -lsgx_tstdc -lsgx_tcxx -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
+            -Wl,--start-group ${TLIB_LIST} -lsgx_tstdc -lsgx_tcxx -lsgx_dnnl -lsgx_omp -lsgx_pthread -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
             -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
             ${LDSCRIPT_FLAG} \
-            -Wl,--defsym,__ImageBase=0")
+            -Wl,--defsym,__ImageBase=0 -Wl,--gc-sections --verbose")
     endfunction()
 
     # sign the enclave, according to configurations one-step or two-step signing will be performed.

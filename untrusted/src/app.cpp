@@ -31,6 +31,7 @@
 #include "cryptopp/pubkey.h"
 #include "hexString.h"
 #include <openssl/sha.h>
+#include "timingdefs.h"
 #include "extras-torch.h"
 #define MAX_PATH FILENAME_MAX
 
@@ -45,9 +46,17 @@
 // sgx::common::ImageWLabelRecord(10,std::move(tempImg)));
 using json = nlohmann::json;
 
+// using timeTracker
+//     = std::pair<std::chrono::time_point<std::chrono::high_resolution_clock>,
+//                 std::chrono::time_point<std::chrono::high_resolution_clock>>;
+
 using timeTracker
-    = std::pair<std::chrono::time_point<std::chrono::high_resolution_clock>,
-                std::chrono::time_point<std::chrono::high_resolution_clock>>;
+     = struct time_tracker_t {
+       std::chrono::time_point<std::chrono::high_resolution_clock> first;
+       std::chrono::time_point<std::chrono::high_resolution_clock> second;
+       int64_t counts=0;
+       double duration=0;
+     };
 
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t         global_eid = 0;
@@ -87,7 +96,7 @@ int gpu_index = 1;
 RunConfig run_config;
 // std::unordered_map<std::string, timeTracker> grand_timer;
 std::map<std::string, timeTracker> grand_timer;
-std::map<std::string, double>      duration_map;
+//std::map<std::string, double>      duration_map;
 
 std::unordered_map<uint32_t, std::vector<unsigned char>> layerwise_contents;
 std::unordered_map<int64_t, std::vector<unsigned char>>  all_blocks;
@@ -614,37 +623,41 @@ void ocall_load_dec_images(uint32_t ind,uint8_t* dec_image, size_t dec_len) {
 } 
 
 
+void set_timing(const char *time_id,
+                 size_t      len,
+                 int         is_it_first_call,
+                 int         is_it_last_call) {
+  std::string t_id(time_id);
+  if (grand_timer.find(t_id) != grand_timer.end()) {
+    if (is_it_first_call == 1) {
+      grand_timer[t_id].first = std::chrono::high_resolution_clock::now();
+      grand_timer[t_id].second = std::chrono::high_resolution_clock::now();
+    } else {
+      grand_timer[t_id].second  = std::chrono::high_resolution_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                         grand_timer[t_id].second - grand_timer[t_id].first)
+                         .count();
+      grand_timer[t_id].duration += (double)elapsed;
+      grand_timer[t_id].counts++;
+      grand_timer[t_id].first = std::chrono::high_resolution_clock::now();
+    }
+  } else {
+    timeTracker temp;
+    temp.first  = std::chrono::high_resolution_clock::now();
+    temp.second = std::chrono::high_resolution_clock::now();
+    grand_timer[t_id]  = std::move(temp);
+  }
+}
+
 void
 ocall_set_timing(const char *time_id,
                  size_t      len,
                  int         is_it_first_call,
                  int         is_it_last_call) {
-  timeTracker temp;
-  if (grand_timer.find(std::string(time_id)) != grand_timer.end()) {
-    if (is_it_first_call == 1) {
-      temp.first  = std::chrono::high_resolution_clock::now();
-      temp.second = std::chrono::high_resolution_clock::now();
-      grand_timer[std::string(time_id)] = temp;
-    } else {
-      temp         = grand_timer[std::string(time_id)];
-      temp.second  = std::chrono::high_resolution_clock::now();
-      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-                         temp.second - temp.first)
-                         .count();
-      duration_map[std::string(time_id)] += (double)elapsed;
-      temp.first = std::chrono::high_resolution_clock::now();
-      grand_timer[std::string(time_id)] = temp;
-    }
-  } else {
-    temp.first  = std::chrono::high_resolution_clock::now();
-    temp.second = std::chrono::high_resolution_clock::now();
-    grand_timer[std::string(time_id)]  = temp;
-    duration_map[std::string(time_id)] = 0.0;
-  }
+  set_timing(time_id, len, is_it_first_call, is_it_last_call);
 }
 
-void
-ocall_write_block(int64_t        block_id,
+void ocall_write_block(int64_t        block_id,
                   size_t         index,
                   unsigned char *buff,
                   size_t         len) {
@@ -653,8 +666,7 @@ ocall_write_block(int64_t        block_id,
   all_blocks[block_id] = std::move(temp);
 }
 
-void
-ocall_read_block(int64_t        block_id,
+void ocall_read_block(int64_t        block_id,
                  size_t         index,
                  unsigned char *buff,
                  size_t         len) {
@@ -662,8 +674,7 @@ ocall_read_block(int64_t        block_id,
   std::memcpy(buff, &(all_blocks[block_id][index]), len);
 }
 
-void
-ocall_load_net_config(const unsigned char *path,
+void ocall_load_net_config(const unsigned char *path,
                       size_t               path_len,
                       char *               config,
                       size_t               config_len,
@@ -909,10 +920,11 @@ ocall_test_long_buffer_decrypt_retrieve(int            first,
 
 void
 print_timers() {
-  for (const auto &s : duration_map) {
-    LOG_WARN("++ Item %s took about %f seconds\n",
+  for (const auto &s : grand_timer) {
+    LOG_WARN("++ Item %s took about %f seconds for %u times with avg: %f\n",
              s.first.c_str(),
-             s.second / 1000000.0)
+             s.second.duration / 1000000.0,
+             s.second.counts,((double)(s.second.duration/s.second.counts)) / 1000000.0);
   }
 }
 
@@ -1169,6 +1181,7 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
   std::queue<int> queued_ids;
   gpu_iteration = iteration;
   network_->train = 1;
+  SET_START_TIMING(GPU_TIMING_ONEPASS);
   while (true) {
     // prepare batch
     setup_iteration_inputs_training(queued_ids,selected_ids,
@@ -1189,6 +1202,7 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
       break;
     }
   }
+  SET_FINISH_TIMING(GPU_TIMING_ONEPASS);
   // get snapshot -- since we're taking weight updates we should do it here before applying update
   prepare_train_snapshot_frbv(iteration);
   uint8_t *rep
@@ -1239,6 +1253,7 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
   std::queue<int> queued_ids;
   gpu_iteration = iteration;
   network_->train = 1;
+  SET_START_TIMING(GPU_TIMING_ONEPASS);
   while (true) {
     // prepare batch
     setup_iteration_inputs_training(queued_ids, selected_ids,
@@ -1259,6 +1274,7 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
       break;
     }
   }
+  SET_FINISH_TIMING(GPU_TIMING_ONEPASS);
   // get snapshot -- since we're taking weight updates we should do it here before applying update
   prepare_train_snapshot_frbmmv(iteration);
   uint8_t *rep
