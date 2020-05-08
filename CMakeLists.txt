@@ -52,6 +52,33 @@ find_package(Torch HINTS /usr/local/lib/python3.6/dist-packages/torch/share/cmak
 # foonathan memory library
 #add_subdirectory(third_party/memory)
 
+
+macro(enclave_config_setter)
+  set(prefix_enclave_vars EnclaveConfig)
+  set(options DisableDebug TCSPolicy ReservedMemExecutable)
+  set(oneValueArgs 
+                  ENCLAVE_CONFIG_XML_INPUT ENCLAVE_CONFIG_XML_OUTPUT
+                  StackMaxSize StackMinSize HeapMinSize 
+                  HeapInitSize HeapMaxSize 
+                  TCSNum TCSMinPool TCSMaxNum
+                  ReservedMemMinSize ReservedMemInitSize ReservedMemMaxSize)
+  set(multiValueArgs)
+  cmake_parse_arguments(${prefix_enclave_vars} "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  
+  foreach(opt "${oneValueArgs}")
+    if(${${prefix_enclave_vars}_${opt}})
+      set(${${prefix_enclave_vars}_${opt}} 1)
+    else()
+      set(${${prefix_enclave_vars}_${opt}} 0)
+    endif()
+  endforeach()
+
+  configure_file(
+    ${${prefix_enclave_vars}_ENCLAVE_CONFIG_XML_INPUT}
+    ${${prefix_enclave_vars}_ENCLAVE_CONFIG_XML_OUTPUT}
+  @ONLY)
+endmacro(enclave_config_setter)
+
 set(Untrusted_Home "${PROJECT_SOURCE_DIR}/untrusted")
 set(Trusted_Home "${PROJECT_SOURCE_DIR}/trusted")
 set(Scripts_Home "${PROJECT_SOURCE_DIR}/scripts")
@@ -62,11 +89,65 @@ set(Untrusted_Lib_Name "sgxdnnapplib")
 set(Trusted_Name "sgxdnn.enclave")
 set(Signed_Trusted_Name "sgxdnn.enclave.signed.so")
 
-set(Trusted_Config_File "${Trusted_Home}/enclave.config.xml")
+set(Trusted_Config_File ${Trusted_Home}/SGXADL-Enclave.config.xml)
 set(Trusted_Edl "${Trusted_Home}/enclave.edl")
 set(Private_Key_File "${Trusted_Home}/private_key.pem")
 
 set(SGX_HW off)
+
+set(LOGL_EVEL LOG_LEVEL_INFO_BEYOND)
+set(AVAIL_THREADS 
+  "number of threads if simple threading backend is selected to be used in the code"
+  6)
+set(USE_DNNL_GEMM "use intel's oneDNN backend" ON)
+set(USE_GEMM_THREADING_SGX "use myown simple threading approach" ON)
+set(ALLOW_TIMING_REPORT "allow time reporting" ON)
+
+
+if(USE_DNNL_GEMM)
+  set(USE_GEMM_THREADING_SGX OFF)
+endif()
+
+if(NOT USE_GEMM_THREADING_SGX)
+  set(AVAIL_THREADS)
+endif()
+
+
+configure_file(
+  ${CMAKE_SOURCE_DIR}/include/common-configs.h.in 
+  ${CMAKE_SOURCE_DIR}/include/common-configs.h
+  @ONLY)
+
+configure_file(
+  ${Trusted_Home}/include/trusted-configs.h.in 
+  ${Trusted_Home}/include/trusted-configs.h
+  @ONLY)
+
+configure_file(
+  ${Untrusted_Home}/include/untrusted-configs.h.in 
+  ${Untrusted_Home}/include/untrusted-configs.h
+  @ONLY)
+
+
+enclave_config_setter(
+  #DisableDebug 
+  TCSPolicy 
+  ReservedMemExecutable
+  ENCLAVE_CONFIG_XML_INPUT ${Trusted_Home}/SGXADL-Enclave.config.xml.in
+  ENCLAVE_CONFIG_XML_OUTPUT ${Trusted_Home}/SGXADL-Enclave.config.xml
+  StackMaxSize 0xF0000
+  StackMinSize 0x40000
+  HeapMinSize 0x5500000
+  HeapInitSize 0x5500000
+  HeapMaxSize 0x5500000
+  TCSNum 12 
+  TCSMinPool 16
+  TCSMaxNum 64
+  ReservedMemMinSize 0x2000000 
+  ReservedMemInitSize 0x2000000
+  ReservedMemMaxSize 0x2000000
+)
+
 if (CUSTOM_ENABLE_DEBUGING)
   set(SGX_MODE Debug CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
@@ -81,13 +162,10 @@ message(STATUS "CUSTOM_ENABLE_DEBUGING is ${CUSTOM_ENABLE_DEBUGING}")
 message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
 message(STATUS "SGX_MODE is ${SGX_MODE}")
 
-
 if(SGX_HW AND SGX_MODE STREQUAL "Release")
     set(LDS "${Trusted_Home}/enclave-release.lds")
-    set(Trusted_Config_File "${Trusted_Home}/enclave.config.HW-Release.xml")
 else()
     set(LDS "${Trusted_Home}/enclave-debug.lds")
-    set(Trusted_Config_File "${Trusted_Home}/enclave.config.xml")
 endif()
 
 find_package(SGX REQUIRED)

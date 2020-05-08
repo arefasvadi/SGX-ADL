@@ -1,0 +1,7 @@
+#pragma once
+#ifndef _UNTRUSTED_CONFIG_H
+#define _UNTRUSTED_CONFIG_H
+
+#cmakedefine ALLOW_TIMING_REPORT
+
+#endif //_UNTRUSTED_CONFIG_H

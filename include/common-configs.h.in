@@ -1,0 +1,17 @@
+#pragma once
+#ifndef _COMMON_CONFIG_H
+#define _COMMON_CONFIG_H
+
+#define LOG_LEVEL @LOGL_EVEL@
+
+#ifndef LOG_LEVEL
+#define LOG_LEVEL LOG_LEVEL_NO_LOG
+#endif
+
+#cmakedefine USE_GEMM_THREADING_SGX
+
+#cmakedefine AVAIL_THREADS
+
+#cmakedefine USE_DNNL_GEMM
+
+#endif //_COMMON_CONFIG_H

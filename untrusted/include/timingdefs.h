@@ -1,9 +1,9 @@
 #pragma once
 
-#ifndef _GPU_TIMINGDEFS_h
-#define _GPU_TIMINGDEFS_h
+#ifndef _GPU_TIMINGDEFS_H
+#define _GPU_TIMINGDEFS_H
 
-#define ALLOW_TIMING_REPORT
+#include "untrusted-configs.h"
 
 #ifdef ALLOW_TIMING_REPORT
 
@@ -44,4 +44,4 @@
 
 #endif
 
-#endif //_GPU_TIMINGDEFS_h
+#endif //_GPU_TIMINGDEFS_H

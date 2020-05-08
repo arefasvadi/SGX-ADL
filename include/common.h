@@ -1,33 +1,14 @@
 #pragma once
 #ifndef _COMMOM_H
 #define _COMMOM_H
+#include "common-configs.h"
+
 // #include <stdint.h>
 // #ifdef USE_SGX
 // #include "sgx_error.h"
 // #endif
 
 //#define DO_BLOCK_INPUT
-
-// later remove this to CMAKE
-#define LOG_LEVEL LOG_LEVEL_INFO_BEYOND
-
-//#ifndef USE_GEMM_THREADING_SGX
-
-//#define USE_GEMM_THREADING_SGX
-
-//#endif
-
-#define USE_DNNL_GEM
-
-#ifdef USE_DNNL_GEM
-#undef USE_GEMM_THREADING_SGX
-#endif
-
-#ifdef USE_GEMM_THREADING_SGX
-#ifndef AVAIL_THREADS
-#define AVAIL_THREADS 1
-#endif
-#endif
 
 //#define MEASURE_SWITCHLESS_PERF
 #ifdef MEASURE_SWITCHLESS_PERF
@@ -88,11 +69,6 @@
 
 
 #define COLORED_STR(COLOR,STR) ANSI_COLOR_##COLOR STR ANSI_COLOR_RESET
-
-
-#ifndef LOG_LEVEL
-#define LOG_LEVEL LOG_LEVEL_NO_LOG
-#endif
 
 #define LOG_OUT(...) main_logger(LOG_TYPE_OUT, __FILE__, __LINE__, __VA_ARGS__);
 #if LOG_LEVEL == LOG_LEVEL_ALL

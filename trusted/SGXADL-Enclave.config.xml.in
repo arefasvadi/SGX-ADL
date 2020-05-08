@@ -1,0 +1,21 @@
+<EnclaveConfiguration>
+    <ProdID>0</ProdID>
+    <ISVSVN>0</ISVSVN>
+    <StackMaxSize>@EnclaveConfig_StackMaxSize@</StackMaxSize>
+    <StackMinSize>@EnclaveConfig_StackMaxSize@</StackMinSize>
+    <HeapMinSize>@EnclaveConfig_HeapMinSize@</HeapMinSize>
+    <HeapInitSize>@EnclaveConfig_HeapInitSize@</HeapInitSize>
+    <HeapMaxSize>@EnclaveConfig_HeapMaxSize@</HeapMaxSize>
+    <TCSNum>@EnclaveConfig_TCSNum@</TCSNum>
+    <TCSMinPool>@EnclaveConfig_TCSMinPool@</TCSMinPool>
+    <TCSMaxNum>@EnclaveConfig_TCSMaxNum@</TCSMaxNum>
+    <TCSPolicy>@EnclaveConfig_TCSPolicy@</TCSPolicy>
+    <DisableDebug>@EnclaveConfig_DisableDebug@</DisableDebug>
+    <MiscSelect>0</MiscSelect>
+    <MiscMask>0xFFFFFFFF</MiscMask>
+    <ReservedMemMinSize> @EnclaveConfig_ReservedMemMinSize@</ReservedMemMinSize>
+    <ReservedMemInitSize>@EnclaveConfig_ReservedMemInitSize@</ReservedMemInitSize>
+    <ReservedMemMaxSize> @EnclaveConfig_ReservedMemMaxSize@</ReservedMemMaxSize>
+    <!-- On SGX1 platform, ReservedMemExecutable==1 means set reserved memory as read, write and execute (RWX) -->
+    <ReservedMemExecutable>@EnclaveConfig_ReservedMemExecutable@</ReservedMemExecutable>
+</EnclaveConfiguration>

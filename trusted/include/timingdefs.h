@@ -1,11 +1,11 @@
 #pragma once
 
-#ifndef _SGX_TIMINGDEFS_h
-#define _SGX_TIMINGDEFS_h
+#ifndef _SGX_TIMINGDEFS_H
+#define _SGX_TIMINGDEFS_H
+
+#include "trusted-configs.h"
 
 #include <cstring>
-
-#define ALLOW_TIMING_REPORT
 
 #ifdef ALLOW_TIMING_REPORT
 
@@ -47,4 +47,4 @@
 
 #endif
 
-#endif //_SGX_TIMINGDEFS_h
+#endif //_SGX_TIMINGDEFS_H
