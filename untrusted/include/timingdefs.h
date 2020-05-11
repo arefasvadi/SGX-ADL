@@ -25,6 +25,8 @@
 #define GPU_TIMING_BACKWARD_CONV "GPU backward pass conv"
 #define GPU_TIMING_BACKWARD_CONNCTD "GPU backward pass connected"
 #define GPU_TIMING_BACKWARD_MAXP "GPU backward pass maxp"
+#define GPU_TIMING_PREPARE_SNAPSHOT "GPU prepare snapshot"
+#define APP_TIMING_OVERALL "App overall time"
 
 #else 
 
@@ -37,6 +39,8 @@
 #undef GPU_TIMING_BACKWARD_CONV
 #undef GPU_TIMING_BACKWARD_CONNCTD
 #undef GPU_TIMING_BACKWARD_MAXP
+#undef GPU_TIMING_PREPARE_SNAPSHOT
+#undef APP_TIMING_OVERALL
 
 #define GPU_TIMING_FUNC
 #define SET_START_TIMING(...)

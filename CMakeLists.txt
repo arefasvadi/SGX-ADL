@@ -55,24 +55,16 @@ find_package(Torch HINTS /usr/local/lib/python3.6/dist-packages/torch/share/cmak
 
 macro(enclave_config_setter)
   set(prefix_enclave_vars EnclaveConfig)
-  set(options DisableDebug TCSPolicy ReservedMemExecutable)
+  set(options)
   set(oneValueArgs 
                   ENCLAVE_CONFIG_XML_INPUT ENCLAVE_CONFIG_XML_OUTPUT
+                  DisableDebug TCSPolicy ReservedMemExecutable
                   StackMaxSize StackMinSize HeapMinSize 
                   HeapInitSize HeapMaxSize 
                   TCSNum TCSMinPool TCSMaxNum
                   ReservedMemMinSize ReservedMemInitSize ReservedMemMaxSize)
   set(multiValueArgs)
   cmake_parse_arguments(${prefix_enclave_vars} "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-  
-  foreach(opt "${oneValueArgs}")
-    if(${${prefix_enclave_vars}_${opt}})
-      set(${${prefix_enclave_vars}_${opt}} 1)
-    else()
-      set(${${prefix_enclave_vars}_${opt}} 0)
-    endif()
-  endforeach()
-
   configure_file(
     ${${prefix_enclave_vars}_ENCLAVE_CONFIG_XML_INPUT}
     ${${prefix_enclave_vars}_ENCLAVE_CONFIG_XML_OUTPUT}
@@ -99,17 +91,21 @@ set(LOGL_EVEL LOG_LEVEL_INFO_BEYOND)
 set(AVAIL_THREADS 
   "number of threads if simple threading backend is selected to be used in the code"
   6)
-set(USE_DNNL_GEMM "use intel's oneDNN backend" ON)
-set(USE_GEMM_THREADING_SGX "use myown simple threading approach" ON)
-set(ALLOW_TIMING_REPORT "allow time reporting" ON)
+option(USE_DNNL_GEMM "use intel's oneDNN backend" ON)
+option(USE_GEMM_THREADING_SGX "use myown simple threading approach" OFF)
+option(ALLOW_TIMING_REPORT "allow time reporting" ON)
+option(SGX_CONV_BATCH_PRECOMPUTE_VERIFY "verify conv layers in RMM mode in batches" ON)
+option(SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION "to skip hash verification for fast testing" ON)
+option(SGX_FAST_TWEAKS_SMALLER_INITEGRIRTY_RATE 
+  "bigger ratio for fast testing when SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION defined " ON)
+option(SGX_USE_BLASFEO_GEMV "Use blasfeo for gemv" OFF)
 
-
-if(USE_DNNL_GEMM)
+if(USE_DNNL_GEMM AND USE_GEMM_THREADING_SGX)
   set(USE_GEMM_THREADING_SGX OFF)
 endif()
 
 if(NOT USE_GEMM_THREADING_SGX)
-  set(AVAIL_THREADS)
+  set(AVAIL_THREADS OFF)
 endif()
 
 
@@ -130,11 +126,11 @@ configure_file(
 
 
 enclave_config_setter(
-  #DisableDebug 
-  TCSPolicy 
-  ReservedMemExecutable
   ENCLAVE_CONFIG_XML_INPUT ${Trusted_Home}/SGXADL-Enclave.config.xml.in
   ENCLAVE_CONFIG_XML_OUTPUT ${Trusted_Home}/SGXADL-Enclave.config.xml
+  DisableDebug 0
+  TCSPolicy 1
+  ReservedMemExecutable 1
   StackMaxSize 0xF0000
   StackMinSize 0x40000
   HeapMinSize 0x5500000

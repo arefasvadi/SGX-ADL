@@ -167,7 +167,7 @@ RUN git clone --depth=1 https://github.com/google/googletest.git && \
 RUN ln -s /usr/bin/clang-9 /usr/bin/clang && \
     ln -s /usr/bin/clang++-9 /usr/bin/clang++ && \
     ln -sf /usr/bin/ld /usr/bin/ld.gold && \
-    pip3 install numpy pycryptodome ecdsa Pillow flatbuffers keras tensorflow-gpu tqdm
+    pip3 install numpy pycryptodome ecdsa Pillow flatbuffers keras tensorflow-gpu tqdm pqdm
 
 ENV SGX_SDK=${ARG_SGX_SDK}
 WORKDIR /opt/intel

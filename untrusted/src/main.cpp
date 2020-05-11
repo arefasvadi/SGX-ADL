@@ -1,5 +1,6 @@
 #include "CLI/CLI.hpp"
 #include "app.h"
+#include "timingdefs.h"
 
 extern data_params                        tr_pub_params;
 extern std::vector<trainRecordSerialized> plain_dataset;
@@ -20,6 +21,7 @@ main(int argc, char *argv[]) {
   // (void)(argc);
   // (void)(argv);
 
+  SET_START_TIMING(APP_TIMING_OVERALL);
   CLI::App arg_parser;
   arg_parser.description("\nSGXADL provides Accountability to Deep Learning\n");
 
@@ -134,7 +136,6 @@ main(int argc, char *argv[]) {
     //   abort();
     // }
   }
-
   else {
     LOG_DEBUG("Running in new version, \n  location_conf = %s\n  task_type= %s\n",
               location_conf_file.c_str(),
@@ -196,6 +197,7 @@ main(int argc, char *argv[]) {
 #ifdef MEASURE_SWITCHLESS_TIMING
   print_switchless_timing();
 #endif
+  SET_FINISH_TIMING(APP_TIMING_OVERALL);
   print_timers();
   return 0;
 }

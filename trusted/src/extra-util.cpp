@@ -734,12 +734,14 @@ void choose_rand_integrity_set_nonbliv(
     if (chosen) {
       // integ_set_ids.push_back(chosen_count);
       // construct aad
+      #ifndef SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION
       auto auth = construct_aad_input_nochange(chosen_count);
       // gen flatbuff image and make encrypted flatbuffer
       auto enc_auth_buff = generate_enc_auth_flatbuff(
           generate_image_label_flatb_from_actual_bytes(temp_buff_dec), &auth);
       res = ocall_add_rand_integset(enc_auth_buff.data(), enc_auth_buff.size());
       CHECK_SGX_SUCCESS(res, "ocall_add_rand_integset caused problem!\n")
+      #endif
       chosen_count++;
     } else {
       // construct aad
@@ -806,6 +808,7 @@ void verify_init_dataset() {
   uint8_t           aad[4]                     = {};
   sgx_sha256_hash_t computed_sha256            = {};
   for (int i = 0; i < DS_SIZE; ++i) {
+    #ifndef SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION
     res = ocall_get_client_enc_image(i,
                                      temp_buff.data(),
                                      required_buff_size,
@@ -832,7 +835,9 @@ void verify_init_dataset() {
     res = sgx_sha256_update(
         temp_buff_dec.data(), temp_buff_dec.size(), sha256_handle);
     CHECK_SGX_SUCCESS(res, "sgx_sha256_update caused problem!\n")
+    #endif
   }
+  #ifndef SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION
   res = sgx_sha256_get_hash(sha256_handle, &computed_sha256);
   CHECK_SGX_SUCCESS(res, "sgx_sha256_get_hash caused problem\n")
   res = sgx_sha256_close(sha256_handle);
@@ -863,6 +868,7 @@ void verify_init_dataset() {
     LOG_DEBUG("deletion with success\n")
     abort();
   }
+  #endif
   if (task_config.objPtr->security_type()
       == EnumSecurityType::EnumSecurityType_integrity) {
     // randomly select k_indices and encrypt them if the context is comoutation
@@ -871,7 +877,11 @@ void verify_init_dataset() {
         "FIXME!\narguments should be set when reading the task config or data "
         "config\n")
     integrity_set_func_obliv_indleak_args indleak_args;
+    #ifndef SGX_FAST_TWEAKS_SMALLER_INITEGRIRTY_RATE
     indleak_args.ratio   = 0.2;
+    #else
+    indleak_args.ratio   = 0.9;
+    #endif
     indleak_args.ds_size = dsconfigs.objPtr->dataset_size();
     choose_integrity_set.invokable.obliv_indleak(&indleak_args);
   } else {
@@ -2179,6 +2189,7 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
 void init_randomness_frbmmv(network* net,int iteration){
   for(int li=0;li<net->n;++li) {
     layer &l = net->layers[li];
+    LOG_DEBUG("init randomness layer number %d\n",li)
     if (l.type == CONNECTED) {
       for (int j=0;j<l.outputs;++j){
         l.frwd_outs_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
@@ -2227,8 +2238,10 @@ void init_randomness_frbmmv(network* net,int iteration){
               l.bkwrd_input_delta_rhs+(q*l.enclave_layered_batch),1);
           }
       }
+      LOG_DEBUG("connected finished init randomness layer number %d\n",li)
     }
     else if (l.type == CONVOLUTIONAL) {
+      #ifdef SGX_CONV_BATCH_PRECOMPUTE_VERIFY
       auto l_weights = l.weights->getItemsInRange(0, l.weights->getBufferSize());
       for (int j=0;j<l.n/l.groups;++j){
         l.frwd_outs_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
@@ -2239,6 +2252,7 @@ void init_randomness_frbmmv(network* net,int iteration){
         1,l.c/l.groups*l.size*l.size,l.n/l.groups,1,
         l.frwd_outs_rand,l.n/l.groups,l_weights.get(),l.c/l.groups*l.size*l.size,1,
         l.frwd_outs_rhs,l.c/l.groups*l.size*l.size);
+      
       if (li>=1 && net->layers[li-1].delta) {
         for (int j=0;j<l.c/l.groups*l.size*l.size;++j){
           l.bkwrd_input_delta_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
@@ -2251,7 +2265,9 @@ void init_randomness_frbmmv(network* net,int iteration){
           1,
           l.bkwrd_input_delta_rhs,l.n/l.groups);
       }
+      #endif
     }
+    LOG_DEBUG("conv finished init randomness layer number %d\n",li)
   }
 }
 
@@ -2359,8 +2375,11 @@ float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* ve
   int subdiv = 0;
   std::set<int> selected_ids;
   std::queue<int> queued_ids;
+  LOG_DEBUG("here!re 5\n")
   init_randomness_frbmmv(verf_net,iteration);
+  LOG_DEBUG("here!re 6\n")
   preload_MM_weight_updates_backward(verf_net,iteration);
+  LOG_DEBUG("here!re 7\n")
   while(true) {
     // Load input to the verf_network
     setup_iteration_inputs_training(queued_ids, selected_ids,verf_net,iteration,
@@ -3178,7 +3197,9 @@ void verify_task_frbmmv() {
   if (found_task) {
     LOG_DEBUG("Found the task for iteration %d\n",iteration)
     set_network_batch_randomness(iteration,*verf_network_);
+    LOG_DEBUG("here!re 1\n")
     setup_layers_iteration_seed(*verf_network_,iteration);
+    LOG_DEBUG("here!re 2\n")
     if (iteration == 1) {
       // any other iteration except 1st
     }
@@ -3189,8 +3210,10 @@ void verify_task_frbmmv() {
     }
 
     // do forward, backward
+    LOG_DEBUG("here!re 3\n")
     SET_START_TIMING(SGX_TIMING_ONEPASS);
     auto avg_cost = train_verify_in_enclave_frbmmv(iteration,network_.get(),verf_network_.get());
+    LOG_DEBUG("here!re 4\n")
     SET_FINISH_TIMING(SGX_TIMING_ONEPASS);
     LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
     // compare weight updates with with reported ones

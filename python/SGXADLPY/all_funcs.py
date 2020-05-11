@@ -6,6 +6,9 @@ from Crypto.Hash import SHA256
 from PIL import Image
 import shutil
 import json
+
+from pqdm.processes import pqdm
+
 #sys.path.append(os.path.abspath('./fbs_gen_cpde'))
 #sys.path.append(os.path.abspath('./CryptoUtils'))
 
@@ -32,6 +35,7 @@ from tqdm import tqdm
 from multiprocessing import Pool
 
 import struct
+
 
 def add_bytevec_to_builder(builder,bytes,length):
     if length != len(bytes):
@@ -203,7 +207,12 @@ def gen_aes_gcm128_cipher(enc_content,iv,mac,aad):
 
 def enc_rec_store_path(ind, ds_rec,data_f_name,encryptor):
     
+    # ind, ds_rec,data_f_name,encryptor
     # we keep the original rank as aead for ordering
+    #ind=kwargs['ind'] 
+    #ds_rec=kwargs['ds_rec']
+    #data_f_name=kwargs['data_f_name']
+    #encryptor=kwargs['encryptor']
     aad = int(ind).to_bytes(4,'little')
     if len(aad) != 4:
         raise ValueError('length of aad is not 4 bytes instead it is {} and ind is {}'.format(len(aad),ind))
@@ -217,6 +226,7 @@ def enc_rec_store_path(ind, ds_rec,data_f_name,encryptor):
     
     with open(data_f_name,'wb') as f:
         f.write(aes_gcm_buff)
+    return 0
 
 
 def enc_ds_store_path(dataset,key_file,dest_dir):
@@ -237,11 +247,18 @@ def enc_ds_store_path(dataset,key_file,dest_dir):
     #print(ds_list[0].shape)
     #print(len(ds_list[0].tobytes()))
     #sys.exit(1)
-    ds_w_ind = zip(indices,ds_list,data_f_names,encryptors)
+    #ds_w_ind = zip(indices,ds_list,data_f_names,encryptors)
+    #l_ds_w_ind = list(zip(indices,ds_list,data_f_names,encryptors))
+    # args: ind, ds_rec,data_f_name,encryptor
+    dict_ds_w_ind = [{'ind':a[0],'ds_rec':a[1],'data_f_name':a[2],'encryptor':a[3]} for a in zip(indices,ds_list,data_f_names,encryptors)]
+    #list_ds_w_ind = [tuple(a) for a in zip(indices,ds_list,data_f_names,encryptors)]
     #print('done zipping')
-    
-    for _ in tqdm(pool.istarmap(enc_rec_store_path,ds_w_ind),total=dataset.shape[0],desc="encryption progress") :
-        pass
+    res_ = pqdm(dict_ds_w_ind,enc_rec_store_path,n_jobs=6,argument_type='kwargs',desc="encryption progress")
+    #print('len(res_): {}'.format(len(res_)))
+    #for c,r_ in enumerate(res_):
+    #    if r_ != 0:
+    #        print(c,r_)
+    #        raise ValueError('error issued!!')
 
 def gen_signed_ecc_msg(task_conf_buf,sign_buff):
     builder = flatbuffers.Builder(1024)
@@ -711,7 +728,8 @@ def process_imagenet_vgg16():
                     ]
     vgg16_arch_files = [
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train.cfg",
-        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch_64_gpusub_1_encsub_64.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch64_gpu2_enc64.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch32_gpu1_enc32.cfg",
     ]
     vgg16_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/"
     root_seeds = [0]
@@ -738,9 +756,8 @@ def process_imagenet_vgg16():
 
 if __name__ == "__main__":
     
-    pool = Pool(processes=6)
-    process_cifar_10()
-    #process_imagenet_vgg16()
+    #process_cifar_10()
+    process_imagenet_vgg16()
     
     #pass
     #process_cifar_10()

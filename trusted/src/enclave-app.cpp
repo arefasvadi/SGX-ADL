@@ -795,7 +795,8 @@ void ecall_initial_sort() {
 void ecall_start_training() {
 #ifdef USE_SGX_LAYERWISE
   LOG_DEBUG("Starting the training\n")
-  const int temp_iter = 10;
+  SET_START_TIMING(SGX_TIMING_OVERALL_TRAINING)
+  const int temp_iter = 1;
 
   if (*net_context_ == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT
       && *main_verf_task_variation_ == verf_variations_t::FRBV) {
@@ -811,6 +812,7 @@ void ecall_start_training() {
     }
     //abort();
   }
+  SET_FINISH_TIMING(SGX_TIMING_OVERALL_TRAINING)
 #endif
 #if 0
   LOG_TRACE("entered in %s\n", __func__)

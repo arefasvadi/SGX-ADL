@@ -1204,12 +1204,14 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
   }
   SET_FINISH_TIMING(GPU_TIMING_ONEPASS);
   // get snapshot -- since we're taking weight updates we should do it here before applying update
+  SET_START_TIMING(GPU_TIMING_PREPARE_SNAPSHOT)
   prepare_train_snapshot_frbv(iteration);
   uint8_t *rep
       = train_iterations_snapshots.step_net_reports[iteration].net_sha256.data();
   // LOG_DEBUG("rep pointer is null==%d and report pointer is null==%d\n",(rep == nullptr),(report==nullptr))
   std::memcpy(report, rep, SHA256_DIGEST_LENGTH);
   report_len = SHA256_DIGEST_LENGTH;
+  SET_FINISH_TIMING(GPU_TIMING_PREPARE_SNAPSHOT)
   // update gpu
   // LOG_DEBUG("GPU: starting to call update for iteration %d\n", iteration)
   // update_network_(network_.get(),true);
@@ -1276,12 +1278,14 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
   }
   SET_FINISH_TIMING(GPU_TIMING_ONEPASS);
   // get snapshot -- since we're taking weight updates we should do it here before applying update
+  SET_START_TIMING(GPU_TIMING_PREPARE_SNAPSHOT)
   prepare_train_snapshot_frbmmv(iteration);
   uint8_t *rep
       = train_iterations_snapshots_frbmmv.step_net_reports[iteration].net_sha256.data();
   // LOG_DEBUG("rep pointer is null==%d and report pointer is null==%d\n",(rep == nullptr),(report==nullptr))
   std::memcpy(report, rep, SHA256_DIGEST_LENGTH);
   report_len = SHA256_DIGEST_LENGTH;
+  SET_FINISH_TIMING(GPU_TIMING_PREPARE_SNAPSHOT)
   // update gpu
   // LOG_DEBUG("GPU: starting to call update for iteration %d\n", iteration)
   // update_network_(network_.get(),true);
