@@ -39,7 +39,7 @@
 
 #include "dnnl.hpp"
 
-extern "C" void printf(const char *fmt, ...);
+/*extern "C" void printf(const char *fmt, ...);
 
 static dnnl::engine::kind parse_engine_kind(
         int argc, char **argv, int extra_args = 0) {
@@ -65,6 +65,7 @@ static dnnl::engine::kind parse_engine_kind(
     printf("Please run example like this: cpu|gpu");
     abort();
 }
+*/
 
 // Read from memory, write to handle
 inline void read_from_dnnl_memory(void *handle, dnnl::memory &mem) {

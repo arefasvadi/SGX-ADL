@@ -49,8 +49,32 @@ find_package(Torch HINTS /usr/local/lib/python3.6/dist-packages/torch/share/cmak
 #find_library(SSL_LIB libssl.a REQUIRED)
 #find_library(CRYPTO_LIB libcrypto.a REQUIRED)
 
-# foonathan memory library
-#add_subdirectory(third_party/memory)
+macro(remove_and_recreate_build_dir)
+    set(options)
+    set(oneValueArgs CACHE_PRELOADER)
+    set(multiValueArgs)
+    cmake_parse_arguments(args "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+    if (NOT EXISTS ${args_CACHE_PRELOADER})
+        message(FATAL_ERROR "args_CACHE_PRELOADER ${args_CACHE_PRELOADER} does not exist!")
+    endif()
+    if (${CMAKE_BINARY_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+        message(FATAL_ERROR "You are removing source dir dudeeee!")
+    endif()
+    add_custom_target(rmrc_preloader
+        COMMAND rm -rf ${CMAKE_BINARY_DIR}/*
+        COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" -C ${args_CACHE_PRELOADER} -S ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        VERBATIM
+    )
+    add_custom_target(rmrc
+        COMMAND rm -rf ${CMAKE_BINARY_DIR}/*
+        COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" -S ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        VERBATIM
+    )
+endmacro(remove_and_recreate_build_dir)
+
+remove_and_recreate_build_dir(CACHE_PRELOADER ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CachePreLoader.cmake)
 
 
 macro(enclave_config_setter)
@@ -99,8 +123,24 @@ option(SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION "to skip hash verification for fast 
 option(SGX_FAST_TWEAKS_SMALLER_INITEGRIRTY_RATE 
   "bigger ratio for fast testing when SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION defined " ON)
 option(SGX_USE_BLASFEO_GEMV "Use blasfeo for gemv" OFF)
+set(SGX_RMM_ADD_NOISE_CONV_WEIGHTS_CHECK_VERIFICATION_FAILS OFF)
 
-if(USE_DNNL_GEMM AND USE_GEMM_THREADING_SGX)
+set(CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM OFF)
+set(CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM ON)
+if (CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON 
+    AND 
+    CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON)
+    message(FATAL_ERROR "You cannot have both CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM and CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM")
+elseif(CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON)
+  set(CONV_BACKWRD_INPUT_GRAD_COPY_STRATEGY CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM)
+elseif(CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM MATCHES ON)
+  set(CONV_BACKWRD_INPUT_GRAD_COPY_STRATEGY CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM)
+else()
+  message(FATAL_ERROR "You must select one of CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM or CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM")
+endif()
+
+if(USE_DNNL_GEMM MATCHES ON AND USE_GEMM_THREADING_SGX MATCHES ON)
+  message(WARNING "USE_DNNL_GEMM enabled and USE_GEMM_THREADING_SGX Turned OFF")
   set(USE_GEMM_THREADING_SGX OFF)
 endif()
 
@@ -167,9 +207,6 @@ endif()
 find_package(SGX REQUIRED)
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-
-#add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/blasfeo)
-#message(WARNING "BLASFEO_HEADERS ${BLASFEO_HEADERS}")
 
 set(DARKNET_SOURCE_FILES
   third_party/darknet/src/gemm.cpp
@@ -565,7 +602,6 @@ target_compile_definitions(${Untrusted_Lib_Name} PUBLIC -DGPU -DSGX_VERIFIES)
 # add_dependencies(${Untrusted_Lib_Name} ${Trusted_Name})
 attatch_clang_tidy_to_target(${Untrusted_Lib_Name})
 #clang_tidy_check(${Untrusted_Lib_Name})
-
 
 add_untrusted_executable(
   ${Untrusted_Name}

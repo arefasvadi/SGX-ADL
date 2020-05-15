@@ -1,0 +1,618 @@
+From edb53747e6d7e7e7c5cfcd37d3035a1ef35a265d Mon Sep 17 00:00:00 2001
+From: Aref Asvadi <arefasvadi@gmail.com>
+Date: Thu, 7 May 2020 02:36:04 +0000
+Subject: [PATCH] SGX mkl-dnn v1.4
+
+---
+ cmake/options.cmake                           |  8 +--
+ cmake/platform.cmake                          |  8 ++-
+ src/CMakeLists.txt                            |  5 ++
+ src/common/engine.hpp                         |  2 +
+ src/common/primitive.cpp                      |  2 +
+ src/common/utils.cpp                          | 20 ++++++
+ src/common/utils.hpp                          |  2 +
+ src/common/verbose.cpp                        |  8 +++
+ src/cpu/jit_uni_reorder_utils.cpp             |  2 +
+ src/cpu/jit_utils/jit_utils.cpp               |  8 +++
+ src/cpu/jit_utils/jitprofiling/jitprofiling.c |  4 ++
+ src/cpu/xbyak/xbyak.h                         | 66 +++++++++++++++++--
+ src/cpu/xbyak/xbyak_util.h                    | 28 +++++++-
+ 13 files changed, 151 insertions(+), 12 deletions(-)
+
+diff --git a/cmake/options.cmake b/cmake/options.cmake
+index 0fb33aef6..1550aa110 100644
+--- a/cmake/options.cmake
++++ b/cmake/options.cmake
+@@ -50,10 +50,10 @@ option(DNNL_ENABLE_MAX_CPU_ISA
+ # Building properties and scope
+ # =============================
+ 
+-set(DNNL_LIBRARY_TYPE "SHARED" CACHE STRING
++set(DNNL_LIBRARY_TYPE "STATIC" CACHE STRING
+     "specifies whether oneDNN library should be SHARED or STATIC")
+-option(DNNL_BUILD_EXAMPLES "builds examples"  ON)
+-option(DNNL_BUILD_TESTS "builds tests" ON)
++option(DNNL_BUILD_EXAMPLES "builds examples"  OFF)
++option(DNNL_BUILD_TESTS "builds tests" OFF)
+ option(DNNL_BUILD_FOR_CI "specifies whether oneDNN library should be built for CI" OFF)
+ option(DNNL_WERROR "treat warnings as errors" OFF)
+ 
+@@ -102,7 +102,7 @@ option(DNNL_ENABLE_JIT_PROFILING
+     runtime with VTune Amplifier (on by default). Without the
+     registrations, VTune Amplifier would report data collected inside
+     the kernels as `outside any known module`."
+-    ON)
++    OFF)
+ 
+ # ===================
+ # Engine capabilities
+diff --git a/cmake/platform.cmake b/cmake/platform.cmake
+index 58b584962..fb0641e71 100644
+--- a/cmake/platform.cmake
++++ b/cmake/platform.cmake
+@@ -32,6 +32,11 @@ endif()
+ # C++ standard (see C99 standard 7.18.2 and 7.18.4)
+ add_definitions(-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS)
+ 
++#SGX
++add_definitions(-DMKLDNN_SGX -DDISABLE_VERBOSE -DSGX_XBYAK -DDISABLE_VERBOSE)
++set(CMAKE_CXX_ENCLAVE_FLAGS)
++set(CMAKE_C_ENCLAVE_FLAGS)
++
+ set(CMAKE_CCXX_FLAGS)
+ set(CMAKE_CCXX_NOWARN_FLAGS)
+ set(CMAKE_CCXX_NOEXCEPT_FLAGS)
+@@ -91,7 +96,8 @@ elseif(UNIX OR MINGW)
+     append(CMAKE_CCXX_FLAGS "-Wall -Wno-unknown-pragmas")
+     append_if(DNNL_WERROR CMAKE_CCXX_FLAGS "-Werror")
+     append(CMAKE_CCXX_FLAGS "-fvisibility=internal")
+-    append(CMAKE_CXX_FLAGS "-fvisibility-inlines-hidden")
++    append(CMAKE_CXX_FLAGS "-fvisibility-inlines-hidden ${CMAKE_CXX_ENCLAVE_FLAGS}")
++    append(CMAKE_C_FLAGS "${CMAKE_C_ENCLAVE_FLAGS}")
+     append(CMAKE_CCXX_NOEXCEPT_FLAGS "-fno-exceptions")
+     # compiler specific settings
+     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 88e318923..dac941cf8 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -22,6 +22,11 @@ file(GLOB_RECURSE HEADERS
+ include_directories(
+     ${CMAKE_CURRENT_SOURCE_DIR}
+     ${CMAKE_CURRENT_SOURCE_DIR}/common
++    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../common/inc/internal
++    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../common/inc/tlibc
++    #${CMAKE_CURRENT_SOURCE_DIR}/../../../../common/inc/stdc++
++    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../common/inc
++    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../sdk/tlibcxx/include
+     )
+ 
+ if (DNNL_LIBRARY_TYPE STREQUAL "SHARED")
+diff --git a/src/common/engine.hpp b/src/common/engine.hpp
+index 0fc87d701..0badc4d75 100644
+--- a/src/common/engine.hpp
++++ b/src/common/engine.hpp
+@@ -128,6 +128,7 @@ struct dnnl_engine : public dnnl::impl::c_compatible {
+ 
+         auto print_verbose = [](int level, bool is_cache_hit,
+                                      dnnl::impl::primitive_t *p, double time) {
++#ifndef MKLDNN_SGX
+             if (level >= 2) {
+ #ifdef DNNL_ENABLE_PRIMITIVE_CACHE
+                 const char *str = is_cache_hit
+@@ -139,6 +140,7 @@ struct dnnl_engine : public dnnl::impl::c_compatible {
+                 printf("%s,%s,%g\n", str, p->pd()->info(), time);
+                 fflush(0);
+             }
++#endif
+         };
+ 
+         double ms = dnnl::impl::get_msec();
+diff --git a/src/common/primitive.cpp b/src/common/primitive.cpp
+index beca79d25..942337ff9 100644
+--- a/src/common/primitive.cpp
++++ b/src/common/primitive.cpp
+@@ -76,8 +76,10 @@ status_t dnnl_primitive_execute(const primitive_t *primitive, stream_t *stream,
+         status = primitive->execute(ctx);
+         stream->wait();
+         ms = get_msec() - ms;
++        #ifndef MKLDNN_SGX
+         printf("dnnl_verbose,exec,%s,%g\n", primitive->pd()->info(), ms);
+         fflush(0);
++        #endif
+     } else {
+         status = primitive->execute(ctx);
+     }
+diff --git a/src/common/utils.cpp b/src/common/utils.cpp
+index 6e4413e03..8d6701d6e 100644
+--- a/src/common/utils.cpp
++++ b/src/common/utils.cpp
+@@ -20,7 +20,11 @@
+ #endif
+ 
+ #ifdef __linux__
++#ifndef MKLDNN_SGX
+ #include <sys/stat.h>
++#else
++#define PATH_MAX 4096
++#endif
+ #include <sys/types.h>
+ #endif
+ 
+@@ -38,6 +42,7 @@ namespace dnnl {
+ namespace impl {
+ 
+ int getenv(const char *name, char *buffer, int buffer_size) {
++#ifndef MKLDNN_SGX
+     if (name == NULL || buffer_size < 0 || (buffer == NULL && buffer_size > 0))
+         return INT_MIN;
+ 
+@@ -69,17 +74,26 @@ int getenv(const char *name, char *buffer, int buffer_size) {
+ 
+     if (buffer != NULL) buffer[term_zero_idx] = '\0';
+     return result;
++#else
++    return 0;
++#endif
++
+ }
+ 
+ int getenv_int(const char *name, int default_value) {
++#ifndef MKLDNN_SGX
+     int value = default_value;
+     // # of digits in the longest 32-bit signed int + sign + terminating null
+     const int len = 12;
+     char value_str[len];
+     if (getenv(name, value_str, len) > 0) value = atoi(value_str);
+     return value;
++#else
++    return 0;
++#endif
+ }
+ 
++#ifndef MKLDNN_SGX
+ FILE *fopen(const char *filename, const char *mode) {
+ #ifdef _WIN32
+     FILE *fp = NULL;
+@@ -88,6 +102,7 @@ FILE *fopen(const char *filename, const char *mode) {
+     return ::fopen(filename, mode);
+ #endif
+ }
++#endif
+ 
+ void *malloc(size_t size, int alignment) {
+     void *ptr;
+@@ -96,7 +111,12 @@ void *malloc(size_t size, int alignment) {
+     ptr = _aligned_malloc(size, alignment);
+     int rc = ptr ? 0 : -1;
+ #else
++    #ifndef MKLDNN_SGX
+     int rc = ::posix_memalign(&ptr, alignment, size);
++    #else
++    ptr = ::memalign(alignment, size);
++    int rc = ((ptr)? 0 : -1);
++    #endif
+ #endif
+ 
+     return (rc == 0) ? ptr : 0;
+diff --git a/src/common/utils.hpp b/src/common/utils.hpp
+index 800a22caa..841a2e589 100644
+--- a/src/common/utils.hpp
++++ b/src/common/utils.hpp
+@@ -498,7 +498,9 @@ int getenv_int(const char *name, int default_value = 0);
+ bool get_jit_dump();
+ unsigned get_jit_profiling_flags();
+ std::string get_jit_profiling_jitdumpdir();
++#ifndef MKLDNN_SGX
+ FILE *fopen(const char *filename, const char *mode);
++#endif
+ 
+ constexpr int msan_enabled = MSAN_ENABLED;
+ inline void msan_unpoison(void *ptr, size_t size) {
+diff --git a/src/common/verbose.cpp b/src/common/verbose.cpp
+index 2a4f0f617..2bfba991d 100644
+--- a/src/common/verbose.cpp
++++ b/src/common/verbose.cpp
+@@ -15,9 +15,11 @@
+ *******************************************************************************/
+ 
+ #include <stdlib.h>
++#ifndef MKLDNN_SGX
+ #ifndef _WIN32
+ #include <sys/time.h>
+ #endif
++#endif
+ 
+ #include "dnnl.h"
+ #include "dnnl_debug.h"
+@@ -80,7 +82,9 @@ int get_verbose() {
+         if (getenv("DNNL_VERBOSE", val, len) == 1) verbose.set(atoi(val));
+         if (!verbose.initialized()) verbose.set(0);
+     }
++    #ifndef MKLDNN_SGX
+     static bool version_printed = false;
++    #endif
+     if (!version_printed && verbose.get() > 0) {
+         printf("dnnl_verbose,info,oneDNN v%d.%d.%d (commit %s)\n",
+                 dnnl_version()->major, dnnl_version()->minor,
+@@ -107,9 +111,13 @@ double get_msec() {
+     QueryPerformanceCounter(&now);
+     return 1e+3 * now.QuadPart / frequency.QuadPart;
+ #else
++#ifndef MKLDNN_SGX
+     struct timeval time;
+     gettimeofday(&time, NULL);
+     return 1e+3 * time.tv_sec + 1e-3 * time.tv_usec;
++#else
++    return 0.0;
++#endif
+ #endif
+ }
+ 
+diff --git a/src/cpu/jit_uni_reorder_utils.cpp b/src/cpu/jit_uni_reorder_utils.cpp
+index f92b73e40..58faa2f4c 100644
+--- a/src/cpu/jit_uni_reorder_utils.cpp
++++ b/src/cpu/jit_uni_reorder_utils.cpp
+@@ -292,12 +292,14 @@ void prb_node_move(prb_t &p, int d0, int d1) {
+ }
+ 
+ void prb_dump(const prb_t &p) {
++    #ifndef MKLDNN_SGX
+     printf("@@@ type:%s:%s ndims:%d ", dnnl_dt2str(p.itype),
+             dnnl_dt2str(p.otype), p.ndims);
+     for (int d = 0; d < p.ndims; ++d)
+         printf("[%zu:%td:%td:%td]", p.nodes[d].n, p.nodes[d].is, p.nodes[d].os,
+                 p.nodes[d].ss);
+     printf(" off:%zu:%zu\n", p.ioff, p.ooff);
++    #endif
+ }
+ 
+ } // namespace tr
+diff --git a/src/cpu/jit_utils/jit_utils.cpp b/src/cpu/jit_utils/jit_utils.cpp
+index 26df47b25..7124e2ec9 100644
+--- a/src/cpu/jit_utils/jit_utils.cpp
++++ b/src/cpu/jit_utils/jit_utils.cpp
+@@ -18,13 +18,21 @@
+ 
+ #include "utils.hpp"
+ 
++#ifndef MKLDNN_SGX
+ #ifndef DNNL_ENABLE_JIT_PROFILING
+ #define DNNL_ENABLE_JIT_PROFILING 1
+ #endif
++#else
++#undef DNNL_ENABLE_JIT_PROFILING
++#endif
+ 
++#ifndef MKLDNN_SGX
+ #ifndef DNNL_ENABLE_JIT_DUMP
+ #define DNNL_ENABLE_JIT_DUMP 1
+ #endif
++#else
++#undef DNNL_ENABLE_JIT_DUMP
++#endif
+ 
+ #if DNNL_ENABLE_JIT_PROFILING
+ #include "jitprofiling/jitprofiling.h"
+diff --git a/src/cpu/jit_utils/jitprofiling/jitprofiling.c b/src/cpu/jit_utils/jitprofiling/jitprofiling.c
+index fd99cb5f3..3d6718d9d 100644
+--- a/src/cpu/jit_utils/jitprofiling/jitprofiling.c
++++ b/src/cpu/jit_utils/jitprofiling/jitprofiling.c
+@@ -35,6 +35,8 @@
+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ </copyright> */
+ 
++#ifndef MKLDNN_SGX
++
+ #include "ittnotify_config.h"
+ 
+ #if ITT_PLATFORM==ITT_PLATFORM_WIN
+@@ -291,3 +293,5 @@ ITT_EXTERN_C unsigned int JITAPI iJIT_GetNewMethodID()
+ 
+     return methodID++;
+ }
++
++#endif //#ifndef MKLDNN_SGX
+\ No newline at end of file
+diff --git a/src/cpu/xbyak/xbyak.h b/src/cpu/xbyak/xbyak.h
+index 04279e28d..6a2faeb10 100644
+--- a/src/cpu/xbyak/xbyak.h
++++ b/src/cpu/xbyak/xbyak.h
+@@ -72,6 +72,10 @@
+ #include <iostream>
+ #endif
+ 
++#ifdef SGX_XBYAK
++#include "sgx_rsrv_mem_mngr.h"
++#endif
++
+ // #define XBYAK_DISABLE_AVX512
+ 
+ //#define XBYAK_USE_MMAP_ALLOCATOR
+@@ -125,7 +129,9 @@
+ 	#include <malloc.h>
+ #elif defined(__GNUC__)
+ 	#include <unistd.h>
++	#ifndef SGX_XBYAK
+ 	#include <sys/mman.h>
++	#endif
+ 	#include <stdlib.h>
+ #endif
+ #if defined(__APPLE__) && defined(MAP_JIT)
+@@ -247,9 +253,11 @@ class Error : public std::exception {
+ public:
+ 	explicit Error(int err) : err_(err)
+ 	{
++		#ifndef SGX_XBYAK
+ 		if (err_ < 0 || err_ > ERR_INTERNAL) {
+ 			err_ = ERR_INTERNAL;
+ 		}
++		#endif
+ 	}
+ 	operator int() const { return err_; }
+ 	const char *what() const throw()
+@@ -320,9 +328,13 @@ inline void *AlignedMalloc(size_t size, size_t alignment)
+ #elif defined(_WIN32)
+ 	return _aligned_malloc(size, alignment);
+ #else
+-	void *p;
+-	int ret = posix_memalign(&p, alignment, size);
+-	return (ret == 0) ? p : 0;
++	#ifndef SGX_XBYAK
++ 	void *p;
++ 	int ret = posix_memalign(&p, alignment, size);
++ 	return (ret == 0) ? p : 0;
++	#else
++	return NULL;
++	#endif
+ #endif
+ }
+ 
+@@ -408,6 +420,7 @@ public:
+ 	{
+ 		const size_t alignedSizeM1 = inner::ALIGN_PAGE_SIZE - 1;
+ 		size = (size + alignedSizeM1) & ~alignedSizeM1;
++#ifndef SGX_XBYAK
+ #if defined(XBYAK_USE_MAP_JIT)
+ 		int mode = MAP_PRIVATE | MAP_ANONYMOUS;
+ 		const int mojaveVersion = 18;
+@@ -424,13 +437,27 @@ public:
+ 		assert(p);
+ 		sizeList_[(uintptr_t)p] = size;
+ 		return (uint8*)p;
++#else
++		void *p = sgx_alloc_rsrv_mem(size);
++		if (p == NULL)
++			abort();
++		sizeList_[(uintptr_t)p] = size;
++		return (uint8*)p;
++#endif
+ 	}
+ 	void free(uint8 *p)
+ 	{
+ 		if (p == 0) return;
+ 		SizeList::iterator i = sizeList_.find((uintptr_t)p);
++	#ifndef SGX_XBYAK
+ 		if (i == sizeList_.end()) throw Error(ERR_BAD_PARAMETER);
+ 		if (munmap((void*)i->first, i->second) < 0) throw Error(ERR_MUNMAP);
++	#else
++		if (i == sizeList_.end())
++			abort();
++		if(sgx_free_rsrv_mem((void*)i->first, i->second) !=  0)
++			abort();
++	#endif
+ 		sizeList_.erase(i);
+ 	}
+ };
+@@ -990,8 +1017,14 @@ public:
+ 	explicit CodeArray(size_t maxSize, void *userPtr = 0, Allocator *allocator = 0)
+ 		: type_(userPtr == AutoGrow ? AUTO_GROW : (userPtr == 0 || userPtr == DontSetProtectRWE) ? ALLOC_BUF : USER_BUF)
+ 		, alloc_(allocator ? allocator : (Allocator*)&defaultAllocator_)
++		#ifndef SGX_XBYAK
+ 		, maxSize_(maxSize)
+ 		, top_(type_ == USER_BUF ? reinterpret_cast<uint8*>(userPtr) : alloc_->alloc((std::max<size_t>)(maxSize, 1)))
++		#else
++		//Inside SGX, the allocated memory size must be page aligned.
++		, maxSize_((maxSize +  (inner::ALIGN_PAGE_SIZE - 1)) & ~(inner::ALIGN_PAGE_SIZE - 1))
++		, top_(type_ == USER_BUF ? reinterpret_cast<uint8*>(userPtr) : alloc_->alloc((std::max<size_t>)(((maxSize +  (inner::ALIGN_PAGE_SIZE - 1)) & ~(inner::ALIGN_PAGE_SIZE - 1)), 1)))
++		#endif
+ 		, size_(0)
+ 		, isCalledCalcJmpAddress_(false)
+ 	{
+@@ -1060,6 +1093,7 @@ public:
+ 	}
+ 	void dump() const
+ 	{
++		#ifndef SGX_XBYAK
+ 		const uint8 *p = getCode();
+ 		size_t bufSize = getSize();
+ 		size_t remain = bufSize;
+@@ -1079,6 +1113,7 @@ public:
+ 				break;
+ 			}
+ 		}
++		#endif
+ 	}
+ 	/*
+ 		@param offset [in] offset from top
+@@ -1109,6 +1144,7 @@ public:
+ 	*/
+ 	static inline bool protect(const void *addr, size_t size, int protectMode)
+ 	{
++	#ifndef SGX_XBYAK
+ #if defined(_WIN32)
+ 		const DWORD c_rw = PAGE_READWRITE;
+ 		const DWORD c_rwe = PAGE_EXECUTE_READWRITE;
+@@ -1140,6 +1176,20 @@ public:
+ 		return mprotect(reinterpret_cast<void*>(roundAddr), size + (iaddr - roundAddr), mode) == 0;
+ #else
+ 		return true;
++#endif
++#else
++	const int c_rw = SGX_PROT_READ | SGX_PROT_WRITE;
++	const int c_rwe = SGX_PROT_READ | SGX_PROT_WRITE | SGX_PROT_EXEC;
++	const int c_re = SGX_PROT_READ | SGX_PROT_EXEC;
++	int mode;
++	switch (protectMode) {
++	case PROTECT_RW: mode = c_rw; break;
++	case PROTECT_RWE: mode = c_rwe; break;
++	case PROTECT_RE: mode = c_re; break;
++	default:
++		return false;
++	}
++	return sgx_tprotect_rsrv_mem(const_cast<void*>(addr), size, mode) == 0;
+ #endif
+ 	}
+ 	/**
+@@ -1373,9 +1423,11 @@ class LabelManager {
+ 	bool hasUndefinedLabel_inner(const T& list) const
+ 	{
+ #ifndef NDEBUG
+-		for (typename T::const_iterator i = list.begin(); i != list.end(); ++i) {
+-			std::cerr << "undefined label:" << i->first << std::endl;
+-		}
++		#ifndef SGX_XBYAK
++ 		for (typename T::const_iterator i = list.begin(); i != list.end(); ++i) {
++ 			std::cerr << "undefined label:" << i->first << std::endl;
++ 		}
++		#endif
+ #endif
+ 		return !list.empty();
+ 	}
+@@ -2702,7 +2754,9 @@ public:
+ 	{
+ 		if (x == 1) return;
+ 		if (x < 1 || (x & (x - 1))) throw Error(ERR_BAD_ALIGN);
++		#ifndef SGX_XBYAK
+ 		if (isAutoGrow() && x > inner::ALIGN_PAGE_SIZE) fprintf(stderr, "warning:autoGrow mode does not support %d align\n", (int)x);
++		#endif
+ 		size_t remain = size_t(getCurr()) % x;
+ 		if (remain) {
+ 			nop(x - remain, useMultiByteNop);
+diff --git a/src/cpu/xbyak/xbyak_util.h b/src/cpu/xbyak/xbyak_util.h
+index a66b1eff6..edf0591bb 100644
+--- a/src/cpu/xbyak/xbyak_util.h
++++ b/src/cpu/xbyak/xbyak_util.h
+@@ -86,7 +86,11 @@
+     	#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
+ 	#endif
+ 	#if __GNUC_PREREQ(4, 3) && !defined(__APPLE__)
+-		#include <cpuid.h>
++		#ifndef SGX_XBYAK
++ 			#include <cpuid.h>
++		#else
++			#include <sgx_cpuid.h>
++		#endif
+ 	#else
+ 		#if defined(__APPLE__) && defined(XBYAK32) // avoid err : can't find a register in class `BREG' while reloading `asm'
+ 			#define __cpuid(eaxIn, a, b, c, d) __asm__ __volatile__("pushl %%ebx\ncpuid\nmovl %%ebp, %%esi\npopl %%ebx" : "=a"(a), "=S"(b), "=c"(c), "=d"(d) : "0"(eaxIn))
+@@ -110,7 +114,9 @@
+ 	#endif
+ #endif
+ #ifdef __linux__
++	#ifndef SGX_XBYAK
+ 	#define XBYAK_USE_PERF
++	#endif
+ #endif
+ 
+ namespace Xbyak { namespace util {
+@@ -290,11 +296,15 @@ public:
+ 	static inline void getCpuid(unsigned int eaxIn, unsigned int data[4])
+ 	{
+ #ifdef XBYAK_INTEL_CPU_SPECIFIC
++	#ifndef SGX_XBYAK
+ 	#ifdef _MSC_VER
+ 		__cpuid(reinterpret_cast<int*>(data), eaxIn);
+ 	#else
+ 		__cpuid(eaxIn, data[0], data[1], data[2], data[3]);
+ 	#endif
++	#else
++		sgx_cpuid((int*)data, eaxIn);
++	#endif
+ #else
+ 		(void)eaxIn;
+ 		(void)data;
+@@ -303,11 +313,15 @@ public:
+ 	static inline void getCpuidEx(unsigned int eaxIn, unsigned int ecxIn, unsigned int data[4])
+ 	{
+ #ifdef XBYAK_INTEL_CPU_SPECIFIC
++	#ifndef SGX_XBYAK
+ 	#ifdef _MSC_VER
+ 		__cpuidex(reinterpret_cast<int*>(data), eaxIn, ecxIn);
+ 	#else
+ 		__cpuid_count(eaxIn, ecxIn, data[0], data[1], data[2], data[3]);
+ 	#endif
++	#else
++		sgx_cpuidex((int*)data, eaxIn, ecxIn);
++	#endif
+ #else
+ 		(void)eaxIn;
+ 		(void)ecxIn;
+@@ -507,9 +521,11 @@ public:
+ 	}
+ 	void putFamily() const
+ 	{
++		#ifndef SGX_XBYAK
+ 		printf("family=%d, model=%X, stepping=%d, extFamily=%d, extModel=%X\n",
+ 			family, model, stepping, extFamily, extModel);
+ 		printf("display:family=%X, model=%X\n", displayFamily, displayModel);
++		#endif
+ 	}
+ 	bool has(Type type) const
+ 	{
+@@ -601,7 +617,9 @@ public:
+ 	Pack& append(const Xbyak::Reg64& t)
+ 	{
+ 		if (n_ == maxTblNum) {
++			#ifndef SGX_XBYAK
+ 			fprintf(stderr, "ERR Pack::can't append\n");
++			#endif
+ 			throw Error(ERR_BAD_PARAMETER);
+ 		}
+ 		tbl_[n_++] = &t;
+@@ -610,7 +628,9 @@ public:
+ 	void init(const Xbyak::Reg64 *tbl, size_t n)
+ 	{
+ 		if (n > maxTblNum) {
++			#ifndef SGX_XBYAK
+ 			fprintf(stderr, "ERR Pack::init bad n=%d\n", (int)n);
++			#endif
+ 			throw Error(ERR_BAD_PARAMETER);
+ 		}
+ 		n_ = n;
+@@ -621,7 +641,9 @@ public:
+ 	const Xbyak::Reg64& operator[](size_t n) const
+ 	{
+ 		if (n >= n_) {
++			#ifndef SGX_XBYAK
+ 			fprintf(stderr, "ERR Pack bad n=%d(%d)\n", (int)n, (int)n_);
++			#endif
+ 			throw Error(ERR_BAD_PARAMETER);
+ 		}
+ 		return *tbl_[n];
+@@ -634,7 +656,9 @@ public:
+ 	{
+ 		if (num == size_t(-1)) num = n_ - pos;
+ 		if (pos + num > n_) {
++			#ifndef SGX_XBYAK
+ 			fprintf(stderr, "ERR Pack::sub bad pos=%d, num=%d\n", (int)pos, (int)num);
++			#endif
+ 			throw Error(ERR_BAD_PARAMETER);
+ 		}
+ 		Pack pack;
+@@ -646,10 +670,12 @@ public:
+ 	}
+ 	void put() const
+ 	{
++		#ifndef SGX_XBYAK
+ 		for (size_t i = 0; i < n_; i++) {
+ 			printf("%s ", tbl_[i]->toString());
+ 		}
+ 		printf("\n");
++		#endif
+ 	}
+ };
+ 
+-- 
+2.17.1
+

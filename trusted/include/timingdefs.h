@@ -4,6 +4,7 @@
 #define _SGX_TIMINGDEFS_H
 
 #include "trusted-configs.h"
+#include "enclave_t.h"
 
 #include <cstring>
 
@@ -37,6 +38,9 @@
 #define SGX_TIMING_BACKWARD_CONV_INGRAD_KEQ_1 "SGX backward pass conv ingrad kernel=1"
 #define SGX_TIMING_BACKWARD_CONV_INGRAD_KGT_1 "SGX backward pass conv ingrad kernel>1"
 
+#define SGX_TIMING_CONV_IM2COL "SGX conv im2col"
+#define SGX_TIMING_CONV_COL2IM "SGX conv col2im"
+
 
 
 #else 
@@ -58,6 +62,9 @@
 #undef SGX_TIMING_BACKWARD_CONV_WGRAD_KGT_1
 #undef SGX_TIMING_BACKWARD_CONV_INGRAD_KEQ_1
 #undef SGX_TIMING_BACKWARD_CONV_INGRAD_KGT_1
+
+#undef SGX_TIMING_CONV_IM2COL
+#undef SGX_TIMING_CONV_COL2IM
 
 #define SGX_TIMING_FUNC
 #define SET_START_TIMING(...)

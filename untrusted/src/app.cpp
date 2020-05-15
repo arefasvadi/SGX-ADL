@@ -1858,8 +1858,7 @@ prepare_gpu() {
 #endif
 }
 
-void
-prepare_train_snapshot_frbv(int iter_num) {
+void prepare_train_snapshot_frbv(int iter_num) {
   LOG_DEBUG("preparing snapshot for iteration %d and gpu index index: %d\n",iter_num,network_->gpu_index);
   uint8_t *                                buff        = nullptr;
   uint8_t *                                buff_sha256 = nullptr;
@@ -1962,7 +1961,6 @@ void prepare_train_snapshot_frbmmv(int iter_num) {
   gen_sha256(temp_net_sha256.data(),temp_net_sha256.size() , net_sha256.data());
   network_iter_report.net_sha256 = net_sha256;
   LOG_DEBUG("finished preparing snapshot for iteration %d and gpu index index: %d\n",iter_num,network_->gpu_index);
-
 }
 
 void

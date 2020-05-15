@@ -2246,7 +2246,14 @@ void init_randomness_frbmmv(network* net,int iteration){
       for (int j=0;j<l.n/l.groups;++j){
         l.frwd_outs_rand[j] = sgx_root_rng->getRandomFloat(std::numeric_limits<float>::min(),
                     std::numeric_limits<float>::max());
+        //l.frwd_outs_rand[j] = sgx_root_rng->getRandomFloat(-10000000.0f,
+        //          +10000000.0f);
       }
+      #ifdef SGX_RMM_ADD_NOISE_CONV_WEIGHTS_CHECK_VERIFICATION_FAILS
+      for(int nn=3;nn<6;++nn){
+        l_weights[nn] += sgx_root_rng->getRandomFloat(-0.0002,+0.0002);
+      }
+      #endif
       std::memset(l.frwd_outs_rhs, 0, l.c/l.groups*l.size*l.size*sizeof(float));
       gemm(0,0,
         1,l.c/l.groups*l.size*l.size,l.n/l.groups,1,
@@ -2313,6 +2320,19 @@ void preload_MM_outputs_prev_delta_backward(network* net,int iteration,int encla
         net->layers[i-1].delta->setItemsInRange(0, total_elems,net_delta);
       }
     }
+    #ifdef CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM
+    else if (l.type == CONVOLUTIONAL) {
+      // new MM prev delta
+      if (i>=1 && net->layers[i-1].delta) {
+        size_t total_elems = net->layers[i-1].delta->getBufferSize();
+        auto net_delta = net->layers[i-1].delta->getItemsInRange(0, total_elems);
+        size_t start = enclave_subdiv*total_elems*sizeof(float);
+        OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0,
+          start,(uint8_t*)net_delta.get(),total_elems*sizeof(float),nullptr,0);
+        net->layers[i-1].delta->setItemsInRange(0, total_elems,net_delta);
+      }
+    }
+    #endif
   }
 }
 
