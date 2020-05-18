@@ -122,11 +122,26 @@ option(SGX_CONV_BATCH_PRECOMPUTE_VERIFY "verify conv layers in RMM mode in batch
 option(SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION "to skip hash verification for fast testing" ON)
 option(SGX_FAST_TWEAKS_SMALLER_INITEGRIRTY_RATE 
   "bigger ratio for fast testing when SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION defined " ON)
+set(SGX_FAST_TWEAKS_NO_MEMSET ON)
 option(SGX_USE_BLASFEO_GEMV "Use blasfeo for gemv" OFF)
 set(SGX_RMM_ADD_NOISE_CONV_WEIGHTS_CHECK_VERIFICATION_FAILS OFF)
 
 set(CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM OFF)
 set(CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM ON)
+
+set(EnclaveHeapMinMB 85)
+set(SGX_AVIALABLE_HEAP_MIN_MB "(${EnclaveHeapMinMB})")
+math(EXPR enclave_heapmin " ${EnclaveHeapMinMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
+
+set(EnclaveHeapInitMB 256)
+set(SGX_AVIALABLE_HEAP_INIT_MB "(${EnclaveHeapInitMB})")
+math(EXPR enclave_heapinit " ${EnclaveHeapInitMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
+
+set(EnclaveHeapMaxMB 256)
+set(SGX_AVIALABLE_HEAP_MAX_MB "(${EnclaveHeapMaxMB})")
+math(EXPR enclave_heapmax " ${EnclaveHeapMaxMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
+
+
 if (CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON 
     AND 
     CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON)
@@ -164,7 +179,6 @@ configure_file(
   ${Untrusted_Home}/include/untrusted-configs.h
   @ONLY)
 
-
 enclave_config_setter(
   ENCLAVE_CONFIG_XML_INPUT ${Trusted_Home}/SGXADL-Enclave.config.xml.in
   ENCLAVE_CONFIG_XML_OUTPUT ${Trusted_Home}/SGXADL-Enclave.config.xml
@@ -173,9 +187,9 @@ enclave_config_setter(
   ReservedMemExecutable 1
   StackMaxSize 0xF0000
   StackMinSize 0x40000
-  HeapMinSize 0x5500000
-  HeapInitSize 0x5500000
-  HeapMaxSize 0x5500000
+  HeapMinSize ${enclave_heapmin}
+  HeapInitSize ${enclave_heapinit}
+  HeapMaxSize ${enclave_heapmax}
   TCSNum 12 
   TCSMinPool 16
   TCSMaxNum 64
@@ -259,8 +273,10 @@ set(DARKNET_SOURCE_FILES
   third_party/darknet/src/yolo_layer.cpp
 )
 
-set(DARKNET_SOURCE_FILES_SGX ${DARKNET_SOURCE_FILES})
-list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX
+set(DARKNET_SOURCE_FILES_SGX_PURE ${DARKNET_SOURCE_FILES})
+list(APPEND DARKNET_SOURCE_FILES_SGX_PURE
+     third_party/darknet/src/sgxffit/sgxffit.cpp)
+list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_PURE
   third_party/darknet/src/cuda.cpp
   third_party/darknet/src/deconvolutional_layer.cpp
   third_party/darknet/src/detection_layer.cpp
@@ -284,6 +300,8 @@ list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX
 )
 
 set(DARKNET_SOURCE_FILES_SGX_LAYERWISE ${DARKNET_SOURCE_FILES})
+list(APPEND DARKNET_SOURCE_FILES_SGX_LAYERWISE
+     third_party/darknet/src/sgxlwfit/sgxlwfit.cpp)
 list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_LAYERWISE 
   third_party/darknet/src/cuda.cpp
   third_party/darknet/src/deconvolutional_layer.cpp
@@ -333,7 +351,7 @@ list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_BLOCK
 
 set(DARKNET_T_SOURCES)
 if (CUSTOM_ENABLE_PURE_SGX)
-  set(DARKNET_T_SOURCES ${DARKNET_T_SOURCES} ${DARKNET_SOURCE_FILES_SGX})
+  set(DARKNET_T_SOURCES ${DARKNET_T_SOURCES} ${DARKNET_SOURCE_FILES_SGX_PURE})
 elseif(CUSTOM_ENABLE_LAYERWISE)
   set(DARKNET_T_SOURCES  ${DARKNET_T_SOURCES} ${DARKNET_SOURCE_FILES_SGX_LAYERWISE})
 elseif(CUSTOM_ENABLE_BLOCKING)
@@ -365,7 +383,7 @@ target_include_directories(DARKNET_T PRIVATE
 )
 set(DARKNET_T_DEFS)
 if(CUSTOM_ENABLE_PURE_SGX)
-  set(DARKNET_T_DEFS)
+  set(DARKNET_T_DEFS ${DARKNET_T_DEFS} -DUSE_SGX_PURE)
 elseif(CUSTOM_ENABLE_LAYERWISE)
   set(DARKNET_T_DEFS ${DARKNET_T_DEFS} -DUSE_SGX_LAYERWISE)
 elseif(CUSTOM_ENABLE_BLOCKING)
@@ -385,7 +403,7 @@ set(Enclave_Cpp_Files
   #${Trusted_Home}/src/bitonic-sort.cpp 
   ${Trusted_Home}/src/enclave-app.cpp
   ${Trusted_Home}/src/DNNConfigIO.cpp 
-  ${Trusted_Home}/src/DNNTrainer.cpp
+  #${Trusted_Home}/src/DNNTrainer.cpp
   ${Trusted_Home}/src/rand/PRNGHelper.cpp 
   #${Trusted_Home}/src/BlockHeader.cpp 
   #${Trusted_Home}/src/IBlockable.cpp 
@@ -395,10 +413,10 @@ set(Enclave_Cpp_Files
   ${CMAKE_SOURCE_DIR}/src/hexString.cpp
   #${Trusted_Home}/src/tests.cpp
   ${Trusted_Home}/src/SpecialBufferCommon.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
-  ${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
+  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
 
   #${CMAKE_SOURCE_DIR}/third_party/blasfeo/blas_api/sgemm.c
   )

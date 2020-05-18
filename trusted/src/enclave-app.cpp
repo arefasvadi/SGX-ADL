@@ -43,7 +43,7 @@ namespace sgt = ::sgx::trusted;
     trainer("/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16.cfg",
             "", ""); */
 
-sgt::darknet::DNNTrainer *trainer         = nullptr;
+//sgt::darknet::DNNTrainer *trainer         = nullptr;
 bool                      global_training = true;
 
 int             gpu_index       = -1;
@@ -209,11 +209,11 @@ ecall_NOT_SECURE_send_req_keys(uint8_t *cl_pksig,
 void
 ecall_send_signed_task_config_verify(uint8_t *task_conf, size_t task_conf_len,int verf_type) {
   auto task_config_w_sig = flatbuffers::GetMutableRoot<SignedECC>(task_conf);
-  if (verf_type == 0 ) {
+  if (verf_type == (int)verf_variations_t::FRBV ) {
     main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
       new verf_variations_t(verf_variations_t::FRBV));
   }
-  else if (verf_type == 1) {
+  else if (verf_type == (int)verf_variations_t::FRBRMMV) {
     main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
       new verf_variations_t(verf_variations_t::FRBRMMV));
   }
@@ -311,6 +311,7 @@ ecall_send_data_config_dsverify(uint8_t *ds_conf, size_t ds_conf_len) {
 }
 
 void ecall_setup_channel(uint64_t chan_id, int channel_type) {
+  #if 0
   if (channel_type == ChannelType::TwoWay) {
     BasicChannel<ChannelType::TwoWay>::AddNewChannelToRegistery(
         std::unique_ptr<BasicChannel<ChannelType::TwoWay>>(
@@ -324,6 +325,7 @@ void ecall_setup_channel(uint64_t chan_id, int channel_type) {
         std::unique_ptr<BasicChannel<ChannelType::OneWaySender>>(
             new BasicChannel<ChannelType::OneWaySender>(chan_id)));
   }
+  #endif
 }
 
 void ecall_tearup_channel(uint64_t chan_id) {}
@@ -349,7 +351,7 @@ void ecall_test_long_buffer_encrypt(size_t complete_len) {
   }
   float current = 0.0;
   float sum = 0.0;
-  const size_t buffersize = 64 * ONE_KB;
+  const size_t buffersize = SGX_OCALL_TRANSFER_BLOCK_SIZE;
   IppStatus status = ippStsNoErr;
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   IppsAES_GCMState *pAES = 0;
@@ -451,7 +453,7 @@ void ecall_test_long_buffer_decrypt(size_t complete_len) {
     abort();
   }
   float sum = 0.0;
-  const size_t buffersize = 64 * ONE_KB;
+  const size_t buffersize = SGX_OCALL_TRANSFER_BLOCK_SIZE;
   IppStatus status = ippStsNoErr;
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   IppsAES_GCMState *pAES = 0;
@@ -532,6 +534,9 @@ void ecall_test_long_buffer_decrypt(size_t complete_len) {
 
 void ecall_enclave_init(unsigned char *common_run_config, size_t len) {
   LOG_TRACE("entered enclave_init!\n");
+  LOG_ERROR("DNNTrainer is not included in the build\n");
+  abort();
+  #if 0
   if (len != sizeof(CommonRunConfig)) {
     LOG_ERROR("size of common_run_config is not what expected!");
   }
@@ -562,6 +567,7 @@ void ecall_enclave_init(unsigned char *common_run_config, size_t len) {
 
   // set_random_seed(seed1, seed2);
   set_random_seed(1, 2);
+  #endif
   LOG_TRACE("finished enclave_init!\n");
 }
 
@@ -785,10 +791,11 @@ void simple_dnnl_mult() {
 }
 
 void ecall_initial_sort() {
+
   LOG_ERROR("This part needs change!\n");
   abort();
   LOG_TRACE("entered ecall initial sorrt\n");
-  trainer->intitialSort();
+  //trainer->intitialSort();
   LOG_TRACE("finished ecall initial sorrt\n");
 }
 
@@ -838,13 +845,15 @@ void ecall_start_training() {
 }
 
 void ecall_start_predicting() {
+  LOG_ERROR("Unimplemented\n");
+  abort();
   LOG_TRACE("entered in %s\n", __func__)
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-  bool res = trainer->loadNetworkConfig();
+  //bool res = trainer->loadNetworkConfig();
   LOG_INFO("network config file loaded\n")
-  trainer->loadWeights();
+  //trainer->loadWeights();
   LOG_INFO("weights loaded\n")
-  trainer->predict();
+  //trainer->predict();
   LOG_INFO("predictions Done!\n")
   LOG_TRACE("finished in %s\n", __func__)
 }

@@ -1699,10 +1699,13 @@ parse_location_configs(const std::string &location_conf_file,
         = flatbuffers::GetMutableRoot<PredictLocationsConfigs>(
             &predlocconfigs.vecBuff[0]);
   }
+  else {
+    LOG_ERROR("NOT IMPPEMENTED\n");
+    abort();
+  }
 }
 
-void
-load_sec_keys_into_enclave() {
+void load_sec_keys_into_enclave() {
   // std::vector<uint8_t> client_pk_sig = read_file_binary(train)
   if (trainlocconfigs.objPtr != nullptr) {
     const decltype(trainlocconfigs.objPtr) &tbl_ptr = trainlocconfigs.objPtr;
@@ -1726,7 +1729,7 @@ load_sec_keys_into_enclave() {
                                               sgx_aes_gcm_key.data(),
                                               sgx_aes_gcm_key.size());
     CHECK_SGX_SUCCESS(res, "setting up enclave keys caused problems\n")
-  } else {
+  } else if (predlocconfigs.objPtr != nullptr) {
     // I will reemove this later
     LOG_ERROR("NOT IMPLEMENTED YET!\n")
     abort();
@@ -1739,6 +1742,10 @@ load_sec_keys_into_enclave() {
         = read_file_binary(tbl_ptr->sgx_aes_gcm_key_file()->c_str());
     auto sgx_sig_sk = read_file_binary(tbl_ptr->sgx_sk_sig_file()->c_str());
     auto sgx_sg_pk  = read_file_binary(tbl_ptr->sgx_pk_sig_file()->c_str());
+  } else {
+    // I will reemove this later
+    LOG_ERROR("NOT IMPLEMENTED YET!\n")
+    abort();
   }
 }
 

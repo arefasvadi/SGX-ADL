@@ -123,6 +123,8 @@ template <typename K, typename V>
 const std::shared_ptr<V> &
 FIFOCache<K, V>::Get(const K &key, const EvictionHandlerType &evict_hdl,
                      const ReadHandlerType &read_hdl) {
+  LOG_ERROR("USE SGX BLOCKING not supported\n")
+  abort();
   // const char *timee =  "cache get";
   // ocall_set_timing(timee,strlen(timee)+1, 1,0);
   LOG_TRACE("Cache Get was invokded for key %ld\n", key);
@@ -248,6 +250,8 @@ template <typename K, typename V>
 const std::shared_ptr<V> &
 LRUCache<K, V>::Get(const K &key, const EvictionHandlerType &evict_hdl,
                     const ReadHandlerType &read_hdl) {
+  LOG_ERROR("USE SGX BLOCKING not supported\n")
+  abort();
   // const char *timee =  "cache get";
   // ocall_set_timing(timee,strlen(timee)+1, 1,0);
   LOG_TRACE("Cache Get was invokded for key %ld\n", key);

@@ -165,7 +165,7 @@ public:
   /*inline*/ int64_t nDIndexToFlattend(const std::array<int64_t, Axis> &index);
   /*inline*/ std::array<int64_t, Axis> flattenedIndextoND(int64_t index);
 
-  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = (64 * ONE_KB);
+  static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE_BYTES = SGX_OCALL_TRANSFER_BLOCK_SIZE;
   static constexpr size_t MAX_PER_BLOCK_BUFFER_SIZE =
       MAX_PER_BLOCK_BUFFER_SIZE_BYTES / sizeof(T);
 

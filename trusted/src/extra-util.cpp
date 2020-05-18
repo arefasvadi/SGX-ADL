@@ -11,6 +11,9 @@
 #include <unordered_set>
 #include <queue>
 #include "timingdefs.h"
+#ifdef USE_SGX_LAYERWISE
+#include "../third_party/darknet/src/sgxlwfit/sgxlwfit.h"
+#endif
 
 void gemm(int TA, int TB, int M, int N, int K, float ALPHA, 
                     float *A, int lda, 
@@ -23,7 +26,7 @@ void OCALL_LOAD_LAYER_REPRT_FRBV(int iteration, int layer_index, size_t buff_ind
                                 size_t layer_sha_len) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   if (buff != nullptr) {
-    const size_t interim_buff_len = (64 * ONE_KB);
+    const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE;
     int          q                = size_bytes / (interim_buff_len);
     int          r                = size_bytes % (interim_buff_len);
     for (int ii = 0; ii < q; ++ii) {
@@ -68,7 +71,7 @@ void OCALL_LOAD_LAYER_REPRT_FRBMMV(int iteration,int layer_index,
                                   uint8_t* buff_prevdelta_sha,size_t buff_prevdelta_sha_len) {                                                                            
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   if (buff_updates != nullptr) {                                             
-    const size_t interim_buff_len = (64 * ONE_KB);                           
+    const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE;                           
     int          q                = size_bytes_updates / (interim_buff_len); 
     int          r                = size_bytes_updates % (interim_buff_len); 
     for (int ii = 0; ii < q; ++ii) {
@@ -105,7 +108,7 @@ void OCALL_LOAD_LAYER_REPRT_FRBMMV(int iteration,int layer_index,
   }
 
   if (buff_mm != nullptr) {
-    const size_t interim_buff_len = (64 * ONE_KB);                           
+    const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE;                           
     int          q                = size_bytes_mm / (interim_buff_len); 
     int          r                = size_bytes_mm % (interim_buff_len);
     for (int ii = 0; ii < q; ++ii) {
@@ -141,7 +144,7 @@ void OCALL_LOAD_LAYER_REPRT_FRBMMV(int iteration,int layer_index,
   }
 
   if (buff_prevdelta != nullptr) {
-    const size_t interim_buff_len = (64 * ONE_KB);                           
+    const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE;                           
     int          q                = size_bytes_prevdelta / (interim_buff_len); 
     int          r                = size_bytes_prevdelta % (interim_buff_len);
     for (int ii = 0; ii < q; ++ii) {
@@ -185,7 +188,7 @@ void OCALL_SAVE_ENCLAVES_LAYER_PARAMS_UPDATES_FRBV(int iteration,int layer_index
                                               uint8_t *layer_cmac, size_t   layer_cmac_len) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   if (buff != nullptr) {
-    const size_t interim_buff_len = (64 * ONE_KB);                           
+    const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE;                           
     int          q                = buff_len / (interim_buff_len); 
     int          r                = buff_len % (interim_buff_len); 
     for (int ii = 0; ii < q; ++ii) {
@@ -230,7 +233,7 @@ void OCALL_LOAD_ENCLAVES_LAYER_PARAMS_UPDATES_FRBV(int iteration,int layer_index
                                               uint8_t *layer_cmac, size_t   layer_cmac_len) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
   if (buff != nullptr) {
-    const size_t interim_buff_len = (64 * ONE_KB);                           
+    const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE;                           
     int          q                = buff_len / (interim_buff_len); 
     int          r                = buff_len % (interim_buff_len); 
     for (int ii = 0; ii < q; ++ii) {
@@ -427,20 +430,22 @@ void fix_task_dependent_global_vars() {
   verf_scheme_ptr
       = std::unique_ptr<verf_variations_t>(new verf_variations_t);
   *verf_scheme_ptr = verf_variations_t::FRBV;
+
   if (task_config.objPtr->security_type()
           == EnumSecurityType::EnumSecurityType_integrity
       && task_config.objPtr->task_type()
              == EnumComputationTaskType::EnumComputationTaskType_training) {
-#if defined(USE_SGX) && !defined(USE_SGX_LAYERWISE)
-    LOG_ERROR("NOT IMPLEMENTED!\n")
-    abort();
+#if defined(USE_SGX) && defined(USE_SGX_PURE)
+  LOG_ERROR("NOT IMPLEMENTED!\n")
+  abort();
+#elif defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
+  net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
+  *net_context_ = net_context_variations::TRAINING_PRIVACY_INTEGRITY_LAYERED_FIT;
+  net_init_loader_ptr->net_context
+      = net_context_.get();
+  net_init_loader_ptr->invokable.init_train_integ_layered
+      = init_net_train_integ_layered;
 #endif
-    net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
-    *net_context_ = net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT;
-    net_init_loader_ptr->net_context
-        = net_context_.get();
-    net_init_loader_ptr->invokable.init_train_integ_layered
-        = init_net_train_integ_layered;
 
   }
 
@@ -457,6 +462,18 @@ void fix_task_dependent_global_vars() {
              && task_config.objPtr->task_type()
                     == EnumComputationTaskType::
                         EnumComputationTaskType_training) {
+    
+    #if defined(USE_SGX) && defined(USE_SGX_PURE)
+    LOG_ERROR("NOT IMPLEMENTED!\n")
+    abort();
+    #elif defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
+    net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
+    *net_context_ = net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT;
+    net_init_loader_ptr->net_context
+        = net_context_.get();
+    net_init_loader_ptr->invokable.init_train_integ_layered
+        = init_net_train_integ_layered;
+#endif
     LOG_ERROR("NOT IMPLEMENTED!\n")
     abort();
   } else if (task_config.objPtr->security_type()
@@ -966,7 +983,7 @@ void init_net_train_integ_layered(const net_init_training_integrity_layered_args
   // first time should be handled in load_network
   // set_network_bacth_randomness(0);
   auto net_ = load_network(
-      (char*)archconfigs.objPtr->mutable_contents()->Data(), nullptr, 1);
+      (char*)archconfigs.objPtr->mutable_contents()->Data(), nullptr, 1,*net_context_,verf_variations_t::FRBV);
   network_ = std::shared_ptr<network>(net_, free_delete());
   LOG_OUT(
       "Enclave loaded the network with following values\n"
@@ -977,7 +994,7 @@ void init_net_train_integ_layered(const net_init_training_integrity_layered_args
       network_->enclave_subdivisions,
       (network_->batch * network_->enclave_subdivisions))
   auto verf_net_ = load_network(
-      (char*)archconfigs.objPtr->mutable_contents()->Data(), nullptr, 1);
+      (char*)archconfigs.objPtr->mutable_contents()->Data(), nullptr, 1,*net_context_,*main_verf_task_variation_);
   verf_network_ = std::shared_ptr<network>(verf_net_, free_delete());
   LOG_OUT(
       "Enclave loaded the verfication network with following values\n"
@@ -2388,25 +2405,20 @@ void preload_MM_weight_updates_backward(network* net,int iteration) {
 }
 
 float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* verf_net) {
-  verf_net->sgx_net_rmm_verifies = 1;
   *verf_net->seen = (iteration-1)*(verf_net->batch)*(verf_net->enclave_subdivisions);
   verf_net->train = 1;
   float avg_cost = 0;
   int subdiv = 0;
   std::set<int> selected_ids;
   std::queue<int> queued_ids;
-  LOG_DEBUG("here!re 5\n")
   init_randomness_frbmmv(verf_net,iteration);
-  LOG_DEBUG("here!re 6\n")
   preload_MM_weight_updates_backward(verf_net,iteration);
-  LOG_DEBUG("here!re 7\n")
   while(true) {
     // Load input to the verf_network
     setup_iteration_inputs_training(queued_ids, selected_ids,verf_net,iteration,
         verf_net->batch,0,plain_dataset_size-1);
     *verf_net->seen += verf_net->batch;
     preload_MM_outputs_forward(verf_net,iteration,subdiv);
-    LOG_DEBUG("ready for verification forward subdiv %d\n",subdiv)
     SET_START_TIMING(SGX_TIMING_FORWARD);
     forward_network(verf_net);
     SET_FINISH_TIMING(SGX_TIMING_FORWARD);

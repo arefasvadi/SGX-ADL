@@ -3,6 +3,7 @@
 #undef USE_SGX
 #undef USE_SGX_LAYERWISE
 #undef USE_SGX_BLOCKING
+#undef USE_SGX_PURE
 // #undef USE_GEMM_THREADING
 #include "common.h"
 #include "global-vars-untrusted.h"

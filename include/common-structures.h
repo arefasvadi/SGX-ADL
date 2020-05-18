@@ -67,7 +67,8 @@ typedef struct iteration_seed_t_{
 } iteration_seed_t;
 
 typedef enum class verf_variations_t_ {
-  FRBV = 0,
+  UNSELECTED = 0,
+  FRBV,
   FRBRMMV,
   LVV,
 }verf_variations_t;

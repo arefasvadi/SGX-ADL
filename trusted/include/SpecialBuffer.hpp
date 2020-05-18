@@ -85,7 +85,7 @@ namespace sgx {
       assert(end > start);
       sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
       const size_t buff_len         = end - start;
-      const size_t interim_buff_len = (64 * ONE_KB) / sizeof(T);
+      const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE / sizeof(T);
       auto         ret              = std::unique_ptr<T[]>(new T[buff_len]);
       // #ifdef USE_SGX
       // const char* timing_key_s = "transfer getItemsinRange time";
@@ -131,7 +131,7 @@ namespace sgx {
       // #endif
       assert(end > start);
       const size_t buff_len         = end - start;
-      const size_t interim_buff_len = (64 * ONE_KB) / sizeof(T);
+      const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE / sizeof(T);
       sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
       int          q                = buff_len / (interim_buff_len);
       int          r                = buff_len % (interim_buff_len);

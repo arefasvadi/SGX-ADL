@@ -40,6 +40,7 @@
 
 #define SGX_TIMING_CONV_IM2COL "SGX conv im2col"
 #define SGX_TIMING_CONV_COL2IM "SGX conv col2im"
+#define SGX_TIMING_GEMM "SGX GEMM"
 
 
 
@@ -65,6 +66,7 @@
 
 #undef SGX_TIMING_CONV_IM2COL
 #undef SGX_TIMING_CONV_COL2IM
+#undef SGX_TIMING_GEMM
 
 #define SGX_TIMING_FUNC
 #define SET_START_TIMING(...)

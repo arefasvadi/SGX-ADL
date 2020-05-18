@@ -3,6 +3,7 @@
 #ifdef USE_SGX
 #include "common.h"
 #include "util.h"
+#include "timingdefs.h"
 #endif
 
 #if 1
@@ -203,9 +204,10 @@ void primitive_based_sgemm(char transA, char transB,
         float* B,int64_t ldb,
         float beta,
         float* C,int64_t ldc) {
+
     if (beta !=0.0 && beta !=1.0f) {
-    ocall_print_log("Run-time beta is not yet supported.");
-        throw std::logic_error("Run-time beta is not yet supported.");
+        LOG_ERROR("Run-time beta is not yet supported.");
+        abort();
     }  
     matmul dynamic_matmul;
     if (beta == 0.0f) {
