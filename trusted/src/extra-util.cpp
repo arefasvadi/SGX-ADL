@@ -440,7 +440,7 @@ void fix_task_dependent_global_vars() {
   abort();
 #elif defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
   net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
-  *net_context_ = net_context_variations::TRAINING_PRIVACY_INTEGRITY_LAYERED_FIT;
+  *net_context_ = net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT;
   net_init_loader_ptr->net_context
       = net_context_.get();
   net_init_loader_ptr->invokable.init_train_integ_layered
@@ -468,7 +468,7 @@ void fix_task_dependent_global_vars() {
     abort();
     #elif defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
     net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
-    *net_context_ = net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT;
+    *net_context_ = net_context_variations::TRAINING_PRIVACY_INTEGRITY_LAYERED_FIT;
     net_init_loader_ptr->net_context
         = net_context_.get();
     net_init_loader_ptr->invokable.init_train_integ_layered
