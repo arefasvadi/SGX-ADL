@@ -111,6 +111,10 @@ enclave {
        
        void ocall_add_rand_integset([in,size=enc_integ_len] uint8_t* enc_integ, size_t enc_integ_len)  transition_using_threads;
        
+       void ocall_add_enc_images([in,size=enc_len] uint8_t* enc_image, size_t enc_len) transition_using_threads;
+
+       void ocall_load_enc_images(uint32_t ind,[out,size=enc_len] uint8_t* enc_image, size_t enc_len);
+
        void ocall_add_dec_images([in,size=dec_len] uint8_t* dec_image, size_t dec_len)  transition_using_threads;
        
        void ocall_load_dec_images(uint32_t ind, [out,size=dec_len] uint8_t* dec_image, size_t dec_len)  transition_using_threads;

@@ -51,6 +51,7 @@ gen_verify_cmac128_multiple_rounds(const bool generate,
 
 void start_training_verification_frbv(int iteration);
 void start_training_verification_frbmmv(int iteration);
+void start_training_in_sgx(int iteration);
 
 void apply_weight_updates(int iteration,network* net);
 
@@ -66,7 +67,9 @@ void fix_task_dependent_global_vars();
 
 void init_net();
 
-void init_net_train_integ_layered(const net_init_training_integrity_layered_args*);
+void init_net_train_integ_layered(const net_init_training_integrity_layered_args* args);
+void init_net_train_privacy_integ_layered(const net_init_training_privacy_integrity_layered_args* args);
+
 
 void verify_init_dataset();
 additional_auth_data construct_aad_input_nochange(uint32_t id);
@@ -79,6 +82,9 @@ void verify_task_frbv();
 void verify_task_frbmmv();
 void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, network* net,
                                      int iteration, int size,int low,int high);
+void setup_iteration_inputs_training_enc_layered_fit(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, network* net,
+                                     int iteration, int size,int low,int high);
+
 std::vector<uint8_t>
 generate_image_label_flatb_from_actual_bytes(const std::vector<uint8_t> in_vec);
 
@@ -92,9 +98,9 @@ generate_enc_auth_flatbuff(const std::vector<uint8_t>& in_vec,
                        const additional_auth_data* aad);
 
 void choose_rand_integrity_set_nonbliv(const integrity_set_func_obliv_indleak_args_* args);
+void choose_rand_privacy_integrity_set_nonbliv(const integrity_set_func_obliv_indleak_args_* args);
 
-void
-verify_init_net_config();
+void verify_init_net_config();
 
 #if defined(__cplusplus)
 extern "C" {

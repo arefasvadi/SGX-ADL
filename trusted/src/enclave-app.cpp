@@ -60,6 +60,7 @@ uint64_t session_id;
 uint32_t plain_dataset_size;
 uint32_t integrity_set_dataset_size;
 std::unique_ptr<size_t> plain_image_label_auth_bytes;
+std::unique_ptr<size_t> enc_image_label_auth_bytes;
 
 FlatBufferedContainerT<TaskConfig> task_config = {};
 FlatBufferedContainerT<DataConfig> dsconfigs   = {};
@@ -74,7 +75,7 @@ integrity_set_func                      choose_integrity_set = {};
 std::unique_ptr<net_init_load_net_func> net_init_loader_ptr  = nullptr;
 std::unique_ptr<net_context_variations> net_context_ = nullptr;
 
-std::unique_ptr<verf_variations_t>  verf_scheme_ptr      = nullptr;
+//std::unique_ptr<verf_variations_t>  verf_scheme_ptr      = nullptr;
 std::shared_ptr<network> network_ = nullptr;
 std::shared_ptr<network> verf_network_ = nullptr;
 std::unique_ptr<verf_variations_t> main_verf_task_variation_;
@@ -818,6 +819,11 @@ void ecall_start_training() {
       start_training_verification_frbmmv(i);
     }
     //abort();
+  }
+  else if (*net_context_ == net_context_variations::TRAINING_PRIVACY_INTEGRITY_LAYERED_FIT) {
+      for (int i = 1; i <= temp_iter; ++i) {
+        start_training_in_sgx(i);
+      }
   }
   SET_FINISH_TIMING(SGX_TIMING_OVERALL_TRAINING)
 #endif

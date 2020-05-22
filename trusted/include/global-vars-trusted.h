@@ -32,6 +32,7 @@ extern uint64_t session_id;
 extern uint32_t plain_dataset_size;
 extern uint32_t integrity_set_dataset_size;
 extern std::unique_ptr<size_t> plain_image_label_auth_bytes;
+extern std::unique_ptr<size_t> enc_image_label_auth_bytes;
 
 
 extern FlatBufferedContainerT<TaskConfig> task_config;
@@ -45,7 +46,7 @@ extern std::deque<uint32_t> integ_set_ids;
 extern integrity_set_func choose_integrity_set;
 extern std::unique_ptr<net_init_load_net_func> net_init_loader_ptr;
 extern std::unique_ptr<net_context_variations> net_context_;
-extern std::unique_ptr<verf_variations_t> verf_scheme_ptr;
+//extern std::unique_ptr<verf_variations_t> verf_scheme_ptr;
 
 extern std::shared_ptr<network> network_;
 extern std::shared_ptr<network> verf_network_;

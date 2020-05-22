@@ -419,22 +419,22 @@ bool gen_verify_cmac128_multiple_rounds(bool generate,
 }
 
 void fix_task_dependent_global_vars() {
-  choose_integrity_set.type_
-      = integrity_set_select_obliv_variations::OBLIVIOUS_LEAK_INDICES;
-  choose_integrity_set.invokable.obliv_indleak
-      = choose_rand_integrity_set_nonbliv;
 
   net_init_loader_ptr
       = std::unique_ptr<net_init_load_net_func>(new net_init_load_net_func);
 
-  verf_scheme_ptr
-      = std::unique_ptr<verf_variations_t>(new verf_variations_t);
-  *verf_scheme_ptr = verf_variations_t::FRBV;
+  //verf_scheme_ptr
+  //    = std::unique_ptr<verf_variations_t>(new verf_variations_t);
+  //*verf_scheme_ptr = verf_variations_t::FRBV;
 
   if (task_config.objPtr->security_type()
           == EnumSecurityType::EnumSecurityType_integrity
       && task_config.objPtr->task_type()
              == EnumComputationTaskType::EnumComputationTaskType_training) {
+    choose_integrity_set.type_
+      = integrity_set_select_obliv_variations::OBLIVIOUS_LEAK_INDICES;
+    choose_integrity_set.invokable.obliv_indleak
+      = choose_rand_integrity_set_nonbliv;
 #if defined(USE_SGX) && defined(USE_SGX_PURE)
   LOG_ERROR("NOT IMPLEMENTED!\n")
   abort();
@@ -462,6 +462,10 @@ void fix_task_dependent_global_vars() {
              && task_config.objPtr->task_type()
                     == EnumComputationTaskType::
                         EnumComputationTaskType_training) {
+    choose_integrity_set.type_
+      = integrity_set_select_obliv_variations::OBLIVIOUS_LEAK_INDICES;
+    choose_integrity_set.invokable.obliv_indleak
+      = choose_rand_privacy_integrity_set_nonbliv;
     
     #if defined(USE_SGX) && defined(USE_SGX_PURE)
     LOG_ERROR("NOT IMPLEMENTED!\n")
@@ -471,11 +475,9 @@ void fix_task_dependent_global_vars() {
     *net_context_ = net_context_variations::TRAINING_PRIVACY_INTEGRITY_LAYERED_FIT;
     net_init_loader_ptr->net_context
         = net_context_.get();
-    net_init_loader_ptr->invokable.init_train_integ_layered
-        = init_net_train_integ_layered;
+    net_init_loader_ptr->invokable.init_train_privacy_integ_layered
+        = init_net_train_privacy_integ_layered;
 #endif
-    LOG_ERROR("NOT IMPLEMENTED!\n")
-    abort();
   } else if (task_config.objPtr->security_type()
                  == EnumSecurityType::EnumSecurityType_privacy_integrity
              && task_config.objPtr->task_type()
@@ -792,6 +794,101 @@ void choose_rand_integrity_set_nonbliv(
             not_chosen_count);
 }
 
+void choose_rand_privacy_integrity_set_nonbliv(
+    const integrity_set_func_obliv_indleak_args_* args) {
+  if (args->ratio < 0.0f || args->ratio > 1.0f) {
+    LOG_ERROR("ratio problem\n")
+    abort();
+  }
+  LOG_DEBUG("started choosing random validation set\n")
+  const auto& DS_SIZE = args->ds_size;
+  LOG_WARN(
+      "FIXME!\n checking required size is task dependent! preditc does not "
+      "require labels in the input stream\n")
+  const uint32_t required_buff_size
+      = ((dsconfigs.objPtr->img_label_meta()->image_meta()->width()
+          * dsconfigs.objPtr->img_label_meta()->image_meta()->height()
+          * dsconfigs.objPtr->img_label_meta()->image_meta()->channels())
+         + dsconfigs.objPtr->img_label_meta()->label_meta()->numClasses())
+        * sizeof(float);
+  std::vector<uint8_t> temp_buff(required_buff_size, 0);
+  std::vector<uint8_t> temp_buff_dec(required_buff_size, 0);
+  LOG_DEBUG("required buff size per image in bytes: %u\n", required_buff_size)
+
+  uint8_t      temp_tag[AES_GCM_TAG_SIZE] = {};
+  uint8_t      temp_iv[AES_GCM_IV_SIZE]   = {};
+  uint8_t      temp_aad[4]                = {};
+  sgx_status_t res                        = SGX_ERROR_UNEXPECTED;
+
+  int chosen_count = 0, not_chosen_count = 0;
+
+  for (uint32_t i = 0; i < DS_SIZE; ++i) {
+    // LOG_DEBUG("processing index %u\n",i)
+    res = ocall_get_client_enc_image(i,
+                                     temp_buff.data(),
+                                     required_buff_size,
+                                     temp_iv,
+                                     AES_GCM_IV_SIZE,
+                                     temp_tag,
+                                     AES_GCM_TAG_SIZE,
+                                     temp_aad,
+                                     4);
+
+    CHECK_SGX_SUCCESS(res, "ocall_get_client_enc_image caused problem\n")
+
+    res = sgx_rijndael128GCM_decrypt(&client_ases_gcm_key,
+                                     temp_buff.data(),
+                                     temp_buff.size(),
+                                     temp_buff_dec.data(),
+                                     temp_iv,
+                                     AES_GCM_IV_SIZE,
+                                     temp_aad,
+                                     sizeof(4),
+                                     &temp_tag);
+    CHECK_SGX_SUCCESS(res, "sgx_rijndael128GCM_decrypt caused problem!\n")
+
+    auto chosen = sgx_root_rng->getRandomFloat(0.0, 1.0f) < args->ratio;
+    // if chosen, encrypt it with sgx session key
+    // otherwise decrypt -- append the necessary info onto the buffer for cmac
+    // to verify when pulling back
+    sgx_cmac_state_handle_t cmac_handle = nullptr;
+    if (chosen) {
+      // integ_set_ids.push_back(chosen_count);
+      // construct aad
+      #ifndef SGX_FAST_TWEAKS_SKIP_DS_VERIFICATION
+      auto auth = construct_aad_input_nochange(chosen_count);
+      // gen flatbuff image and make encrypted flatbuffer
+      auto enc_auth_buff = generate_enc_auth_flatbuff(
+          generate_image_label_flatb_from_actual_bytes(temp_buff_dec), &auth);
+      res = ocall_add_rand_integset(enc_auth_buff.data(), enc_auth_buff.size());
+      CHECK_SGX_SUCCESS(res, "ocall_add_rand_integset caused problem!\n")
+      #endif
+      chosen_count++;
+    } else {
+
+      auto auth = construct_aad_input_nochange(not_chosen_count);
+      // gen flatbuff image and make encrypted flatbuffer
+      auto enc_auth_buff = generate_enc_auth_flatbuff(
+          generate_image_label_flatb_from_actual_bytes(temp_buff_dec), &auth);
+
+      if (!enc_image_label_auth_bytes) {
+        enc_image_label_auth_bytes = std::unique_ptr<size_t>(new size_t);
+        *enc_image_label_auth_bytes = enc_auth_buff.size();
+      }
+      res = ocall_add_enc_images(enc_auth_buff.data(), enc_auth_buff.size());
+      CHECK_SGX_SUCCESS(res, "ocall_add_rand_integset caused problem!\n")
+      not_chosen_count++;
+    }
+  }
+
+  // TODO: these variable names must be changed
+  plain_dataset_size = not_chosen_count;
+  integrity_set_dataset_size = chosen_count;
+  LOG_DEBUG("%d chosen as validation set and %d as training set\n",
+            chosen_count,
+            not_chosen_count);
+}
+
 void verify_init_dataset() {
   set_pub_priv_seeds();
   LOG_DEBUG(
@@ -901,7 +998,22 @@ void verify_init_dataset() {
     #endif
     indleak_args.ds_size = dsconfigs.objPtr->dataset_size();
     choose_integrity_set.invokable.obliv_indleak(&indleak_args);
-  } else {
+  } 
+  else if (task_config.objPtr->security_type()
+      == EnumSecurityType::EnumSecurityType_privacy_integrity) {
+    LOG_WARN(
+        "FIXME!\narguments should be set when reading the task config or data "
+        "config\n")
+    integrity_set_func_obliv_indleak_args indleak_args;
+    #ifndef SGX_FAST_TWEAKS_SMALLER_INITEGRIRTY_RATE
+    indleak_args.ratio   = 0.2;
+    #else
+    indleak_args.ratio   = 0.9;
+    #endif
+    indleak_args.ds_size = dsconfigs.objPtr->dataset_size();
+    choose_integrity_set.invokable.obliv_indleak(&indleak_args);
+  }
+  else {
     LOG_DEBUG("Need to connect the routines for privacy_integrity\n")
     abort();
   }
@@ -930,7 +1042,17 @@ void init_net() {
         = args;
     net_init_loader_ptr->invokable.init_train_integ_layered(
         &net_init_loader_ptr->invokable_params.init_train_integ_layered_params);
-  } else {
+  } 
+  else if (*net_init_loader_ptr->net_context
+      == net_context_variations::TRAINING_PRIVACY_INTEGRITY_LAYERED_FIT) {
+    net_init_training_privacy_integrity_layered_args args;
+    args.dummy     = 1.0f;
+    net_init_loader_ptr->invokable_params.init_train_privacy_integ_layered_params
+        = args;
+    net_init_loader_ptr->invokable.init_train_privacy_integ_layered(
+        &net_init_loader_ptr->invokable_params.init_train_privacy_integ_layered_params);
+  }
+  else {
     LOG_DEBUG("not implemented\n")
   }
 }
@@ -1010,6 +1132,22 @@ void init_net_train_integ_layered(const net_init_training_integrity_layered_args
   // LOG_DEBUG("net_rng iter 0 first int : %d\n",network_->iter_batch_rng->getRandomInt());
   // LOG_DEBUG("layer_rng_deriver iter 0 first int : %d\n",network_->layer_rng_deriver->getRandomInt());
   // LOG_WARN("FIXME!\nnetwork structure and buffers must be managed with care!\n")
+}
+
+void init_net_train_privacy_integ_layered(const net_init_training_privacy_integrity_layered_args* args){
+  (void)args;
+  
+  auto net_ = load_network(
+      (char*)archconfigs.objPtr->mutable_contents()->Data(), nullptr, 1,*net_context_,verf_variations_t::UNSELECTED);
+  network_ = std::shared_ptr<network>(net_, free_delete());
+  LOG_OUT(
+      "Enclave loaded the network with following values\n"
+      "enclave batch size   : %d\n"
+      "enclave subdiv size  : %d\n"
+      "processings per batch : %d\n",
+      network_->batch,
+      network_->enclave_subdivisions,
+      (network_->batch * network_->enclave_subdivisions))
 }
 
 std::array<uint64_t, 16> generate_random_seed_from(PRNG &rng) {
@@ -2162,6 +2300,34 @@ void save_load_params_and_update_snapshot_(bool save,int iteration, network* net
   }
 }
 
+
+float train_in_enclave(int iteration,network* main_net) {
+  // do forward, backward
+  *main_net->seen = (iteration-1)*(main_net->batch)*(main_net->enclave_subdivisions);
+  main_net->train = 1;
+  float avg_cost = 0;
+  std::set<int> selected_ids;
+  std::queue<int> queued_ids;
+  while(true) {
+    // Load input to the verf_network
+    setup_iteration_inputs_training_enc_layered_fit(queued_ids,selected_ids,main_net,iteration,main_net->batch,0,plain_dataset_size-1);
+    *main_net->seen += main_net->batch;
+    SET_START_TIMING(SGX_TIMING_FORWARD);
+    forward_network(main_net);
+    SET_FINISH_TIMING(SGX_TIMING_FORWARD);
+    avg_cost += *main_net->cost;
+    LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
+    SET_START_TIMING(SGX_TIMING_BACKWARD);
+    backward_network(main_net);
+    SET_FINISH_TIMING(SGX_TIMING_BACKWARD);
+    if(((*main_net->seen)/main_net->batch)%main_net->enclave_subdivisions == 0) {
+      update_network(main_net);
+      break;
+    }
+  }
+  return avg_cost/(main_net->enclave_subdivisions * (main_net->batch));
+}
+
 float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf_net) {
   // do forward, backward
   *verf_net->seen = (iteration-1)*(verf_net->batch)*(verf_net->enclave_subdivisions);
@@ -3311,6 +3477,70 @@ void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> 
   net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
 }
 
+void setup_iteration_inputs_training_enc_layered_fit(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, network* net,
+                                     int iteration, int size,int low,int high) {
+  std::queue<int> selected_ids;
+  // LOG_DEBUG("preparing inputs for verification network in iteration %d,low:%d,high:%d\n",iteration,low,high)
+  while (selected_ids.size() < size) {
+    int id = net->iter_batch_rng->getRandomInt(low, high);
+    if (selected_ids_prev.count(id) == 0) {
+      selected_ids_prev.insert(id);
+      selected_ids.push(id);
+      queued_ids.push(id);
+    }
+  }
+  sgx_status_t ret = SGX_ERROR_UNEXPECTED;
+  int ind = 0;
+  const auto required_img_elems = dsconfigs.objPtr->img_label_meta()->image_meta()->width() *
+  dsconfigs.objPtr->img_label_meta()->image_meta()->height() *
+  dsconfigs.objPtr->img_label_meta()->image_meta()->channels();
+
+  const auto required_img_bytes = required_img_elems * sizeof(float);
+  const auto required_lbl_elems = dsconfigs.objPtr->img_label_meta()->label_meta()->numClasses();
+  const auto required_lbl_byets = required_lbl_elems * sizeof(float);
+
+  std::vector<uint8_t> cont_bytes(*enc_image_label_auth_bytes,0);
+  std::vector<uint8_t> dec_bytes(required_img_bytes+required_lbl_byets,0);
+  auto net_input = net->input->getItemsInRange(0, net->input->getBufferSize());
+  auto net_truth = net->truth->getItemsInRange(0, net->truth->getBufferSize());
+
+  while(!selected_ids.empty()) {
+  // for (const auto id : selected_ids) {
+    int id = selected_ids.front();
+    ret = ocall_load_enc_images(id,cont_bytes.data(),cont_bytes.size());
+    CHECK_SGX_SUCCESS(ret, "ocall_load_enc_images caused problem\n")
+    auto auth_buff = flatbuffers::GetRoot<AESGCM128Enc>(cont_bytes.data());
+    auto auth = construct_aad_input_nochange(id);
+    dec_bytes.resize(auth_buff->enc_content()->size());
+    auto res = sgx_rijndael128GCM_decrypt(&enclave_ases_gcm_key,
+                                     auth_buff->enc_content()->Data(),
+                                     auth_buff->enc_content()->size(),
+                                     dec_bytes.data(),
+                                     auth_buff->iv()->Data(),
+                                     AES_GCM_IV_SIZE,
+                                     (const uint8_t*)&auth,
+                                     auth_buff->aad()->size(),
+                                     (sgx_aes_gcm_128bit_tag_t*)auth_buff->mac()->Data());
+    CHECK_SGX_SUCCESS(res, "sgx_rijndael128GCM_decrypt caused problem!\n");
+    auto imglabel = flatbuffers::GetRoot<PlainImageLabel>(dec_bytes.data());
+    // if (imglabel->img_content()->size() != required_img_elems 
+    //     ||
+    //     imglabel->label_content()->size() != required_lbl_elems) {
+    //   LOG_ERROR("%u != %u or %u != %u \n",imglabel->img_content()->size(),required_img_elems,
+    //   imglabel->label_content()->size() ,required_lbl_elems);
+    //   abort();
+    // }
+    std::memcpy(net_input.get()+(ind*required_img_elems), imglabel->img_content()->Data(), required_img_bytes);
+    if (net->truth) {
+      std::memcpy(net_truth.get()+(ind*required_lbl_elems), imglabel->label_content()->Data(), required_lbl_byets);
+    }
+    ++ind;
+    selected_ids.pop();
+  }
+  net->input->setItemsInRange(0, net->input->getBufferSize(),net_input);
+  net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
+}
+
 void start_training_verification_frbv(int iteration) {
   // sgx_sha256_hash_t report;
   std::vector<uint8_t> report(SGX_SHA256_HASH_SIZE,0);
@@ -3410,4 +3640,14 @@ void start_training_verification_frbmmv(int iteration) {
       LOG_DEBUG("Task has not been put for verification!\n")
     }
   }
+}
+
+void start_training_in_sgx(int iteration) {
+  #if defined(USE_SGX_LAYERWISE)
+  set_network_batch_randomness(iteration,*network_);
+  setup_layers_iteration_seed(*network_,iteration);
+  float avg_loss = train_in_enclave(iteration,network_.get());
+  LOG_DEBUG("average loss for iteration %d = %f",iteration,avg_loss);
+  #elif defined(USE_SGX_PURE)
+  #endif
 }

@@ -113,6 +113,7 @@ int gpu_iteration = 0;
 
 
 std::unique_ptr<PRNG> pub_root_rng;
+std::deque<std::vector<uint8_t>> enc_img_set;
 std::deque<std::vector<uint8_t>> enc_integ_set;
 std::deque<std::vector<uint8_t>> dec_img_set;
 
@@ -583,8 +584,7 @@ ocall_get_records_plain(int            train_or_test,
   }
 }
 
-void
-ocall_set_records_plain(int            train_or_test,
+void ocall_set_records_plain(int            train_or_test,
                         size_t         i,
                         unsigned char *tr_record_i,
                         size_t         len_i) {
@@ -607,6 +607,20 @@ void ocall_add_rand_integset(uint8_t* enc_integ, size_t enc_integ_len) {
   std::memcpy(integ_in.data(), enc_integ, enc_integ_len);
   enc_integ_set.emplace_back(std::move(integ_in));
 
+}
+
+void ocall_add_enc_images(uint8_t* enc_image, size_t enc_len) {
+  // We need to have a policy for storage of rand integset!
+  // on disk or in memory!
+  std::vector<uint8_t> enc_in(enc_len,0);
+  std::memcpy(enc_in.data(), enc_image, enc_len);
+  enc_img_set.emplace_back(std::move(enc_in));
+
+}
+
+void ocall_load_enc_images(uint32_t ind,uint8_t* enc_image, size_t enc_len) {
+  
+  std::memcpy(enc_image, enc_img_set[ind].data(), enc_len);
 }
 
 void ocall_add_dec_images(uint8_t* dec_image, size_t dec_len) {

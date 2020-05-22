@@ -54,13 +54,20 @@ typedef struct net_init_training_integrity_layered_args_ {
   float verif_prob;
 } net_init_training_integrity_layered_args;
 
+typedef struct net_init_training_privacy_integrity_layered_args_ {
+  float dummy;
+} net_init_training_privacy_integrity_layered_args;
+
 typedef struct net_init_load_net_func_ {
   union {
     void (*init_train_integ_layered)(
         const net_init_training_integrity_layered_args*);
+    void (*init_train_privacy_integ_layered)(
+        const net_init_training_privacy_integrity_layered_args*);
   } invokable;
   union {
     net_init_training_integrity_layered_args init_train_integ_layered_params;
+    net_init_training_privacy_integrity_layered_args init_train_privacy_integ_layered_params;
   }invokable_params;
   net_context_variations* net_context;
 } net_init_load_net_func;

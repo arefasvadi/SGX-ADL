@@ -721,7 +721,7 @@ def imgnet_get_ds(expected_ds_size,width,height,channels,num_classes):
 def process_imagenet_vgg16():
     overall_ds = imgnet_get_ds(20000,224,224,3,1000)
     securit_task_list = [EnumSecurityType.EnumSecurityType.integrity,
-                        #  EnumSecurityType.EnumSecurityType.privacy_integrity
+                         EnumSecurityType.EnumSecurityType.privacy_integrity
                          ]
     comp_task_list = [EnumComputationTaskType.EnumComputationTaskType.training,
                     #   EnumComputationTaskType.EnumComputationTaskType.prediction
