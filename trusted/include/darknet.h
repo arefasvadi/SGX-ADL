@@ -21,15 +21,18 @@
 
 #include "enclave_t.h"
 
-#ifdef USE_SGX_LAYERWISE
+#if defined(USE_SGX_LAYERWISE)
 #undef USE_SGX_BLOCKING
+#undef USE_SGX_PURE
+#elif defined(USE_SGX_PURE)
+#undef USE_SGX_BLOCKING
+#undef USE_SGX_LAYERWISE
+#elif defined(USE_SGX_BLOCKING)
+#undef USE_SGX_LAYERWISE
+#undef USE_SGX_PURE
 #endif
 
 #include "rand/PRNG.h"
-
-#ifdef USE_SGX_BLOCKING
-#undef USE_SGX_LAYERWISE
-#endif
 
 #if defined(USE_SGX) && defined(USE_SGX_BLOCKING)
 #include "BlockEngine.hpp"

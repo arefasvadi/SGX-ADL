@@ -207,8 +207,7 @@ ecall_NOT_SECURE_send_req_keys(uint8_t *cl_pksig,
   memcpy(enclave_cmac_key, sgx_sksymm, sgx_sksymm_len);
 }
 
-void
-ecall_send_signed_task_config_verify(uint8_t *task_conf, size_t task_conf_len,int verf_type) {
+void ecall_send_signed_task_config_verify(uint8_t *task_conf, size_t task_conf_len,int verf_type) {
   auto task_config_w_sig = flatbuffers::GetMutableRoot<SignedECC>(task_conf);
   if (verf_type == (int)verf_variations_t::FRBV ) {
     main_verf_task_variation_ = std::unique_ptr<verf_variations_t>(
@@ -801,11 +800,10 @@ void ecall_initial_sort() {
 }
 
 void ecall_start_training() {
-#ifdef USE_SGX_LAYERWISE
-  LOG_DEBUG("Starting the training\n")
   SET_START_TIMING(SGX_TIMING_OVERALL_TRAINING)
+  LOG_DEBUG("Starting the training\n")
   const int temp_iter = 1;
-
+  #if defined(USE_SGX_LAYERWISE)
   if (*net_context_ == net_context_variations::TRAINING_INTEGRITY_LAYERED_FIT
       && *main_verf_task_variation_ == verf_variations_t::FRBV) {
     for (int i = 1; i <= temp_iter; ++i) {
@@ -825,8 +823,22 @@ void ecall_start_training() {
         start_training_in_sgx(i);
       }
   }
+  #elif defined(USE_SGX_PURE)
+  if (*net_context_ == net_context_variations::TRAINING_PRIVACY_INTEGRITY_FULL_FIT
+      && *main_verf_task_variation_ == verf_variations_t::FRBV) {
+    for (int i = 1; i <= temp_iter; ++i) {
+      start_training_in_sgx(i);
+    }
+    //abort();
+  }
+  else {
+    LOG_ERROR("NOT SUPPORTED\n");
+    abort();
+  }
+  #else
+  #endif
   SET_FINISH_TIMING(SGX_TIMING_OVERALL_TRAINING)
-#endif
+
 #if 0
   LOG_TRACE("entered in %s\n", __func__)
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;

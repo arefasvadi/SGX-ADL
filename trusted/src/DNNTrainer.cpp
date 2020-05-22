@@ -488,7 +488,7 @@ void DNNTrainer::train() {
   float avg_loss = -1, loss = -1;
   float AVG_ACC = -1;
   int epochs = 0;
-#ifndef USE_SGX_LAYERWISE
+#ifdef USE_SGX_PURE
   char *mode = "PURE_SGX";
 #else
   char *mode = "SGX_LAYERWISE";

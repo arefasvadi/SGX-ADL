@@ -11,8 +11,11 @@
 #include <unordered_set>
 #include <queue>
 #include "timingdefs.h"
-#ifdef USE_SGX_LAYERWISE
+#if defined(USE_SGX_LAYERWISE)
 #include "../third_party/darknet/src/sgxlwfit/sgxlwfit.h"
+#elif defined(USE_SGX_PURE)
+#include "../third_party/darknet/src/sgxffit/sgxffit.h"
+#else
 #endif
 
 void gemm(int TA, int TB, int M, int N, int K, float ALPHA, 
@@ -436,6 +439,7 @@ void fix_task_dependent_global_vars() {
     choose_integrity_set.invokable.obliv_indleak
       = choose_rand_integrity_set_nonbliv;
 #if defined(USE_SGX) && defined(USE_SGX_PURE)
+  // TODO: write init_net_train_integ_full_fit later
   LOG_ERROR("NOT IMPLEMENTED!\n")
   abort();
 #elif defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
@@ -468,8 +472,13 @@ void fix_task_dependent_global_vars() {
       = choose_rand_privacy_integrity_set_nonbliv;
     
     #if defined(USE_SGX) && defined(USE_SGX_PURE)
-    LOG_ERROR("NOT IMPLEMENTED!\n")
-    abort();
+    // write init_net_train_privacy_integ_full_fit
+    net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
+    *net_context_ = net_context_variations::TRAINING_PRIVACY_INTEGRITY_FULL_FIT;
+    net_init_loader_ptr->net_context
+        = net_context_.get();
+    net_init_loader_ptr->invokable.init_train_privacy_integ_layered
+        = init_net_train_privacy_integ_layered;
     #elif defined(USE_SGX) && defined(USE_SGX_LAYERWISE)
     net_context_ = std::unique_ptr<net_context_variations>(new net_context_variations);
     *net_context_ = net_context_variations::TRAINING_PRIVACY_INTEGRITY_LAYERED_FIT;
@@ -1052,6 +1061,15 @@ void init_net() {
     net_init_loader_ptr->invokable.init_train_privacy_integ_layered(
         &net_init_loader_ptr->invokable_params.init_train_privacy_integ_layered_params);
   }
+  else if (*net_init_loader_ptr->net_context
+      == net_context_variations::TRAINING_PRIVACY_INTEGRITY_FULL_FIT) {
+    net_init_training_privacy_integrity_layered_args args;
+    args.dummy     = 1.0f;
+    net_init_loader_ptr->invokable_params.init_train_privacy_integ_layered_params
+        = args;
+    net_init_loader_ptr->invokable.init_train_privacy_integ_layered(
+        &net_init_loader_ptr->invokable_params.init_train_privacy_integ_layered_params);
+  }
   else {
     LOG_DEBUG("not implemented\n")
   }
@@ -1165,6 +1183,7 @@ void setup_layers_iteration_seed(network& net, int iteration) {
   }
 }
 
+#if defined (USE_SGX_LAYERWISE)
 void apply_weight_updates_convolutional(int                     iteration,
                                    layer&                  l,
                                    int                     layer_index,
@@ -2300,6 +2319,7 @@ void save_load_params_and_update_snapshot_(bool save,int iteration, network* net
   }
 }
 
+#endif
 
 float train_in_enclave(int iteration,network* main_net) {
   // do forward, backward
@@ -2327,6 +2347,8 @@ float train_in_enclave(int iteration,network* main_net) {
   }
   return avg_cost/(main_net->enclave_subdivisions * (main_net->batch));
 }
+
+#if defined (USE_SGX_LAYERWISE)
 
 float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf_net) {
   // do forward, backward
@@ -2617,6 +2639,8 @@ float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* ve
   return avg_cost/(verf_net->enclave_subdivisions * (verf_net->batch));
 }
 
+#endif
+
 bool float_equal(const float a,const float b) {
   if ((std::fabs(a - b)
           < 
@@ -2628,6 +2652,8 @@ bool float_equal(const float a,const float b) {
                             }
   return false;
 }
+
+#if defined (USE_SGX_LAYERWISE)
 
 void compare_param_updates_convolutional(int iteration,network* verf_net,layer& l,int layer_index,sgx_sha_state_handle_t* sha256_handle) {
   uint64_t total_bytes   = count_layer_paramas_bytes(l);
@@ -3477,6 +3503,8 @@ void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> 
   net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
 }
 
+#endif
+
 void setup_iteration_inputs_training_enc_layered_fit(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, network* net,
                                      int iteration, int size,int low,int high) {
   std::queue<int> selected_ids;
@@ -3501,8 +3529,10 @@ void setup_iteration_inputs_training_enc_layered_fit(std::queue<int>& queued_ids
 
   std::vector<uint8_t> cont_bytes(*enc_image_label_auth_bytes,0);
   std::vector<uint8_t> dec_bytes(required_img_bytes+required_lbl_byets,0);
+  #if defined (USE_SGX_LAYERWISE)
   auto net_input = net->input->getItemsInRange(0, net->input->getBufferSize());
   auto net_truth = net->truth->getItemsInRange(0, net->truth->getBufferSize());
+  #endif
 
   while(!selected_ids.empty()) {
   // for (const auto id : selected_ids) {
@@ -3530,17 +3560,28 @@ void setup_iteration_inputs_training_enc_layered_fit(std::queue<int>& queued_ids
     //   imglabel->label_content()->size() ,required_lbl_elems);
     //   abort();
     // }
+    #if defined (USE_SGX_LAYERWISE)
     std::memcpy(net_input.get()+(ind*required_img_elems), imglabel->img_content()->Data(), required_img_bytes);
     if (net->truth) {
       std::memcpy(net_truth.get()+(ind*required_lbl_elems), imglabel->label_content()->Data(), required_lbl_byets);
     }
+    #elif defined (USE_SGX_PURE)
+    std::memcpy(net->input+(ind*required_img_elems), imglabel->img_content()->Data(), required_img_bytes);
+    if (net->truth) {
+      std::memcpy(net->truth+(ind*required_lbl_elems), imglabel->label_content()->Data(), required_lbl_byets);
+    }
+    #endif
     ++ind;
     selected_ids.pop();
   }
+  #if defined (USE_SGX_LAYERWISE)
   net->input->setItemsInRange(0, net->input->getBufferSize(),net_input);
   net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
+  #endif
+
 }
 
+#if defined (USE_SGX_LAYERWISE)
 void start_training_verification_frbv(int iteration) {
   // sgx_sha256_hash_t report;
   std::vector<uint8_t> report(SGX_SHA256_HASH_SIZE,0);
@@ -3641,6 +3682,7 @@ void start_training_verification_frbmmv(int iteration) {
     }
   }
 }
+#endif
 
 void start_training_in_sgx(int iteration) {
   #if defined(USE_SGX_LAYERWISE)
@@ -3649,5 +3691,12 @@ void start_training_in_sgx(int iteration) {
   float avg_loss = train_in_enclave(iteration,network_.get());
   LOG_DEBUG("average loss for iteration %d = %f",iteration,avg_loss);
   #elif defined(USE_SGX_PURE)
+  set_network_batch_randomness(iteration,*network_);
+  setup_layers_iteration_seed(*network_,iteration);
+  float avg_loss = train_in_enclave(iteration,network_.get());
+  LOG_DEBUG("average loss for iteration %d = %f",iteration,avg_loss);
+  #else
+  LOG_ERROR("NOT IMPLEMENTED\n")
+  abort();
   #endif
 }
