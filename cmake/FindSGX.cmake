@@ -146,11 +146,12 @@ if(SGX_FOUND)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
         # ${SGX_COMMON_CFLAGS} \
-        # -lsgx_dnnl -lsgx_omp -lsgx_pthread
+        # -lsgx_pthread -lsgx_omp -lsgx_dnnl
         target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \ 
             -Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
+            -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
             -Wl,--start-group -lsgx_tstdc -lsgx_tcxx -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
             -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
@@ -197,12 +198,13 @@ if(SGX_FOUND)
         # endforeach()
         # ${SGX_COMMON_CFLAGS} \
 
-        # -lsgx_dnnl -lsgx_omp -lsgx_pthread -lsgx_blasfeo
+        # -lsgx_pthread -lsgx_omp -lsgx_dnnl -lsgx_blasfeo
         target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
             -Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
-            -Wl,--start-group ${TLIB_LIST} -lsgx_tstdc -lsgx_tcxx -lsgx_dnnl -lsgx_omp -lsgx_pthread -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
+            -Wl,--whole-archive -lsgx_tcmalloc -Wl,--no-whole-archive \
+            -Wl,--start-group ${TLIB_LIST} -lsgx_tstdc -lsgx_tcxx -lsgx_pthread -lsgx_omp -lsgx_dnnl -lsgx_tcrypto -l${SGX_TSVC_LIB} -Wl,--end-group \
             -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
             -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
             ${LDSCRIPT_FLAG} \

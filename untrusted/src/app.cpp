@@ -414,8 +414,8 @@ initialize_enclave() {
 
   const void *enclave_ex_p[32] = {0};
 
-  us_config.num_uworkers = 2;
-  us_config.num_tworkers = 2;
+  us_config.num_uworkers = 4;
+  us_config.num_tworkers = 4;
 #ifdef MEASURE_SWITCHLESS_TIMING
   us_config.callback_func[3] = &exit_callback;
 #endif
@@ -932,13 +932,22 @@ ocall_test_long_buffer_decrypt_retrieve(int            first,
   }
 }
 
-void
-print_timers() {
-  for (const auto &s : grand_timer) {
+void print_timers() {
+  using temp_type = decltype(grand_timer)::iterator;
+  std::vector<temp_type> vec_grand_timer;
+  for (auto it_=grand_timer.begin();it_!=grand_timer.end();it_++) {
+    vec_grand_timer.push_back(it_);
+  }
+  if (0) {
+    std::sort(vec_grand_timer.begin(),vec_grand_timer.end(),[](const temp_type& a,const temp_type& b) {
+      return a->second.duration > b->second.duration;
+    });
+  }
+  for (const auto &s : vec_grand_timer) {
     LOG_WARN("++ Item %s took about %f seconds for %u times with avg: %f\n",
-             s.first.c_str(),
-             s.second.duration / 1000000.0,
-             s.second.counts,((double)(s.second.duration/s.second.counts)) / 1000000.0);
+             s->first.c_str(),
+             s->second.duration / 1000000.0,
+             s->second.counts,((double)(s->second.duration/s->second.counts)) / 1000000.0);
   }
 }
 

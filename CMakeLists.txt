@@ -109,7 +109,7 @@ set(Trusted_Config_File ${Trusted_Home}/SGXADL-Enclave.config.xml)
 set(Trusted_Edl "${Trusted_Home}/enclave.edl")
 set(Private_Key_File "${Trusted_Home}/private_key.pem")
 
-set(SGX_HW off)
+set(SGX_HW ON)
 
 set(LOGL_EVEL LOG_LEVEL_INFO_BEYOND)
 set(AVAIL_THREADS 
@@ -129,15 +129,15 @@ set(SGX_RMM_ADD_NOISE_CONV_WEIGHTS_CHECK_VERIFICATION_FAILS OFF)
 set(CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM OFF)
 set(CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM ON)
 
-set(EnclaveHeapMinMB 85)
+set(EnclaveHeapMinMB 90)
 set(SGX_AVIALABLE_HEAP_MIN_MB "(${EnclaveHeapMinMB})")
 math(EXPR enclave_heapmin " ${EnclaveHeapMinMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
-set(EnclaveHeapInitMB 256)
+set(EnclaveHeapInitMB 90)
 set(SGX_AVIALABLE_HEAP_INIT_MB "(${EnclaveHeapInitMB})")
 math(EXPR enclave_heapinit " ${EnclaveHeapInitMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
-set(EnclaveHeapMaxMB 256)
+set(EnclaveHeapMaxMB 90)
 set(SGX_AVIALABLE_HEAP_MAX_MB "(${EnclaveHeapMaxMB})")
 math(EXPR enclave_heapmax " ${EnclaveHeapMaxMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
@@ -275,7 +275,9 @@ set(DARKNET_SOURCE_FILES
 
 set(DARKNET_SOURCE_FILES_SGX_PURE ${DARKNET_SOURCE_FILES})
 list(APPEND DARKNET_SOURCE_FILES_SGX_PURE
-     third_party/darknet/src/sgxffit/sgxffit.cpp)
+     third_party/darknet/src/sgxffit/sgxffit.cpp
+     ${Trusted_Home}/src/prepare-dnnl.cpp)
+
 list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_PURE
   third_party/darknet/src/cuda.cpp
   third_party/darknet/src/deconvolutional_layer.cpp
@@ -301,7 +303,9 @@ list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_PURE
 
 set(DARKNET_SOURCE_FILES_SGX_LAYERWISE ${DARKNET_SOURCE_FILES})
 list(APPEND DARKNET_SOURCE_FILES_SGX_LAYERWISE
-     third_party/darknet/src/sgxlwfit/sgxlwfit.cpp)
+     third_party/darknet/src/sgxlwfit/sgxlwfit.cpp
+     ${Trusted_Home}/src/prepare-dnnl.cpp
+     )
 list(REMOVE_ITEM DARKNET_SOURCE_FILES_SGX_LAYERWISE 
   third_party/darknet/src/cuda.cpp
   third_party/darknet/src/deconvolutional_layer.cpp
@@ -409,7 +413,7 @@ set(Enclave_Cpp_Files
   #${Trusted_Home}/src/IBlockable.cpp 
   ${Trusted_Home}/src/util.cpp
   ${Trusted_Home}/src/extra-util.cpp
-  ${Trusted_Home}/src/prepare-dnnl.cpp
+#  ${Trusted_Home}/src/prepare-dnnl.cpp
   ${CMAKE_SOURCE_DIR}/src/hexString.cpp
   #${Trusted_Home}/src/tests.cpp
   ${Trusted_Home}/src/SpecialBufferCommon.cpp

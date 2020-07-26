@@ -7,7 +7,8 @@
 #include "SpecialBufferCommon.h"
 #include "common.h"
 #include "enclave_t.h"
-#include "gsl/gsl-lite.hpp"
+//#include "gsl/gsl-lite.hpp"
+#include "timingdefs.h"
 
 namespace sgx {
   namespace trusted {
@@ -78,19 +79,15 @@ namespace sgx {
     std::unique_ptr<T[]>
     SpecialBuffer<T>::getItemsInRange(const uint32_t start,
                                       const uint32_t end) {
-      // #ifdef USE_SGX
-      //     const char* timing_key = "getItemsinRange time";
-      //     ocall_set_timing(timing_key,strlen(timing_key)+1 , 1, 0);
-      // #endif
+      SET_START_TIMING("SpecialBuffer Get Item")
       assert(end > start);
       sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
       const size_t buff_len         = end - start;
       const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE / sizeof(T);
+      SET_START_TIMING("SpecialBuffer Get Item Allocation")
       auto         ret              = std::unique_ptr<T[]>(new T[buff_len]);
-      // #ifdef USE_SGX
-      // const char* timing_key_s = "transfer getItemsinRange time";
-      // ocall_set_timing(timing_key_s,strlen(timing_key_s)+1 , 1, 0);
-      // #endif
+      SET_FINISH_TIMING("SpecialBuffer Get Item Allocation")
+      
       int q = buff_len / (interim_buff_len);
       int r = buff_len % (interim_buff_len);
       for (int i = 0; i < q; ++i) {
@@ -111,12 +108,7 @@ namespace sgx {
             (r) * sizeof(T));
         CHECK_SGX_SUCCESS(succ, "Problem Caused by Get Buffer LayerWise");
       }
-      // #ifdef USE_SGX
-      // ocall_set_timing(timing_key_s,strlen(timing_key_s)+1 , 0, 1);
-      // #endif
-      // #ifdef USE_SGX
-      // ocall_set_timing(timing_key,strlen(timing_key)+1 , 0, 1);
-      // #endif
+      SET_FINISH_TIMING("SpecialBuffer Get Item")
       return ret;
     }
 
@@ -125,10 +117,7 @@ namespace sgx {
     SpecialBuffer<T>::setItemsInRange(const uint32_t        start,
                                       const uint32_t        end,
                                       std::unique_ptr<T[]> &content) {
-      //     #ifdef USE_SGX
-      //   const char* timing_key = "setItemsinRange time";
-      //   ocall_set_timing(timing_key,strlen(timing_key)+1 , 1, 0);
-      // #endif
+      SET_START_TIMING("SpecialBuffer Set Item")
       assert(end > start);
       const size_t buff_len         = end - start;
       const size_t interim_buff_len = SGX_OCALL_TRANSFER_BLOCK_SIZE / sizeof(T);
@@ -153,11 +142,7 @@ namespace sgx {
             (r) * sizeof(T));
         CHECK_SGX_SUCCESS(succ, "Problem Caused by Set Buffer LayerWise");
       }
-      //       #ifdef USE_SGX
-      //   ocall_set_timing(timing_key,strlen(timing_key)+1 , 0, 1);
-      // #endif
-      // content.clear();
-      // content.shrink_to_fit();
+      SET_FINISH_TIMING("SpecialBuffer Set Item")
     }
 
     //template class SpecialBuffer<float>;
