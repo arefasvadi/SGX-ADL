@@ -80,3 +80,6 @@ test/config/imagenet_sample/vgg16_run_configs
 test/config/cifar10/cifar10_task_config.bin
 
 third_party/darknet2/
+scripts/move_imagenet_to_docker.py
+trusted/SGXADL-Enclave.config.xml
+trusted/include/trusted-configs.h
