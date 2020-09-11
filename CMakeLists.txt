@@ -129,15 +129,15 @@ set(SGX_RMM_ADD_NOISE_CONV_WEIGHTS_CHECK_VERIFICATION_FAILS OFF)
 set(CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM OFF)
 set(CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM ON)
 
-set(EnclaveHeapMinMB 90)
+set(EnclaveHeapMinMB 85)
 set(SGX_AVIALABLE_HEAP_MIN_MB "(${EnclaveHeapMinMB})")
 math(EXPR enclave_heapmin " ${EnclaveHeapMinMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
-set(EnclaveHeapInitMB 90)
+set(EnclaveHeapInitMB 85)
 set(SGX_AVIALABLE_HEAP_INIT_MB "(${EnclaveHeapInitMB})")
 math(EXPR enclave_heapinit " ${EnclaveHeapInitMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
-set(EnclaveHeapMaxMB 90)
+set(EnclaveHeapMaxMB 85)
 set(SGX_AVIALABLE_HEAP_MAX_MB "(${EnclaveHeapMaxMB})")
 math(EXPR enclave_heapmax " ${EnclaveHeapMaxMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 

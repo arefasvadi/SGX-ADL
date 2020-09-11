@@ -938,7 +938,7 @@ void print_timers() {
   for (auto it_=grand_timer.begin();it_!=grand_timer.end();it_++) {
     vec_grand_timer.push_back(it_);
   }
-  if (0) {
+  if (1) {
     std::sort(vec_grand_timer.begin(),vec_grand_timer.end(),[](const temp_type& a,const temp_type& b) {
       return a->second.duration > b->second.duration;
     });
