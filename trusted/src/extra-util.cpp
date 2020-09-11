@@ -1181,6 +1181,7 @@ void setup_layers_iteration_seed(network& net, int iteration) {
   for (int i=0;i < net.n;++i) {
     net.layers[i].layer_rng = std::shared_ptr<PRNG>(new PRNG(generate_random_seed_from(*(net.layer_rng_deriver))));
   }
+  LOG_DEBUG("Finished setup_layers_iteration_seed for iteration %d\n",iteration)
 }
 
 #if defined (USE_SGX_LAYERWISE)
@@ -2363,12 +2364,16 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
     *verf_net->seen += verf_net->batch;
     
     SET_START_TIMING(SGX_TIMING_FORWARD);
+    LOG_DEBUG("starting forward_network in train_verify_in_enclave_frbv\n")
     forward_network(verf_net);
+    LOG_DEBUG("finished forward_network in train_verify_in_enclave_frbv\n")
     SET_FINISH_TIMING(SGX_TIMING_FORWARD);
     avg_cost += *verf_net->cost;
     LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     SET_START_TIMING(SGX_TIMING_BACKWARD);
+    LOG_DEBUG("starting backward_network in train_verify_in_enclave_frbv\n")
     backward_network(verf_net);
+    LOG_DEBUG("finished backward_network in train_verify_in_enclave_frbv\n")
     SET_FINISH_TIMING(SGX_TIMING_BACKWARD);
     if(((*verf_net->seen)/verf_net->batch)%verf_net->enclave_subdivisions == 0) {
       break;
@@ -3457,6 +3462,7 @@ void verify_task_frbmmv() {
 
 void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> &selected_ids_prev, network* net,
                                      int iteration, int size,int low,int high) {
+  LOG_DEBUG("Started setup_iteration_inputs_training for iteration %d\n",iteration)
   std::queue<int> selected_ids;
   // LOG_DEBUG("preparing inputs for verification network in iteration %d,low:%d,high:%d\n",iteration,low,high)
   while (selected_ids.size() < size) {
@@ -3478,6 +3484,7 @@ void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> 
   std::vector<uint8_t> cont_bytes(*plain_image_label_auth_bytes,0);
   auto net_input = net->input->getItemsInRange(0, net->input->getBufferSize());
   auto net_truth = net->truth->getItemsInRange(0, net->truth->getBufferSize());
+  LOG_DEBUG("Started filling setup_iteration_inputs_training for iteration %d\n",iteration)
   while(!selected_ids.empty()) {
   // for (const auto id : selected_ids) {
     int id = selected_ids.front();
@@ -3501,6 +3508,7 @@ void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> 
   }
   net->input->setItemsInRange(0, net->input->getBufferSize(),net_input);
   net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
+  LOG_DEBUG("Finished setup_iteration_inputs_training for iteration %d\n",iteration)
 }
 
 #endif
