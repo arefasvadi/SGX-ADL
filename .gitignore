@@ -83,3 +83,5 @@ third_party/darknet2/
 scripts/move_imagenet_to_docker.py
 trusted/SGXADL-Enclave.config.xml
 trusted/include/trusted-configs.h
+
+test/config/imagenet_sample/resnet34_run_configs/

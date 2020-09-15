@@ -2379,20 +2379,22 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
       break;
     }
   }
-  std::string indices = "verification selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
-  for (const auto ind:selected_ids) {
-    indices += std::to_string(ind)+",";
+  if (0){
+    std::string indices = "verification selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+    for (const auto ind:selected_ids) {
+      indices += std::to_string(ind)+",";
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
+    indices = "verification selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+    while(!queued_ids.empty()){
+      int ind = queued_ids.front();
+      indices += std::to_string(ind)+",";
+      queued_ids.pop();
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
   }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
-  indices = "verification selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
-  while(!queued_ids.empty()){
-    int ind = queued_ids.front();
-    indices += std::to_string(ind)+",";
-    queued_ids.pop();
-  }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
   return avg_cost/(verf_net->enclave_subdivisions * (verf_net->batch));
 }
 
@@ -2627,20 +2629,22 @@ float train_verify_in_enclave_frbmmv(int iteration,network* main_net,network* ve
       break;
     }
   }
-  std::string indices = "verification selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
-  for (const auto ind:selected_ids) {
-    indices += std::to_string(ind)+",";
+  if (0) {
+    std::string indices = "verification selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+    for (const auto ind:selected_ids) {
+      indices += std::to_string(ind)+",";
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
+    indices = "verification selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+    while(!queued_ids.empty()){
+      int ind = queued_ids.front();
+      indices += std::to_string(ind)+",";
+      queued_ids.pop();
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
   }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
-  indices = "verification selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
-  while(!queued_ids.empty()){
-    int ind = queued_ids.front();
-    indices += std::to_string(ind)+",";
-    queued_ids.pop();
-  }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
   return avg_cost/(verf_net->enclave_subdivisions * (verf_net->batch));
 }
 
@@ -3482,12 +3486,13 @@ void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> 
   const auto required_lbl_elems = dsconfigs.objPtr->img_label_meta()->label_meta()->numClasses();
   const auto required_lbl_byets = required_lbl_elems * sizeof(float);
   std::vector<uint8_t> cont_bytes(*plain_image_label_auth_bytes,0);
-  auto net_input = net->input->getItemsInRange(0, net->input->getBufferSize());
-  auto net_truth = net->truth->getItemsInRange(0, net->truth->getBufferSize());
   LOG_DEBUG("Started filling setup_iteration_inputs_training for iteration %d\n",iteration)
   while(!selected_ids.empty()) {
   // for (const auto id : selected_ids) {
     int id = selected_ids.front();
+    // per input
+    auto net_input = net->input->getItemsInRange((ind*required_img_elems), ((ind+1)*required_img_elems));
+    auto net_truth = net->truth->getItemsInRange((ind*required_lbl_elems), ((ind+1)*required_lbl_elems));
     ret = ocall_load_dec_images(id,cont_bytes.data(),cont_bytes.size());
     CHECK_SGX_SUCCESS(ret, "ocall_load_dec_images caused problem\n")
     auto auth_buff = flatbuffers::GetRoot<CMAC128Auth>(cont_bytes.data());
@@ -3498,16 +3503,17 @@ void setup_iteration_inputs_training(std::queue<int>& queued_ids, std::set<int> 
         abort();
     }
     auto imglabel = flatbuffers::GetRoot<PlainImageLabel>(auth_buff->content()->Data());
-    std::memcpy(net_input.get()+(ind*required_img_elems), imglabel->img_content()->Data(), required_img_bytes);
+    std::memcpy(net_input.get(), imglabel->img_content()->Data(), required_img_bytes);
 
     if (net->truth) {
-      std::memcpy(net_truth.get()+(ind*required_lbl_elems), imglabel->label_content()->Data(), required_lbl_byets);
+      std::memcpy(net_truth.get(), imglabel->label_content()->Data(), required_lbl_byets);
     }
+    // per input
+    net->input->setItemsInRange((ind*required_img_elems), ((ind+1)*required_img_elems),net_input);
+    net->truth->setItemsInRange((ind*required_lbl_elems), ((ind+1)*required_lbl_elems),net_truth);
     ++ind;
     selected_ids.pop();
   }
-  net->input->setItemsInRange(0, net->input->getBufferSize(),net_input);
-  net->truth->setItemsInRange(0, net->truth->getBufferSize(),net_truth);
   LOG_DEBUG("Finished setup_iteration_inputs_training for iteration %d\n",iteration)
 }
 

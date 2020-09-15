@@ -1121,9 +1121,9 @@ forward_network_(network *netp) {
   for (i = 0; i < net.n; ++i) {
     net.index = i;
     layer l   = net.layers[i];
-    // LOG_DEBUG("GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+    LOG_DEBUG("GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
     if (l.delta_gpu) {
-      // LOG_DEBUG("layer has delta! GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+      LOG_DEBUG("layer has delta! GPU sgx verifies forward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
       fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
       fill_cpu(l.outputs * l.batch, 0, l.delta, 1);
     }
@@ -1151,7 +1151,7 @@ backward_network_(network *netp) {
   cuda_set_device(net.gpu_index);
   for (i = net.n - 1; i >= 0; --i) {
     layer l = net.layers[i];
-    // LOG_DEBUG("GPU sgx verifies backward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+    LOG_DEBUG("GPU sgx verifies backward layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
     if (l.stopbackward)
       break;
     if (i == 0) {
@@ -1190,7 +1190,7 @@ update_network_(network *netp,bool perform_gpu_update) {
     for (i = 0; i < net.n; ++i) {
       layer l = net.layers[i];
       if (l.update_gpu_sgx_verifies) {
-        // LOG_DEBUG("GPU sgx verifies update layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
+        LOG_DEBUG("GPU sgx verifies update layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
         l.update_gpu_sgx_verifies(l, a);
         // LOG_DEBUG("finished GPU sgx verifies update layer %d of type %s out of %d\n",i,get_layer_string(l.type),net.n-1)
       }
@@ -1212,12 +1212,14 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
     *(network_->seen) += network_->batch;
     // forward gpu
     LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
+    LOG_DEBUG("Calling forward GPU\n")
     forward_network_(network_.get());
     avg_cost += *network_->cost;
     // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     LOG_DEBUG("GPU: finished call forward\n")
     // backward gpu
     LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
+    LOG_DEBUG("Calling backward GPU\n")
     backward_network_(network_.get());
     LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
     if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
@@ -1240,20 +1242,22 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
   // update_network_(network_.get(),true);
   // LOG_DEBUG("GPU: finished to call update for iteration %d\n", iteration)
   // instead we get the updated waits from sgx!
-  std::string indices = "GPU selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
-  for (const auto ind:selected_ids) {
-    indices += std::to_string(ind)+",";
+  if (0) {
+    std::string indices = "GPU selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+    for (const auto ind:selected_ids) {
+      indices += std::to_string(ind)+",";
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
+    indices = "GPU selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+    while(!queued_ids.empty()){
+      int ind = queued_ids.front();
+      indices += std::to_string(ind)+",";
+      queued_ids.pop();
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
   }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
-  indices = "GPU selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
-  while(!queued_ids.empty()){
-    int ind = queued_ids.front();
-    indices += std::to_string(ind)+",";
-    queued_ids.pop();
-  }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
   // std::exit(1);
 
 }
@@ -1286,12 +1290,14 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
     *(network_->seen) += network_->batch;
     // forward gpu
     // LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
+    LOG_DEBUG("Calling forward GPU\n")
     forward_network_(network_.get());
     avg_cost += *network_->cost;
     // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     // LOG_DEBUG("GPU: finished call forward\n")
     // backward gpu
     // LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
+    LOG_DEBUG("Calling backward GPU\n")
     backward_network_(network_.get());
     // LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
     if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
@@ -1314,20 +1320,22 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
   // update_network_(network_.get(),true);
   // LOG_DEBUG("GPU: finished to call update for iteration %d\n", iteration)
   // instead we get the updated waits from sgx!
-  std::string indices = "GPU selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
-  for (const auto ind:selected_ids) {
-    indices += std::to_string(ind)+",";
+  if (0) {
+    std::string indices = "GPU selected indices of length " + std::to_string(selected_ids.size()) +" were:\n[";
+    for (const auto ind:selected_ids) {
+      indices += std::to_string(ind)+",";
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
+    indices = "GPU selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
+    while(!queued_ids.empty()){
+      int ind = queued_ids.front();
+      indices += std::to_string(ind)+",";
+      queued_ids.pop();
+    }
+    indices += std::string("]\n");
+    LOG_DEBUG("%s",indices.c_str())
   }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
-  indices = "GPU selected indices from [Queue] of length " + std::to_string(queued_ids.size()) +" were:\n[";
-  while(!queued_ids.empty()){
-    int ind = queued_ids.front();
-    indices += std::to_string(ind)+",";
-    queued_ids.pop();
-  }
-  indices += std::string("]\n");
-  LOG_DEBUG("%s",indices.c_str())
 }
 
 void
