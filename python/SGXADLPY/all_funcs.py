@@ -719,7 +719,7 @@ def imgnet_get_ds(expected_ds_size,width,height,channels,num_classes):
     return ds
 
 def process_imagenet_vgg16():
-    overall_ds = imgnet_get_ds(20000,224,224,3,1000)
+    overall_ds = imgnet_get_ds(5000,224,224,3,1000)
     securit_task_list = [EnumSecurityType.EnumSecurityType.integrity,
                          EnumSecurityType.EnumSecurityType.privacy_integrity
                          ]
@@ -727,11 +727,12 @@ def process_imagenet_vgg16():
                     #   EnumComputationTaskType.EnumComputationTaskType.prediction
                     ]
     vgg16_arch_files = [
-        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train.cfg",
-        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch64_gpu2_enc64.cfg",
-        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch32_gpu1_enc32.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch64_gpu1_enc1.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch64_gpu2_enc2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch128_gpu2_enc2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch128_gpu4_enc4.cfg",
     ]
-    vgg16_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/"
+    vgg16_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample_vgg16/"
     root_seeds = [0]
     vgg16_configs = {
         "name": "vgg16_run_configs",
@@ -754,11 +755,50 @@ def process_imagenet_vgg16():
     gen_ds_flatbuffs(vgg16_configs)
     return
 
+
+def process_imagenet_resnet34():
+    overall_ds = imgnet_get_ds(5000,256,256,3,1000)
+    securit_task_list = [EnumSecurityType.EnumSecurityType.integrity,
+                         EnumSecurityType.EnumSecurityType.privacy_integrity
+                         ]
+    comp_task_list = [EnumComputationTaskType.EnumComputationTaskType.training,
+                    #   EnumComputationTaskType.EnumComputationTaskType.prediction
+                    ]
+    resnet34_arch_files = [
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet34-train-batch64_gpu1_enc1.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet34-train-batch64_gpu2_enc2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet34-train-batch128_gpu2_enc2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet34-train-batch128_gpu4_enc4.cfg",
+    ]
+    resnet34_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample_resnet/"
+    root_seeds = [0]
+    resnet34_configs = {
+        "name": "resnet34_run_configs",
+        "contents":{
+            "security_t":securit_task_list,
+            "task_t":comp_task_list,
+            "root_seeds":root_seeds,
+            "num_classes":1000,
+            "width":256,
+            "height":256,
+            "channels":3,
+            "combined_ds": overall_ds,
+            "train_ds":None,
+            "test_ds":None,
+            "prediction_ds":None,
+            "acrhs" : resnet34_arch_files,
+            "out_dir":resnet34_out_dir,
+        },
+    }
+    gen_ds_flatbuffs(resnet34_configs)
+    return
+
 if __name__ == "__main__":
     
     #process_cifar_10()
-    process_imagenet_vgg16()
-    
+    # process_imagenet_vgg16()
+    process_imagenet_resnet34()
+
     #pass
     #process_cifar_10()
     #gen_template_task_config("/home/aref/projects/SGX-ADL/test/config/cifar10/cifar10_task_config.bin","/home/aref/projects/SGX-ADL/test/config/cifar10/cifar_small.cfg")

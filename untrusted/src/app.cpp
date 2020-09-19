@@ -1213,14 +1213,18 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
     // forward gpu
     LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
     LOG_DEBUG("Calling forward GPU\n")
+    SET_START_TIMING(GPU_TIMING_FORWARD);
     forward_network_(network_.get());
+    SET_FINISH_TIMING(GPU_TIMING_FORWARD);
     avg_cost += *network_->cost;
     // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     LOG_DEBUG("GPU: finished call forward\n")
     // backward gpu
     LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
     LOG_DEBUG("Calling backward GPU\n")
+    SET_START_TIMING(GPU_TIMING_BACKWARD);
     backward_network_(network_.get());
+    SET_FINISH_TIMING(GPU_TIMING_BACKWARD);
     LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
     if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
       LOG_DEBUG(COLORED_STR(BRIGHT_RED,"GPU Step: average cost for iteration %d is : %f\n"),iteration,avg_cost/(network_->subdivisions * (network_->batch)))
@@ -1289,16 +1293,20 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
       iteration, network_->batch, 0, dec_img_set.size()-1);
     *(network_->seen) += network_->batch;
     // forward gpu
-    // LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
+    LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
     LOG_DEBUG("Calling forward GPU\n")
+    SET_START_TIMING(GPU_TIMING_FORWARD);
+    SET_FINISH_TIMING(GPU_TIMING_FORWARD);
     forward_network_(network_.get());
     avg_cost += *network_->cost;
     // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     // LOG_DEBUG("GPU: finished call forward\n")
     // backward gpu
-    // LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
+    LOG_DEBUG("GPU: starting to call backward for iteration %d\n", iteration)
     LOG_DEBUG("Calling backward GPU\n")
+    SET_START_TIMING(GPU_TIMING_BACKWARD);
     backward_network_(network_.get());
+    SET_FINISH_TIMING(GPU_TIMING_BACKWARD);
     // LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
     if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
       LOG_DEBUG(COLORED_STR(BRIGHT_RED,"GPU Step: average cost for iteration %d is : %f\n"),iteration,avg_cost/(network_->subdivisions * (network_->batch)))
