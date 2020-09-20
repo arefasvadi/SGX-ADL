@@ -1296,8 +1296,8 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
     LOG_DEBUG("GPU: starting to call forward for iteration %d\n", iteration)
     LOG_DEBUG("Calling forward GPU\n")
     SET_START_TIMING(GPU_TIMING_FORWARD);
-    SET_FINISH_TIMING(GPU_TIMING_FORWARD);
     forward_network_(network_.get());
+    SET_FINISH_TIMING(GPU_TIMING_FORWARD);
     avg_cost += *network_->cost;
     // LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     // LOG_DEBUG("GPU: finished call forward\n")

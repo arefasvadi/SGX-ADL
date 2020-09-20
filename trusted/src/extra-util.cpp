@@ -2363,11 +2363,11 @@ float train_verify_in_enclave_frbv(int iteration,network* main_net,network* verf
     setup_iteration_inputs_training(queued_ids,selected_ids,verf_net,iteration,verf_net->batch,0,plain_dataset_size-1);
     *verf_net->seen += verf_net->batch;
     
-    SET_START_TIMING(SGX_TIMING_FORWARD);
     LOG_DEBUG("starting forward_network in train_verify_in_enclave_frbv\n")
+    SET_START_TIMING(SGX_TIMING_FORWARD);
     forward_network(verf_net);
-    LOG_DEBUG("finished forward_network in train_verify_in_enclave_frbv\n")
     SET_FINISH_TIMING(SGX_TIMING_FORWARD);
+    LOG_DEBUG("finished forward_network in train_verify_in_enclave_frbv\n")
     avg_cost += *verf_net->cost;
     LOG_DEBUG("cost sum this subdiv %f\n",avg_cost)
     SET_START_TIMING(SGX_TIMING_BACKWARD);
@@ -2495,53 +2495,59 @@ void preload_MM_outputs_forward(network* net,int iteration,int enclave_subdiv) {
   for(int i=0;i<net->n;++i) {
     layer &l = net->layers[i];
     if (l.type == CONNECTED) {
-      size_t total_elems = l.output->getBufferSize();
-      auto l_output = l.output->getItemsInRange(0, total_elems);
-      size_t start = enclave_subdiv*total_elems*sizeof(float);
-      OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,
-        0,nullptr,0,nullptr,0,
-        start,(uint8_t*)l_output.get(),total_elems*sizeof(float),nullptr,0,
-        0,nullptr,0,nullptr,0);
-      l.output->setItemsInRange(0, total_elems, l_output);
+      for (int batch=0;batch<l.batch;++batch){
+        auto l_output = l.output->getItemsInRange(batch*l.outputs, (batch+1)*l.outputs);
+        size_t start = (enclave_subdiv*l.batch + batch)*l.outputs*sizeof(float);
+        OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,
+          0,nullptr,0,nullptr,0,
+          start,(uint8_t*)l_output.get(),l.outputs*sizeof(float),nullptr,0,
+          0,nullptr,0,nullptr,0);
+        l.output->setItemsInRange(batch*l.outputs, (batch+1)*l.outputs,l_output);
+      }
     }
     else if (l.type == CONVOLUTIONAL) {
-      size_t total_elems = l.output->getBufferSize();
-      auto l_output = l.output->getItemsInRange(0, total_elems);
-      size_t start = enclave_subdiv*total_elems*sizeof(float);
-      OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,
-        0,nullptr,0,nullptr,0,
-        start,(uint8_t*)l_output.get(),total_elems*sizeof(float),nullptr,0,
-        0,nullptr,0,nullptr,0);
-      l.output->setItemsInRange(0, total_elems, l_output);
+      for (int batch=0;batch<l.batch;++batch){
+        auto l_output = l.output->getItemsInRange(batch*l.outputs, (batch+1)*l.outputs);
+        size_t start = (enclave_subdiv*l.batch + batch)*l.outputs*sizeof(float);
+        OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,
+          0,nullptr,0,nullptr,0,
+          start,(uint8_t*)l_output.get(),l.outputs*sizeof(float),nullptr,0,
+          0,nullptr,0,nullptr,0);
+        l.output->setItemsInRange(batch*l.outputs, (batch+1)*l.outputs,l_output);
+      }
     }
   }
 }
 
 void preload_MM_outputs_prev_delta_backward(network* net,int iteration,int enclave_subdiv) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-  for(int i=0;i<net->n;++i) {
+  for(int i=1;i<net->n;++i) {
     layer &l = net->layers[i];
     if (l.type == CONNECTED) {
       // new MM prev delta
-      if (i>=1 && net->layers[i-1].delta) {
-        size_t total_elems = net->layers[i-1].delta->getBufferSize();
-        auto net_delta = net->layers[i-1].delta->getItemsInRange(0, total_elems);
-        size_t start = enclave_subdiv*total_elems*sizeof(float);
-        OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0,
+      if (net->layers[i-1].delta) {
+        size_t total_elems = net->layers[i-1].outputs; // per batch=1
+        for (int batch=0;batch<l.batch;++batch){
+          auto net_delta = net->layers[i-1].delta->getItemsInRange(batch*total_elems, (batch+1)*total_elems);
+          size_t start = (enclave_subdiv*l.batch + batch)*total_elems*sizeof(float);
+          OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0,
           start,(uint8_t*)net_delta.get(),total_elems*sizeof(float),nullptr,0);
-        net->layers[i-1].delta->setItemsInRange(0, total_elems,net_delta);
+          net->layers[i-1].delta->setItemsInRange(batch*total_elems, (batch+1)*total_elems,net_delta);
+        }
       }
     }
     #ifdef CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM
     else if (l.type == CONVOLUTIONAL) {
       // new MM prev delta
-      if (i>=1 && net->layers[i-1].delta) {
-        size_t total_elems = net->layers[i-1].delta->getBufferSize();
-        auto net_delta = net->layers[i-1].delta->getItemsInRange(0, total_elems);
-        size_t start = enclave_subdiv*total_elems*sizeof(float);
-        OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0,
+      if (net->layers[i-1].delta) {
+        size_t total_elems = net->layers[i-1].outputs; // per batch=1
+        for (int batch=0;batch<l.batch;++batch){
+          auto net_delta = net->layers[i-1].delta->getItemsInRange(batch*total_elems, (batch+1)*total_elems);
+          size_t start = (enclave_subdiv*l.batch + batch)*total_elems*sizeof(float);
+          OCALL_LOAD_LAYER_REPRT_FRBMMV(iteration,i,0,nullptr,0,nullptr,0,0,nullptr,0,nullptr,0,
           start,(uint8_t*)net_delta.get(),total_elems*sizeof(float),nullptr,0);
-        net->layers[i-1].delta->setItemsInRange(0, total_elems,net_delta);
+          net->layers[i-1].delta->setItemsInRange(batch*total_elems, (batch+1)*total_elems,net_delta);
+        }
       }
     }
     #endif
@@ -3430,9 +3436,9 @@ void verify_task_frbmmv() {
   if (found_task) {
     LOG_DEBUG("Found the task for iteration %d\n",iteration)
     set_network_batch_randomness(iteration,*verf_network_);
-    LOG_DEBUG("here!re 1\n")
+    // LOG_DEBUG("here!re 1\n")
     setup_layers_iteration_seed(*verf_network_,iteration);
-    LOG_DEBUG("here!re 2\n")
+    // LOG_DEBUG("here!re 2\n")
     if (iteration == 1) {
       // any other iteration except 1st
     }
@@ -3443,10 +3449,10 @@ void verify_task_frbmmv() {
     }
 
     // do forward, backward
-    LOG_DEBUG("here!re 3\n")
+    // LOG_DEBUG("here!re 3\n")
     SET_START_TIMING(SGX_TIMING_ONEPASS);
     auto avg_cost = train_verify_in_enclave_frbmmv(iteration,network_.get(),verf_network_.get());
-    LOG_DEBUG("here!re 4\n")
+    // LOG_DEBUG("here!re 4\n")
     SET_FINISH_TIMING(SGX_TIMING_ONEPASS);
     LOG_DEBUG(COLORED_STR(BRIGHT_RED, "Verification: average cost for iteration %d is : %f\n"),iteration,avg_cost)
     // compare weight updates with with reported ones

@@ -14,20 +14,23 @@
 
 // remmember we're opening a new bracket
 #define SET_START_TIMING(KEY)\
-    SGX_TIMING_FUNC(KEY,(strlen(KEY)+1),1,0);
+    { \
+    SGX_TIMING_FUNC(KEY,(strlen(KEY)+1),1,0);\
+    }
 
 #define SET_FINISH_TIMING(KEY) \
-    SGX_TIMING_FUNC(KEY,(strlen(KEY)+1),0,1);
-
+    {\
+    SGX_TIMING_FUNC(KEY,(strlen(KEY)+1),0,1);\
+    }
 
 #define SGX_TIMING_ONEPASS "SGX train one pass"
 #define SGX_TIMING_FORWARD "SGX forward pass"
 #define SGX_TIMING_BACKWARD "SGX backward pass"
 #define SGX_TIMING_FORWARD_CONV "SGX forward pass conv"
 #define SGX_TIMING_FORWARD_MAXP "SGX forward pass maxp"
-#define SGX_TIMING_FORWARD_CONNCTD "SGX forward pass connected"
+#define SGX_TIMING_FORWARD_CONNCTD "SGX forward pass linear"
 #define SGX_TIMING_BACKWARD_CONV "SGX backward pass conv"
-#define SGX_TIMING_BACKWARD_CONNCTD "SGX backward pass connected"
+#define SGX_TIMING_BACKWARD_CONNCTD "SGX backward pass linear"
 #define SGX_TIMING_BACKWARD_MAXP "SGX backward pass maxp"
 #define SGX_TIMING_OVERALL_TRAINING "SGX overall training"
 
@@ -37,6 +40,8 @@
 #define SGX_TIMING_BACKWARD_CONV_WGRAD_KGT_1 "SGX backward pass conv wgrad kernel>1"
 #define SGX_TIMING_BACKWARD_CONV_INGRAD_KEQ_1 "SGX backward pass conv ingrad kernel=1"
 #define SGX_TIMING_BACKWARD_CONV_INGRAD_KGT_1 "SGX backward pass conv ingrad kernel>1"
+#define SGX_TIMING_BACKWARD_CONNCTD_WGRAD "SGX backward pass linear wgrad"
+#define SGX_TIMING_BACKWARD_CONNCTD_INGRAD "SGX backward pass linear ingrad"
 
 #define SGX_TIMING_CONV_IM2COL "SGX conv im2col"
 #define SGX_TIMING_CONV_COL2IM "SGX conv col2im"
@@ -63,6 +68,8 @@
 #undef SGX_TIMING_BACKWARD_CONV_WGRAD_KGT_1
 #undef SGX_TIMING_BACKWARD_CONV_INGRAD_KEQ_1
 #undef SGX_TIMING_BACKWARD_CONV_INGRAD_KGT_1
+#undef SGX_TIMING_BACKWARD_CONNCTD_WGRAD
+#undef SGX_TIMING_BACKWARD_CONNCTD_INGRAD
 
 #undef SGX_TIMING_CONV_IM2COL
 #undef SGX_TIMING_CONV_COL2IM
