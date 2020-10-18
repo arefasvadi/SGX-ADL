@@ -129,15 +129,15 @@ set(SGX_RMM_ADD_NOISE_CONV_WEIGHTS_CHECK_VERIFICATION_FAILS OFF)
 set(CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM OFF)
 set(CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM ON)
 
-set(EnclaveHeapMinMB 200)
+set(EnclaveHeapMinMB 100)
 set(SGX_AVIALABLE_HEAP_MIN_MB "(${EnclaveHeapMinMB})")
 math(EXPR enclave_heapmin " ${EnclaveHeapMinMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
-set(EnclaveHeapInitMB 200)
+set(EnclaveHeapInitMB 100)
 set(SGX_AVIALABLE_HEAP_INIT_MB "(${EnclaveHeapInitMB})")
 math(EXPR enclave_heapinit " ${EnclaveHeapInitMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
-set(EnclaveHeapMaxMB 200)
+set(EnclaveHeapMaxMB 100)
 set(SGX_AVIALABLE_HEAP_MAX_MB "(${EnclaveHeapMaxMB})")
 math(EXPR enclave_heapmax " ${EnclaveHeapMaxMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
@@ -190,9 +190,9 @@ enclave_config_setter(
   HeapMinSize ${enclave_heapmin}
   HeapInitSize ${enclave_heapinit}
   HeapMaxSize ${enclave_heapmax}
-  TCSNum 12 
-  TCSMinPool 16
-  TCSMaxNum 64
+  TCSNum 16
+  TCSMinPool 12
+  TCSMaxNum 32
   ReservedMemMinSize 0x2000000 
   ReservedMemInitSize 0x2000000
   ReservedMemMaxSize 0x2000000

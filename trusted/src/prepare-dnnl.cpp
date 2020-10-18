@@ -197,6 +197,11 @@ void dynamic_matmul_execute(matmul &matmul_p, char transA, char transB,
 }
 
 
+namespace {
+    matmul dynamic_matmul_0 = dynamic_matmul_create_beta<0>();
+    matmul dynamic_matmul_1 = dynamic_matmul_create_beta<1>();
+}
+
 void primitive_based_sgemm(char transA, char transB, 
         int64_t M,int64_t N, int64_t K,
         float alpha,
@@ -205,19 +210,22 @@ void primitive_based_sgemm(char transA, char transB,
         float beta,
         float* C,int64_t ldc) {
 
-    if (beta !=0.0 && beta !=1.0f) {
-        LOG_ERROR("Run-time beta is not yet supported.");
-        abort();
-    }  
-    matmul dynamic_matmul;
+    // matmul dynamic_matmul;
     if (beta == 0.0f) {
-        dynamic_matmul = dynamic_matmul_create_beta<0>();
+        // dynamic_matmul = dynamic_matmul_create_beta<0>();
+        dynamic_matmul_execute(dynamic_matmul_0, transA, transB, M, N, K, alpha,
+                A, lda, B, ldb, beta,C,ldc);
     }
     else if (beta == 1.0f) {
-        dynamic_matmul = dynamic_matmul_create_beta<1>();
-    }
-    
-    dynamic_matmul_execute(dynamic_matmul, transA, transB, M, N, K, alpha,
+        // dynamic_matmul = dynamic_matmul_create_beta<1>();
+        dynamic_matmul_execute(dynamic_matmul_1, transA, transB, M, N, K, alpha,
                 A, lda, B, ldb, beta,C,ldc);
+    }
+    else {
+        LOG_ERROR("Run-time beta is not yet supported.");
+        abort();
+    }
+    // dynamic_matmul_execute(dynamic_matmul, transA, transB, M, N, K, alpha,
+    //             A, lda, B, ldb, beta,C,ldc);
 }
 #endif

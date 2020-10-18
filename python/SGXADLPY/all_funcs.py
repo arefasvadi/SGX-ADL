@@ -731,6 +731,9 @@ def process_imagenet_vgg16():
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch64_gpu2_enc2.cfg",
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch128_gpu2_enc2.cfg",
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-16-train-batch128_gpu4_enc4.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-19-train-batch64_gpu2_enc2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-19-train-batch64_gpu4_enc4.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/vgg-19-train-batch128_gpu4_enc4.cfg",
     ]
     vgg16_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample_vgg16/"
     root_seeds = [0]
@@ -769,6 +772,11 @@ def process_imagenet_resnet34():
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet34-train-batch64_gpu2_enc2.cfg",
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet34-train-batch128_gpu2_enc2.cfg",
         "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet34-train-batch128_gpu4_enc4.cfg",
+        
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet152-train-batch64_gpu1_enc1.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet152-train-batch64_gpu2_enc2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet152-train-batch128_gpu2_enc2.cfg",
+        "/home/aref/projects/SGX-ADL/test/config/imagenet_sample/resnet152-train-batch128_gpu4_enc4.cfg",
     ]
     resnet34_out_dir = "/home/aref/projects/SGX-ADL/test/config/imagenet_sample_resnet/"
     root_seeds = [0]
@@ -795,8 +803,8 @@ def process_imagenet_resnet34():
 
 if __name__ == "__main__":
     
-    #process_cifar_10()
-    # process_imagenet_vgg16()
+    # process_cifar_10()
+    process_imagenet_vgg16()
     process_imagenet_resnet34()
 
     #pass

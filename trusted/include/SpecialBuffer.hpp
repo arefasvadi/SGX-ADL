@@ -90,6 +90,8 @@ namespace sgx {
       
       int q = buff_len / (interim_buff_len);
       int r = buff_len % (interim_buff_len);
+      
+      #pragma omp parallel for
       for (int i = 0; i < q; ++i) {
         succ = ocall_get_buffer_layerwise(
             id_,
@@ -124,6 +126,8 @@ namespace sgx {
       sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
       int          q                = buff_len / (interim_buff_len);
       int          r                = buff_len % (interim_buff_len);
+      
+      #pragma omp parallel for
       for (int i = 0; i < q; ++i) {
         succ = ocall_set_buffer_layerwise(
             id_,

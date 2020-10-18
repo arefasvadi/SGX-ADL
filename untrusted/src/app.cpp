@@ -414,8 +414,8 @@ initialize_enclave() {
 
   const void *enclave_ex_p[32] = {0};
 
-  us_config.num_uworkers = 4;
-  us_config.num_tworkers = 4;
+  us_config.num_uworkers = 1;
+  us_config.num_tworkers = 1;
 #ifdef MEASURE_SWITCHLESS_TIMING
   us_config.callback_func[3] = &exit_callback;
 #endif
@@ -1226,7 +1226,8 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
     backward_network_(network_.get());
     SET_FINISH_TIMING(GPU_TIMING_BACKWARD);
     LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
-    if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
+    // if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
+    if ((*(network_->seen) % (network_->batch * network_->subdivisions)) == 0) {
       LOG_DEBUG(COLORED_STR(BRIGHT_RED,"GPU Step: average cost for iteration %d is : %f\n"),iteration,avg_cost/(network_->subdivisions * (network_->batch)))
       break;
     }
@@ -1263,7 +1264,6 @@ void train_network_frbv(int iteration,uint8_t *report, size_t report_len) {
     LOG_DEBUG("%s",indices.c_str())
   }
   // std::exit(1);
-
 }
 
 void
@@ -1308,7 +1308,8 @@ void train_network_frbmmv(int iteration,uint8_t *report, size_t report_len) {
     backward_network_(network_.get());
     SET_FINISH_TIMING(GPU_TIMING_BACKWARD);
     // LOG_DEBUG("GPU: finished to call backward for iteration %d\n", iteration)
-    if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
+    // if ((*(network_->seen) / network_->batch) % network_->subdivisions == 0) {
+    if ((*(network_->seen) % (network_->batch * network_->subdivisions)) == 0) {
       LOG_DEBUG(COLORED_STR(BRIGHT_RED,"GPU Step: average cost for iteration %d is : %f\n"),iteration,avg_cost/(network_->subdivisions * (network_->batch)))
       break;
     }
