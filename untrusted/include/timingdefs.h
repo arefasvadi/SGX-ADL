@@ -11,10 +11,14 @@
 
 // remmember we're opening a new bracket
 #define SET_START_TIMING(KEY)\
-    GPU_TIMING_FUNC(KEY,(strlen(KEY)+1),1,0);
+    { \
+    GPU_TIMING_FUNC(KEY,(strlen(KEY)+1),1,0);\
+    }
 
 #define SET_FINISH_TIMING(KEY) \
-    GPU_TIMING_FUNC(KEY,(strlen(KEY)+1),0,1);
+    { \
+    GPU_TIMING_FUNC(KEY,(strlen(KEY)+1),0,1); \
+    }
 
 #define GPU_TIMING_ONEPASS "GPU train one pass"
 #define GPU_TIMING_FORWARD "GPU forward pass"
