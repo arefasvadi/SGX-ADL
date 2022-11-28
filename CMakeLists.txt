@@ -45,7 +45,7 @@ set(CMAKE_CUDA_STANDARD 14)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Flatbuffers REQUIRED)
-find_package(Torch HINTS /usr/local/lib/python3.6/dist-packages/torch/share/cmake REQUIRED)
+# find_package(Torch HINTS /usr/local/lib/python3.6/dist-packages/torch/share/cmake REQUIRED)
 #find_library(SSL_LIB libssl.a REQUIRED)
 #find_library(CRYPTO_LIB libcrypto.a REQUIRED)
 
