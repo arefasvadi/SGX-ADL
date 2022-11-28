@@ -6,100 +6,20 @@
 
 #include "flatbuffers/flatbuffers.h"
 
-struct SingleUnitParamSet;
-struct SingleUnitParamSetT;
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
+#include "singleunitparamset_generated.h"
 
 struct MultipleUnitParamSet;
-struct MultipleUnitParamSetT;
-
-inline const flatbuffers::TypeTable *SingleUnitParamSetTypeTable();
-
-inline const flatbuffers::TypeTable *MultipleUnitParamSetTypeTable();
-
-struct SingleUnitParamSetT : public flatbuffers::NativeTable {
-  typedef SingleUnitParamSet TableType;
-  std::vector<float> param_content;
-  SingleUnitParamSetT() {
-  }
-};
-
-struct SingleUnitParamSet FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef SingleUnitParamSetT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return SingleUnitParamSetTypeTable();
-  }
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_PARAM_CONTENT = 4
-  };
-  const flatbuffers::Vector<float> *param_content() const {
-    return GetPointer<const flatbuffers::Vector<float> *>(VT_PARAM_CONTENT);
-  }
-  flatbuffers::Vector<float> *mutable_param_content() {
-    return GetPointer<flatbuffers::Vector<float> *>(VT_PARAM_CONTENT);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_PARAM_CONTENT) &&
-           verifier.VerifyVector(param_content()) &&
-           verifier.EndTable();
-  }
-  SingleUnitParamSetT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(SingleUnitParamSetT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<SingleUnitParamSet> Pack(flatbuffers::FlatBufferBuilder &_fbb, const SingleUnitParamSetT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct SingleUnitParamSetBuilder {
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_param_content(flatbuffers::Offset<flatbuffers::Vector<float>> param_content) {
-    fbb_.AddOffset(SingleUnitParamSet::VT_PARAM_CONTENT, param_content);
-  }
-  explicit SingleUnitParamSetBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  SingleUnitParamSetBuilder &operator=(const SingleUnitParamSetBuilder &);
-  flatbuffers::Offset<SingleUnitParamSet> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<SingleUnitParamSet>(end);
-    fbb_.Required(o, SingleUnitParamSet::VT_PARAM_CONTENT);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<SingleUnitParamSet> CreateSingleUnitParamSet(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::Vector<float>> param_content = 0) {
-  SingleUnitParamSetBuilder builder_(_fbb);
-  builder_.add_param_content(param_content);
-  return builder_.Finish();
-}
-
-inline flatbuffers::Offset<SingleUnitParamSet> CreateSingleUnitParamSetDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<float> *param_content = nullptr) {
-  auto param_content__ = param_content ? _fbb.CreateVector<float>(*param_content) : 0;
-  return CreateSingleUnitParamSet(
-      _fbb,
-      param_content__);
-}
-
-flatbuffers::Offset<SingleUnitParamSet> CreateSingleUnitParamSet(flatbuffers::FlatBufferBuilder &_fbb, const SingleUnitParamSetT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct MultipleUnitParamSetT : public flatbuffers::NativeTable {
-  typedef MultipleUnitParamSet TableType;
-  uint32_t total_sections;
-  std::vector<std::unique_ptr<SingleUnitParamSetT>> sections;
-  MultipleUnitParamSetT()
-      : total_sections(0) {
-  }
-};
+struct MultipleUnitParamSetBuilder;
 
 struct MultipleUnitParamSet FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef MultipleUnitParamSetT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return MultipleUnitParamSetTypeTable();
-  }
+  typedef MultipleUnitParamSetBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_TOTAL_SECTIONS = 4,
     VT_SECTIONS = 6
@@ -107,7 +27,7 @@ struct MultipleUnitParamSet FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table
   uint32_t total_sections() const {
     return GetField<uint32_t>(VT_TOTAL_SECTIONS, 0);
   }
-  bool mutate_total_sections(uint32_t _total_sections) {
+  bool mutate_total_sections(uint32_t _total_sections = 0) {
     return SetField<uint32_t>(VT_TOTAL_SECTIONS, _total_sections, 0);
   }
   const flatbuffers::Vector<flatbuffers::Offset<SingleUnitParamSet>> *sections() const {
@@ -118,18 +38,16 @@ struct MultipleUnitParamSet FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_TOTAL_SECTIONS) &&
+           VerifyField<uint32_t>(verifier, VT_TOTAL_SECTIONS, 4) &&
            VerifyOffsetRequired(verifier, VT_SECTIONS) &&
            verifier.VerifyVector(sections()) &&
            verifier.VerifyVectorOfTables(sections()) &&
            verifier.EndTable();
   }
-  MultipleUnitParamSetT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(MultipleUnitParamSetT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<MultipleUnitParamSet> Pack(flatbuffers::FlatBufferBuilder &_fbb, const MultipleUnitParamSetT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct MultipleUnitParamSetBuilder {
+  typedef MultipleUnitParamSet Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_total_sections(uint32_t total_sections) {
@@ -142,7 +60,6 @@ struct MultipleUnitParamSetBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  MultipleUnitParamSetBuilder &operator=(const MultipleUnitParamSetBuilder &);
   flatbuffers::Offset<MultipleUnitParamSet> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<MultipleUnitParamSet>(end);
@@ -172,87 +89,6 @@ inline flatbuffers::Offset<MultipleUnitParamSet> CreateMultipleUnitParamSetDirec
       sections__);
 }
 
-flatbuffers::Offset<MultipleUnitParamSet> CreateMultipleUnitParamSet(flatbuffers::FlatBufferBuilder &_fbb, const MultipleUnitParamSetT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline SingleUnitParamSetT *SingleUnitParamSet::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new SingleUnitParamSetT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void SingleUnitParamSet::UnPackTo(SingleUnitParamSetT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = param_content(); if (_e) { _o->param_content.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->param_content[_i] = _e->Get(_i); } } }
-}
-
-inline flatbuffers::Offset<SingleUnitParamSet> SingleUnitParamSet::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SingleUnitParamSetT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateSingleUnitParamSet(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<SingleUnitParamSet> CreateSingleUnitParamSet(flatbuffers::FlatBufferBuilder &_fbb, const SingleUnitParamSetT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const SingleUnitParamSetT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _param_content = _fbb.CreateVector(_o->param_content);
-  return CreateSingleUnitParamSet(
-      _fbb,
-      _param_content);
-}
-
-inline MultipleUnitParamSetT *MultipleUnitParamSet::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new MultipleUnitParamSetT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void MultipleUnitParamSet::UnPackTo(MultipleUnitParamSetT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = total_sections(); _o->total_sections = _e; }
-  { auto _e = sections(); if (_e) { _o->sections.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->sections[_i] = std::unique_ptr<SingleUnitParamSetT>(_e->Get(_i)->UnPack(_resolver)); } } }
-}
-
-inline flatbuffers::Offset<MultipleUnitParamSet> MultipleUnitParamSet::Pack(flatbuffers::FlatBufferBuilder &_fbb, const MultipleUnitParamSetT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateMultipleUnitParamSet(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<MultipleUnitParamSet> CreateMultipleUnitParamSet(flatbuffers::FlatBufferBuilder &_fbb, const MultipleUnitParamSetT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const MultipleUnitParamSetT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _total_sections = _o->total_sections;
-  auto _sections = _fbb.CreateVector<flatbuffers::Offset<SingleUnitParamSet>> (_o->sections.size(), [](size_t i, _VectorArgs *__va) { return CreateSingleUnitParamSet(*__va->__fbb, __va->__o->sections[i].get(), __va->__rehasher); }, &_va );
-  return CreateMultipleUnitParamSet(
-      _fbb,
-      _total_sections,
-      _sections);
-}
-
-inline const flatbuffers::TypeTable *SingleUnitParamSetTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_FLOAT, 1, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 1, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *MultipleUnitParamSetTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_UINT, 0, -1 },
-    { flatbuffers::ET_SEQUENCE, 1, 0 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    SingleUnitParamSetTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 2, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
-}
-
 inline const MultipleUnitParamSet *GetMultipleUnitParamSet(const void *buf) {
   return flatbuffers::GetRoot<MultipleUnitParamSet>(buf);
 }
@@ -263,6 +99,10 @@ inline const MultipleUnitParamSet *GetSizePrefixedMultipleUnitParamSet(const voi
 
 inline MultipleUnitParamSet *GetMutableMultipleUnitParamSet(void *buf) {
   return flatbuffers::GetMutableRoot<MultipleUnitParamSet>(buf);
+}
+
+inline MultipleUnitParamSet *GetMutableSizePrefixedMultipleUnitParamSet(void *buf) {
+  return flatbuffers::GetMutableSizePrefixedRoot<MultipleUnitParamSet>(buf);
 }
 
 inline bool VerifyMultipleUnitParamSetBuffer(
@@ -285,18 +125,6 @@ inline void FinishSizePrefixedMultipleUnitParamSetBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<MultipleUnitParamSet> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<MultipleUnitParamSetT> UnPackMultipleUnitParamSet(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<MultipleUnitParamSetT>(GetMultipleUnitParamSet(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<MultipleUnitParamSetT> UnPackSizePrefixedMultipleUnitParamSet(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<MultipleUnitParamSetT>(GetSizePrefixedMultipleUnitParamSet(buf)->UnPack(res));
 }
 
 #endif  // FLATBUFFERS_GENERATED_MULTIPLEUNITPARAMSET_H_

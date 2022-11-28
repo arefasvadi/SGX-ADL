@@ -6,23 +6,18 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
 struct PlainImage;
-struct PlainImageT;
-
-inline const flatbuffers::TypeTable *PlainImageTypeTable();
-
-struct PlainImageT : public flatbuffers::NativeTable {
-  typedef PlainImage TableType;
-  std::vector<float> img_content;
-  PlainImageT() {
-  }
-};
+struct PlainImageBuilder;
 
 struct PlainImage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PlainImageT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return PlainImageTypeTable();
-  }
+  typedef PlainImageBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_IMG_CONTENT = 4
   };
@@ -38,12 +33,10 @@ struct PlainImage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVector(img_content()) &&
            verifier.EndTable();
   }
-  PlainImageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PlainImageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PlainImage> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct PlainImageBuilder {
+  typedef PlainImage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_img_content(flatbuffers::Offset<flatbuffers::Vector<float>> img_content) {
@@ -53,7 +46,6 @@ struct PlainImageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  PlainImageBuilder &operator=(const PlainImageBuilder &);
   flatbuffers::Offset<PlainImage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<PlainImage>(end);
@@ -79,44 +71,6 @@ inline flatbuffers::Offset<PlainImage> CreatePlainImageDirect(
       img_content__);
 }
 
-flatbuffers::Offset<PlainImage> CreatePlainImage(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline PlainImageT *PlainImage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new PlainImageT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void PlainImage::UnPackTo(PlainImageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = img_content(); if (_e) { _o->img_content.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->img_content[_i] = _e->Get(_i); } } }
-}
-
-inline flatbuffers::Offset<PlainImage> PlainImage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePlainImage(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<PlainImage> CreatePlainImage(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PlainImageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _img_content = _fbb.CreateVector(_o->img_content);
-  return CreatePlainImage(
-      _fbb,
-      _img_content);
-}
-
-inline const flatbuffers::TypeTable *PlainImageTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_FLOAT, 1, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 1, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
 inline const PlainImage *GetPlainImage(const void *buf) {
   return flatbuffers::GetRoot<PlainImage>(buf);
 }
@@ -127,6 +81,10 @@ inline const PlainImage *GetSizePrefixedPlainImage(const void *buf) {
 
 inline PlainImage *GetMutablePlainImage(void *buf) {
   return flatbuffers::GetMutableRoot<PlainImage>(buf);
+}
+
+inline PlainImage *GetMutableSizePrefixedPlainImage(void *buf) {
+  return flatbuffers::GetMutableSizePrefixedRoot<PlainImage>(buf);
 }
 
 inline bool VerifyPlainImageBuffer(
@@ -149,18 +107,6 @@ inline void FinishSizePrefixedPlainImageBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<PlainImage> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<PlainImageT> UnPackPlainImage(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<PlainImageT>(GetPlainImage(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<PlainImageT> UnPackSizePrefixedPlainImage(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<PlainImageT>(GetSizePrefixedPlainImage(buf)->UnPack(res));
 }
 
 #endif  // FLATBUFFERS_GENERATED_PLAINIMAGE_H_

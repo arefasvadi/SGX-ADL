@@ -6,346 +6,33 @@
 
 #include "flatbuffers/flatbuffers.h"
 
-struct PlainImageMeta;
-struct PlainImageMetaT;
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
 
-struct PlainLabelMeta;
-struct PlainLabelMetaT;
-
-struct PlainImageLabelMeta;
-struct PlainImageLabelMetaT;
+#include "enums_generated.h"
+#include "plainimagelabelmeta_generated.h"
 
 struct DataConfig;
-struct DataConfigT;
+struct DataConfigBuilder;
 
 struct TrainLocationsConfigs;
-struct TrainLocationsConfigsT;
+struct TrainLocationsConfigsBuilder;
 
 struct PredictLocationsConfigs;
-struct PredictLocationsConfigsT;
+struct PredictLocationsConfigsBuilder;
 
 struct ArchConfig;
-struct ArchConfigT;
+struct ArchConfigBuilder;
 
 struct TaskConfig;
-struct TaskConfigT;
-
-inline const flatbuffers::TypeTable *PlainImageMetaTypeTable();
-
-inline const flatbuffers::TypeTable *PlainLabelMetaTypeTable();
-
-inline const flatbuffers::TypeTable *PlainImageLabelMetaTypeTable();
-
-inline const flatbuffers::TypeTable *DataConfigTypeTable();
-
-inline const flatbuffers::TypeTable *TrainLocationsConfigsTypeTable();
-
-inline const flatbuffers::TypeTable *PredictLocationsConfigsTypeTable();
-
-inline const flatbuffers::TypeTable *ArchConfigTypeTable();
-
-inline const flatbuffers::TypeTable *TaskConfigTypeTable();
-
-enum EnumSecurityType {
-  EnumSecurityType_integrity = 0,
-  EnumSecurityType_privacy_integrity = 1,
-  EnumSecurityType_MIN = EnumSecurityType_integrity,
-  EnumSecurityType_MAX = EnumSecurityType_privacy_integrity
-};
-
-inline const EnumSecurityType (&EnumValuesEnumSecurityType())[2] {
-  static const EnumSecurityType values[] = {
-    EnumSecurityType_integrity,
-    EnumSecurityType_privacy_integrity
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesEnumSecurityType() {
-  static const char * const names[3] = {
-    "integrity",
-    "privacy_integrity",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameEnumSecurityType(EnumSecurityType e) {
-  if (e < EnumSecurityType_integrity || e > EnumSecurityType_privacy_integrity) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesEnumSecurityType()[index];
-}
-
-enum EnumComputationTaskType {
-  EnumComputationTaskType_training = 0,
-  EnumComputationTaskType_prediction = 1,
-  EnumComputationTaskType_MIN = EnumComputationTaskType_training,
-  EnumComputationTaskType_MAX = EnumComputationTaskType_prediction
-};
-
-inline const EnumComputationTaskType (&EnumValuesEnumComputationTaskType())[2] {
-  static const EnumComputationTaskType values[] = {
-    EnumComputationTaskType_training,
-    EnumComputationTaskType_prediction
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesEnumComputationTaskType() {
-  static const char * const names[3] = {
-    "training",
-    "prediction",
-    nullptr
-  };
-  return names;
-}
-
-inline const char *EnumNameEnumComputationTaskType(EnumComputationTaskType e) {
-  if (e < EnumComputationTaskType_training || e > EnumComputationTaskType_prediction) return "";
-  const size_t index = static_cast<size_t>(e);
-  return EnumNamesEnumComputationTaskType()[index];
-}
-
-struct PlainImageMetaT : public flatbuffers::NativeTable {
-  typedef PlainImageMeta TableType;
-  int32_t width;
-  int32_t height;
-  int32_t channels;
-  PlainImageMetaT()
-      : width(0),
-        height(0),
-        channels(0) {
-  }
-};
-
-struct PlainImageMeta FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PlainImageMetaT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return PlainImageMetaTypeTable();
-  }
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_WIDTH = 4,
-    VT_HEIGHT = 6,
-    VT_CHANNELS = 8
-  };
-  int32_t width() const {
-    return GetField<int32_t>(VT_WIDTH, 0);
-  }
-  bool mutate_width(int32_t _width) {
-    return SetField<int32_t>(VT_WIDTH, _width, 0);
-  }
-  int32_t height() const {
-    return GetField<int32_t>(VT_HEIGHT, 0);
-  }
-  bool mutate_height(int32_t _height) {
-    return SetField<int32_t>(VT_HEIGHT, _height, 0);
-  }
-  int32_t channels() const {
-    return GetField<int32_t>(VT_CHANNELS, 0);
-  }
-  bool mutate_channels(int32_t _channels) {
-    return SetField<int32_t>(VT_CHANNELS, _channels, 0);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_WIDTH) &&
-           VerifyField<int32_t>(verifier, VT_HEIGHT) &&
-           VerifyField<int32_t>(verifier, VT_CHANNELS) &&
-           verifier.EndTable();
-  }
-  PlainImageMetaT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PlainImageMetaT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PlainImageMeta> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct PlainImageMetaBuilder {
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_width(int32_t width) {
-    fbb_.AddElement<int32_t>(PlainImageMeta::VT_WIDTH, width, 0);
-  }
-  void add_height(int32_t height) {
-    fbb_.AddElement<int32_t>(PlainImageMeta::VT_HEIGHT, height, 0);
-  }
-  void add_channels(int32_t channels) {
-    fbb_.AddElement<int32_t>(PlainImageMeta::VT_CHANNELS, channels, 0);
-  }
-  explicit PlainImageMetaBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  PlainImageMetaBuilder &operator=(const PlainImageMetaBuilder &);
-  flatbuffers::Offset<PlainImageMeta> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<PlainImageMeta>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<PlainImageMeta> CreatePlainImageMeta(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t width = 0,
-    int32_t height = 0,
-    int32_t channels = 0) {
-  PlainImageMetaBuilder builder_(_fbb);
-  builder_.add_channels(channels);
-  builder_.add_height(height);
-  builder_.add_width(width);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<PlainImageMeta> CreatePlainImageMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct PlainLabelMetaT : public flatbuffers::NativeTable {
-  typedef PlainLabelMeta TableType;
-  int32_t numClasses;
-  PlainLabelMetaT()
-      : numClasses(0) {
-  }
-};
-
-struct PlainLabelMeta FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PlainLabelMetaT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return PlainLabelMetaTypeTable();
-  }
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_NUMCLASSES = 4
-  };
-  int32_t numClasses() const {
-    return GetField<int32_t>(VT_NUMCLASSES, 0);
-  }
-  bool mutate_numClasses(int32_t _numClasses) {
-    return SetField<int32_t>(VT_NUMCLASSES, _numClasses, 0);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_NUMCLASSES) &&
-           verifier.EndTable();
-  }
-  PlainLabelMetaT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PlainLabelMetaT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PlainLabelMeta> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainLabelMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct PlainLabelMetaBuilder {
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_numClasses(int32_t numClasses) {
-    fbb_.AddElement<int32_t>(PlainLabelMeta::VT_NUMCLASSES, numClasses, 0);
-  }
-  explicit PlainLabelMetaBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  PlainLabelMetaBuilder &operator=(const PlainLabelMetaBuilder &);
-  flatbuffers::Offset<PlainLabelMeta> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<PlainLabelMeta>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<PlainLabelMeta> CreatePlainLabelMeta(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    int32_t numClasses = 0) {
-  PlainLabelMetaBuilder builder_(_fbb);
-  builder_.add_numClasses(numClasses);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<PlainLabelMeta> CreatePlainLabelMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainLabelMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct PlainImageLabelMetaT : public flatbuffers::NativeTable {
-  typedef PlainImageLabelMeta TableType;
-  std::unique_ptr<PlainImageMetaT> image_meta;
-  std::unique_ptr<PlainLabelMetaT> label_meta;
-  PlainImageLabelMetaT() {
-  }
-};
-
-struct PlainImageLabelMeta FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PlainImageLabelMetaT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return PlainImageLabelMetaTypeTable();
-  }
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_IMAGE_META = 4,
-    VT_LABEL_META = 6
-  };
-  const PlainImageMeta *image_meta() const {
-    return GetPointer<const PlainImageMeta *>(VT_IMAGE_META);
-  }
-  PlainImageMeta *mutable_image_meta() {
-    return GetPointer<PlainImageMeta *>(VT_IMAGE_META);
-  }
-  const PlainLabelMeta *label_meta() const {
-    return GetPointer<const PlainLabelMeta *>(VT_LABEL_META);
-  }
-  PlainLabelMeta *mutable_label_meta() {
-    return GetPointer<PlainLabelMeta *>(VT_LABEL_META);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_IMAGE_META) &&
-           verifier.VerifyTable(image_meta()) &&
-           VerifyOffset(verifier, VT_LABEL_META) &&
-           verifier.VerifyTable(label_meta()) &&
-           verifier.EndTable();
-  }
-  PlainImageLabelMetaT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PlainImageLabelMetaT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PlainImageLabelMeta> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct PlainImageLabelMetaBuilder {
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_image_meta(flatbuffers::Offset<PlainImageMeta> image_meta) {
-    fbb_.AddOffset(PlainImageLabelMeta::VT_IMAGE_META, image_meta);
-  }
-  void add_label_meta(flatbuffers::Offset<PlainLabelMeta> label_meta) {
-    fbb_.AddOffset(PlainImageLabelMeta::VT_LABEL_META, label_meta);
-  }
-  explicit PlainImageLabelMetaBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  PlainImageLabelMetaBuilder &operator=(const PlainImageLabelMetaBuilder &);
-  flatbuffers::Offset<PlainImageLabelMeta> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<PlainImageLabelMeta>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<PlainImageLabelMeta> CreatePlainImageLabelMeta(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<PlainImageMeta> image_meta = 0,
-    flatbuffers::Offset<PlainLabelMeta> label_meta = 0) {
-  PlainImageLabelMetaBuilder builder_(_fbb);
-  builder_.add_label_meta(label_meta);
-  builder_.add_image_meta(image_meta);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<PlainImageLabelMeta> CreatePlainImageLabelMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct DataConfigT : public flatbuffers::NativeTable {
-  typedef DataConfig TableType;
-  int32_t dataset_size;
-  std::unique_ptr<PlainImageLabelMetaT> img_label_meta;
-  std::vector<uint8_t> dataset_sha256;
-  DataConfigT()
-      : dataset_size(0) {
-  }
-};
+struct TaskConfigBuilder;
 
 struct DataConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef DataConfigT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return DataConfigTypeTable();
-  }
+  typedef DataConfigBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_DATASET_SIZE = 4,
     VT_IMG_LABEL_META = 6,
@@ -354,7 +41,7 @@ struct DataConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   int32_t dataset_size() const {
     return GetField<int32_t>(VT_DATASET_SIZE, 0);
   }
-  bool mutate_dataset_size(int32_t _dataset_size) {
+  bool mutate_dataset_size(int32_t _dataset_size = 0) {
     return SetField<int32_t>(VT_DATASET_SIZE, _dataset_size, 0);
   }
   const PlainImageLabelMeta *img_label_meta() const {
@@ -371,19 +58,17 @@ struct DataConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_DATASET_SIZE) &&
+           VerifyField<int32_t>(verifier, VT_DATASET_SIZE, 4) &&
            VerifyOffsetRequired(verifier, VT_IMG_LABEL_META) &&
            verifier.VerifyTable(img_label_meta()) &&
            VerifyOffsetRequired(verifier, VT_DATASET_SHA256) &&
            verifier.VerifyVector(dataset_sha256()) &&
            verifier.EndTable();
   }
-  DataConfigT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(DataConfigT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<DataConfig> Pack(flatbuffers::FlatBufferBuilder &_fbb, const DataConfigT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct DataConfigBuilder {
+  typedef DataConfig Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_dataset_size(int32_t dataset_size) {
@@ -399,7 +84,6 @@ struct DataConfigBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  DataConfigBuilder &operator=(const DataConfigBuilder &);
   flatbuffers::Offset<DataConfig> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<DataConfig>(end);
@@ -434,32 +118,8 @@ inline flatbuffers::Offset<DataConfig> CreateDataConfigDirect(
       dataset_sha256__);
 }
 
-flatbuffers::Offset<DataConfig> CreateDataConfig(flatbuffers::FlatBufferBuilder &_fbb, const DataConfigT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct TrainLocationsConfigsT : public flatbuffers::NativeTable {
-  typedef TrainLocationsConfigs TableType;
-  std::string dataset_dir;
-  std::string dec_dataset_dir;
-  std::string network_arch_path;
-  std::string weights_save_dir;
-  std::string weights_backup_dir;
-  std::string snapshot_dir;
-  std::string client_pk_sig_file;
-  std::string sgx_sk_sig_file;
-  std::string sgx_pk_sig_file;
-  std::string signed_task_config_path;
-  std::string client_aes_gcm_key_file;
-  std::string sgx_aes_gcm_key_file;
-  std::string data_config_path;
-  TrainLocationsConfigsT() {
-  }
-};
-
 struct TrainLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef TrainLocationsConfigsT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return TrainLocationsConfigsTypeTable();
-  }
+  typedef TrainLocationsConfigsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_DATASET_DIR = 4,
     VT_DEC_DATASET_DIR = 6,
@@ -583,12 +243,10 @@ struct TrainLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Tabl
            verifier.VerifyString(data_config_path()) &&
            verifier.EndTable();
   }
-  TrainLocationsConfigsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(TrainLocationsConfigsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<TrainLocationsConfigs> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TrainLocationsConfigsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct TrainLocationsConfigsBuilder {
+  typedef TrainLocationsConfigs Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_dataset_dir(flatbuffers::Offset<flatbuffers::String> dataset_dir) {
@@ -634,7 +292,6 @@ struct TrainLocationsConfigsBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  TrainLocationsConfigsBuilder &operator=(const TrainLocationsConfigsBuilder &);
   flatbuffers::Offset<TrainLocationsConfigs> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<TrainLocationsConfigs>(end);
@@ -732,32 +389,8 @@ inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigsDir
       data_config_path__);
 }
 
-flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigs(flatbuffers::FlatBufferBuilder &_fbb, const TrainLocationsConfigsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct PredictLocationsConfigsT : public flatbuffers::NativeTable {
-  typedef PredictLocationsConfigs TableType;
-  std::string dataset_dir;
-  std::string dec_dataset_dir;
-  std::string network_arch_path;
-  std::string weights_load_dir;
-  std::string preds_save_dir;
-  std::string snapshot_dir;
-  std::string client_pk_sig_file;
-  std::string sgx_sk_sig_file;
-  std::string sgx_pk_sig_file;
-  std::string signed_task_config_path;
-  std::string client_aes_gcm_key_file;
-  std::string sgx_aes_gcm_key_file;
-  std::string data_config_path;
-  PredictLocationsConfigsT() {
-  }
-};
-
 struct PredictLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PredictLocationsConfigsT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return PredictLocationsConfigsTypeTable();
-  }
+  typedef PredictLocationsConfigsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_DATASET_DIR = 4,
     VT_DEC_DATASET_DIR = 6,
@@ -881,12 +514,10 @@ struct PredictLocationsConfigs FLATBUFFERS_FINAL_CLASS : private flatbuffers::Ta
            verifier.VerifyString(data_config_path()) &&
            verifier.EndTable();
   }
-  PredictLocationsConfigsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PredictLocationsConfigsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PredictLocationsConfigs> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PredictLocationsConfigsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct PredictLocationsConfigsBuilder {
+  typedef PredictLocationsConfigs Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_dataset_dir(flatbuffers::Offset<flatbuffers::String> dataset_dir) {
@@ -932,7 +563,6 @@ struct PredictLocationsConfigsBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  PredictLocationsConfigsBuilder &operator=(const PredictLocationsConfigsBuilder &);
   flatbuffers::Offset<PredictLocationsConfigs> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<PredictLocationsConfigs>(end);
@@ -1030,21 +660,8 @@ inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfig
       data_config_path__);
 }
 
-flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfigs(flatbuffers::FlatBufferBuilder &_fbb, const PredictLocationsConfigsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct ArchConfigT : public flatbuffers::NativeTable {
-  typedef ArchConfig TableType;
-  std::vector<uint8_t> contents;
-  std::vector<uint8_t> network_sha_256;
-  ArchConfigT() {
-  }
-};
-
 struct ArchConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef ArchConfigT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return ArchConfigTypeTable();
-  }
+  typedef ArchConfigBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_CONTENTS = 4,
     VT_NETWORK_SHA_256 = 6
@@ -1069,12 +686,10 @@ struct ArchConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVector(network_sha_256()) &&
            verifier.EndTable();
   }
-  ArchConfigT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(ArchConfigT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<ArchConfig> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ArchConfigT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct ArchConfigBuilder {
+  typedef ArchConfig Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_contents(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> contents) {
@@ -1087,7 +702,6 @@ struct ArchConfigBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  ArchConfigBuilder &operator=(const ArchConfigBuilder &);
   flatbuffers::Offset<ArchConfig> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<ArchConfig>(end);
@@ -1119,27 +733,8 @@ inline flatbuffers::Offset<ArchConfig> CreateArchConfigDirect(
       network_sha_256__);
 }
 
-flatbuffers::Offset<ArchConfig> CreateArchConfig(flatbuffers::FlatBufferBuilder &_fbb, const ArchConfigT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct TaskConfigT : public flatbuffers::NativeTable {
-  typedef TaskConfig TableType;
-  EnumSecurityType security_type;
-  EnumComputationTaskType task_type;
-  std::vector<uint8_t> arch_config_sha256;
-  std::vector<uint8_t> dataset_sha256;
-  int64_t pub_root_rand_seed;
-  TaskConfigT()
-      : security_type(EnumSecurityType_integrity),
-        task_type(EnumComputationTaskType_training),
-        pub_root_rand_seed(0) {
-  }
-};
-
 struct TaskConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef TaskConfigT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return TaskConfigTypeTable();
-  }
+  typedef TaskConfigBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SECURITY_TYPE = 4,
     VT_TASK_TYPE = 6,
@@ -1150,13 +745,13 @@ struct TaskConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   EnumSecurityType security_type() const {
     return static_cast<EnumSecurityType>(GetField<int16_t>(VT_SECURITY_TYPE, 0));
   }
-  bool mutate_security_type(EnumSecurityType _security_type) {
+  bool mutate_security_type(EnumSecurityType _security_type = static_cast<EnumSecurityType>(0)) {
     return SetField<int16_t>(VT_SECURITY_TYPE, static_cast<int16_t>(_security_type), 0);
   }
   EnumComputationTaskType task_type() const {
     return static_cast<EnumComputationTaskType>(GetField<int16_t>(VT_TASK_TYPE, 0));
   }
-  bool mutate_task_type(EnumComputationTaskType _task_type) {
+  bool mutate_task_type(EnumComputationTaskType _task_type = static_cast<EnumComputationTaskType>(0)) {
     return SetField<int16_t>(VT_TASK_TYPE, static_cast<int16_t>(_task_type), 0);
   }
   const flatbuffers::Vector<uint8_t> *arch_config_sha256() const {
@@ -1174,26 +769,24 @@ struct TaskConfig FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   int64_t pub_root_rand_seed() const {
     return GetField<int64_t>(VT_PUB_ROOT_RAND_SEED, 0);
   }
-  bool mutate_pub_root_rand_seed(int64_t _pub_root_rand_seed) {
+  bool mutate_pub_root_rand_seed(int64_t _pub_root_rand_seed = 0) {
     return SetField<int64_t>(VT_PUB_ROOT_RAND_SEED, _pub_root_rand_seed, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int16_t>(verifier, VT_SECURITY_TYPE) &&
-           VerifyField<int16_t>(verifier, VT_TASK_TYPE) &&
+           VerifyField<int16_t>(verifier, VT_SECURITY_TYPE, 2) &&
+           VerifyField<int16_t>(verifier, VT_TASK_TYPE, 2) &&
            VerifyOffsetRequired(verifier, VT_ARCH_CONFIG_SHA256) &&
            verifier.VerifyVector(arch_config_sha256()) &&
            VerifyOffsetRequired(verifier, VT_DATASET_SHA256) &&
            verifier.VerifyVector(dataset_sha256()) &&
-           VerifyField<int64_t>(verifier, VT_PUB_ROOT_RAND_SEED) &&
+           VerifyField<int64_t>(verifier, VT_PUB_ROOT_RAND_SEED, 8) &&
            verifier.EndTable();
   }
-  TaskConfigT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(TaskConfigT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<TaskConfig> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TaskConfigT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct TaskConfigBuilder {
+  typedef TaskConfig Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_security_type(EnumSecurityType security_type) {
@@ -1215,7 +808,6 @@ struct TaskConfigBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  TaskConfigBuilder &operator=(const TaskConfigBuilder &);
   flatbuffers::Offset<TaskConfig> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<TaskConfig>(end);
@@ -1259,471 +851,6 @@ inline flatbuffers::Offset<TaskConfig> CreateTaskConfigDirect(
       pub_root_rand_seed);
 }
 
-flatbuffers::Offset<TaskConfig> CreateTaskConfig(flatbuffers::FlatBufferBuilder &_fbb, const TaskConfigT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline PlainImageMetaT *PlainImageMeta::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new PlainImageMetaT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void PlainImageMeta::UnPackTo(PlainImageMetaT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = width(); _o->width = _e; }
-  { auto _e = height(); _o->height = _e; }
-  { auto _e = channels(); _o->channels = _e; }
-}
-
-inline flatbuffers::Offset<PlainImageMeta> PlainImageMeta::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePlainImageMeta(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<PlainImageMeta> CreatePlainImageMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PlainImageMetaT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _width = _o->width;
-  auto _height = _o->height;
-  auto _channels = _o->channels;
-  return CreatePlainImageMeta(
-      _fbb,
-      _width,
-      _height,
-      _channels);
-}
-
-inline PlainLabelMetaT *PlainLabelMeta::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new PlainLabelMetaT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void PlainLabelMeta::UnPackTo(PlainLabelMetaT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = numClasses(); _o->numClasses = _e; }
-}
-
-inline flatbuffers::Offset<PlainLabelMeta> PlainLabelMeta::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainLabelMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePlainLabelMeta(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<PlainLabelMeta> CreatePlainLabelMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainLabelMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PlainLabelMetaT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _numClasses = _o->numClasses;
-  return CreatePlainLabelMeta(
-      _fbb,
-      _numClasses);
-}
-
-inline PlainImageLabelMetaT *PlainImageLabelMeta::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new PlainImageLabelMetaT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void PlainImageLabelMeta::UnPackTo(PlainImageLabelMetaT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = image_meta(); if (_e) _o->image_meta = std::unique_ptr<PlainImageMetaT>(_e->UnPack(_resolver)); }
-  { auto _e = label_meta(); if (_e) _o->label_meta = std::unique_ptr<PlainLabelMetaT>(_e->UnPack(_resolver)); }
-}
-
-inline flatbuffers::Offset<PlainImageLabelMeta> PlainImageLabelMeta::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePlainImageLabelMeta(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<PlainImageLabelMeta> CreatePlainImageLabelMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PlainImageLabelMetaT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _image_meta = _o->image_meta ? CreatePlainImageMeta(_fbb, _o->image_meta.get(), _rehasher) : 0;
-  auto _label_meta = _o->label_meta ? CreatePlainLabelMeta(_fbb, _o->label_meta.get(), _rehasher) : 0;
-  return CreatePlainImageLabelMeta(
-      _fbb,
-      _image_meta,
-      _label_meta);
-}
-
-inline DataConfigT *DataConfig::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new DataConfigT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void DataConfig::UnPackTo(DataConfigT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = dataset_size(); _o->dataset_size = _e; }
-  { auto _e = img_label_meta(); if (_e) _o->img_label_meta = std::unique_ptr<PlainImageLabelMetaT>(_e->UnPack(_resolver)); }
-  { auto _e = dataset_sha256(); if (_e) { _o->dataset_sha256.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->dataset_sha256[_i] = _e->Get(_i); } } }
-}
-
-inline flatbuffers::Offset<DataConfig> DataConfig::Pack(flatbuffers::FlatBufferBuilder &_fbb, const DataConfigT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateDataConfig(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<DataConfig> CreateDataConfig(flatbuffers::FlatBufferBuilder &_fbb, const DataConfigT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const DataConfigT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _dataset_size = _o->dataset_size;
-  auto _img_label_meta = _o->img_label_meta ? CreatePlainImageLabelMeta(_fbb, _o->img_label_meta.get(), _rehasher) : 0;
-  auto _dataset_sha256 = _fbb.CreateVector(_o->dataset_sha256);
-  return CreateDataConfig(
-      _fbb,
-      _dataset_size,
-      _img_label_meta,
-      _dataset_sha256);
-}
-
-inline TrainLocationsConfigsT *TrainLocationsConfigs::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new TrainLocationsConfigsT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void TrainLocationsConfigs::UnPackTo(TrainLocationsConfigsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = dataset_dir(); if (_e) _o->dataset_dir = _e->str(); }
-  { auto _e = dec_dataset_dir(); if (_e) _o->dec_dataset_dir = _e->str(); }
-  { auto _e = network_arch_path(); if (_e) _o->network_arch_path = _e->str(); }
-  { auto _e = weights_save_dir(); if (_e) _o->weights_save_dir = _e->str(); }
-  { auto _e = weights_backup_dir(); if (_e) _o->weights_backup_dir = _e->str(); }
-  { auto _e = snapshot_dir(); if (_e) _o->snapshot_dir = _e->str(); }
-  { auto _e = client_pk_sig_file(); if (_e) _o->client_pk_sig_file = _e->str(); }
-  { auto _e = sgx_sk_sig_file(); if (_e) _o->sgx_sk_sig_file = _e->str(); }
-  { auto _e = sgx_pk_sig_file(); if (_e) _o->sgx_pk_sig_file = _e->str(); }
-  { auto _e = signed_task_config_path(); if (_e) _o->signed_task_config_path = _e->str(); }
-  { auto _e = client_aes_gcm_key_file(); if (_e) _o->client_aes_gcm_key_file = _e->str(); }
-  { auto _e = sgx_aes_gcm_key_file(); if (_e) _o->sgx_aes_gcm_key_file = _e->str(); }
-  { auto _e = data_config_path(); if (_e) _o->data_config_path = _e->str(); }
-}
-
-inline flatbuffers::Offset<TrainLocationsConfigs> TrainLocationsConfigs::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TrainLocationsConfigsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateTrainLocationsConfigs(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<TrainLocationsConfigs> CreateTrainLocationsConfigs(flatbuffers::FlatBufferBuilder &_fbb, const TrainLocationsConfigsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TrainLocationsConfigsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _dataset_dir = _fbb.CreateString(_o->dataset_dir);
-  auto _dec_dataset_dir = _fbb.CreateString(_o->dec_dataset_dir);
-  auto _network_arch_path = _fbb.CreateString(_o->network_arch_path);
-  auto _weights_save_dir = _fbb.CreateString(_o->weights_save_dir);
-  auto _weights_backup_dir = _fbb.CreateString(_o->weights_backup_dir);
-  auto _snapshot_dir = _fbb.CreateString(_o->snapshot_dir);
-  auto _client_pk_sig_file = _fbb.CreateString(_o->client_pk_sig_file);
-  auto _sgx_sk_sig_file = _fbb.CreateString(_o->sgx_sk_sig_file);
-  auto _sgx_pk_sig_file = _fbb.CreateString(_o->sgx_pk_sig_file);
-  auto _signed_task_config_path = _fbb.CreateString(_o->signed_task_config_path);
-  auto _client_aes_gcm_key_file = _fbb.CreateString(_o->client_aes_gcm_key_file);
-  auto _sgx_aes_gcm_key_file = _fbb.CreateString(_o->sgx_aes_gcm_key_file);
-  auto _data_config_path = _fbb.CreateString(_o->data_config_path);
-  return CreateTrainLocationsConfigs(
-      _fbb,
-      _dataset_dir,
-      _dec_dataset_dir,
-      _network_arch_path,
-      _weights_save_dir,
-      _weights_backup_dir,
-      _snapshot_dir,
-      _client_pk_sig_file,
-      _sgx_sk_sig_file,
-      _sgx_pk_sig_file,
-      _signed_task_config_path,
-      _client_aes_gcm_key_file,
-      _sgx_aes_gcm_key_file,
-      _data_config_path);
-}
-
-inline PredictLocationsConfigsT *PredictLocationsConfigs::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new PredictLocationsConfigsT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void PredictLocationsConfigs::UnPackTo(PredictLocationsConfigsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = dataset_dir(); if (_e) _o->dataset_dir = _e->str(); }
-  { auto _e = dec_dataset_dir(); if (_e) _o->dec_dataset_dir = _e->str(); }
-  { auto _e = network_arch_path(); if (_e) _o->network_arch_path = _e->str(); }
-  { auto _e = weights_load_dir(); if (_e) _o->weights_load_dir = _e->str(); }
-  { auto _e = preds_save_dir(); if (_e) _o->preds_save_dir = _e->str(); }
-  { auto _e = snapshot_dir(); if (_e) _o->snapshot_dir = _e->str(); }
-  { auto _e = client_pk_sig_file(); if (_e) _o->client_pk_sig_file = _e->str(); }
-  { auto _e = sgx_sk_sig_file(); if (_e) _o->sgx_sk_sig_file = _e->str(); }
-  { auto _e = sgx_pk_sig_file(); if (_e) _o->sgx_pk_sig_file = _e->str(); }
-  { auto _e = signed_task_config_path(); if (_e) _o->signed_task_config_path = _e->str(); }
-  { auto _e = client_aes_gcm_key_file(); if (_e) _o->client_aes_gcm_key_file = _e->str(); }
-  { auto _e = sgx_aes_gcm_key_file(); if (_e) _o->sgx_aes_gcm_key_file = _e->str(); }
-  { auto _e = data_config_path(); if (_e) _o->data_config_path = _e->str(); }
-}
-
-inline flatbuffers::Offset<PredictLocationsConfigs> PredictLocationsConfigs::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PredictLocationsConfigsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePredictLocationsConfigs(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<PredictLocationsConfigs> CreatePredictLocationsConfigs(flatbuffers::FlatBufferBuilder &_fbb, const PredictLocationsConfigsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PredictLocationsConfigsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _dataset_dir = _fbb.CreateString(_o->dataset_dir);
-  auto _dec_dataset_dir = _fbb.CreateString(_o->dec_dataset_dir);
-  auto _network_arch_path = _fbb.CreateString(_o->network_arch_path);
-  auto _weights_load_dir = _fbb.CreateString(_o->weights_load_dir);
-  auto _preds_save_dir = _fbb.CreateString(_o->preds_save_dir);
-  auto _snapshot_dir = _fbb.CreateString(_o->snapshot_dir);
-  auto _client_pk_sig_file = _fbb.CreateString(_o->client_pk_sig_file);
-  auto _sgx_sk_sig_file = _fbb.CreateString(_o->sgx_sk_sig_file);
-  auto _sgx_pk_sig_file = _fbb.CreateString(_o->sgx_pk_sig_file);
-  auto _signed_task_config_path = _fbb.CreateString(_o->signed_task_config_path);
-  auto _client_aes_gcm_key_file = _fbb.CreateString(_o->client_aes_gcm_key_file);
-  auto _sgx_aes_gcm_key_file = _fbb.CreateString(_o->sgx_aes_gcm_key_file);
-  auto _data_config_path = _fbb.CreateString(_o->data_config_path);
-  return CreatePredictLocationsConfigs(
-      _fbb,
-      _dataset_dir,
-      _dec_dataset_dir,
-      _network_arch_path,
-      _weights_load_dir,
-      _preds_save_dir,
-      _snapshot_dir,
-      _client_pk_sig_file,
-      _sgx_sk_sig_file,
-      _sgx_pk_sig_file,
-      _signed_task_config_path,
-      _client_aes_gcm_key_file,
-      _sgx_aes_gcm_key_file,
-      _data_config_path);
-}
-
-inline ArchConfigT *ArchConfig::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new ArchConfigT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void ArchConfig::UnPackTo(ArchConfigT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = contents(); if (_e) { _o->contents.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->contents[_i] = _e->Get(_i); } } }
-  { auto _e = network_sha_256(); if (_e) { _o->network_sha_256.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->network_sha_256[_i] = _e->Get(_i); } } }
-}
-
-inline flatbuffers::Offset<ArchConfig> ArchConfig::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ArchConfigT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateArchConfig(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<ArchConfig> CreateArchConfig(flatbuffers::FlatBufferBuilder &_fbb, const ArchConfigT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ArchConfigT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _contents = _fbb.CreateVector(_o->contents);
-  auto _network_sha_256 = _fbb.CreateVector(_o->network_sha_256);
-  return CreateArchConfig(
-      _fbb,
-      _contents,
-      _network_sha_256);
-}
-
-inline TaskConfigT *TaskConfig::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new TaskConfigT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void TaskConfig::UnPackTo(TaskConfigT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = security_type(); _o->security_type = _e; }
-  { auto _e = task_type(); _o->task_type = _e; }
-  { auto _e = arch_config_sha256(); if (_e) { _o->arch_config_sha256.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->arch_config_sha256[_i] = _e->Get(_i); } } }
-  { auto _e = dataset_sha256(); if (_e) { _o->dataset_sha256.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->dataset_sha256[_i] = _e->Get(_i); } } }
-  { auto _e = pub_root_rand_seed(); _o->pub_root_rand_seed = _e; }
-}
-
-inline flatbuffers::Offset<TaskConfig> TaskConfig::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TaskConfigT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateTaskConfig(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<TaskConfig> CreateTaskConfig(flatbuffers::FlatBufferBuilder &_fbb, const TaskConfigT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TaskConfigT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _security_type = _o->security_type;
-  auto _task_type = _o->task_type;
-  auto _arch_config_sha256 = _fbb.CreateVector(_o->arch_config_sha256);
-  auto _dataset_sha256 = _fbb.CreateVector(_o->dataset_sha256);
-  auto _pub_root_rand_seed = _o->pub_root_rand_seed;
-  return CreateTaskConfig(
-      _fbb,
-      _security_type,
-      _task_type,
-      _arch_config_sha256,
-      _dataset_sha256,
-      _pub_root_rand_seed);
-}
-
-inline const flatbuffers::TypeTable *EnumSecurityTypeTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SHORT, 0, 0 },
-    { flatbuffers::ET_SHORT, 0, 0 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    EnumSecurityTypeTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_ENUM, 2, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *EnumComputationTaskTypeTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SHORT, 0, 0 },
-    { flatbuffers::ET_SHORT, 0, 0 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    EnumComputationTaskTypeTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_ENUM, 2, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *PlainImageMetaTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_INT, 0, -1 },
-    { flatbuffers::ET_INT, 0, -1 },
-    { flatbuffers::ET_INT, 0, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 3, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *PlainLabelMetaTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_INT, 0, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 1, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *PlainImageLabelMetaTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SEQUENCE, 0, 0 },
-    { flatbuffers::ET_SEQUENCE, 0, 1 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    PlainImageMetaTypeTable,
-    PlainLabelMetaTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 2, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *DataConfigTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_INT, 0, -1 },
-    { flatbuffers::ET_SEQUENCE, 0, 0 },
-    { flatbuffers::ET_UCHAR, 1, -1 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    PlainImageLabelMetaTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 3, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *TrainLocationsConfigsTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 13, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *PredictLocationsConfigsTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 13, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *ArchConfigTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_UCHAR, 1, -1 },
-    { flatbuffers::ET_UCHAR, 1, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 2, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *TaskConfigTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SHORT, 0, 0 },
-    { flatbuffers::ET_SHORT, 0, 1 },
-    { flatbuffers::ET_UCHAR, 1, -1 },
-    { flatbuffers::ET_UCHAR, 1, -1 },
-    { flatbuffers::ET_LONG, 0, -1 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    EnumSecurityTypeTypeTable,
-    EnumComputationTaskTypeTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 5, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
-}
-
 inline const TaskConfig *GetTaskConfig(const void *buf) {
   return flatbuffers::GetRoot<TaskConfig>(buf);
 }
@@ -1734,6 +861,10 @@ inline const TaskConfig *GetSizePrefixedTaskConfig(const void *buf) {
 
 inline TaskConfig *GetMutableTaskConfig(void *buf) {
   return flatbuffers::GetMutableRoot<TaskConfig>(buf);
+}
+
+inline TaskConfig *GetMutableSizePrefixedTaskConfig(void *buf) {
+  return flatbuffers::GetMutableSizePrefixedRoot<TaskConfig>(buf);
 }
 
 inline bool VerifyTaskConfigBuffer(
@@ -1756,18 +887,6 @@ inline void FinishSizePrefixedTaskConfigBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<TaskConfig> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<TaskConfigT> UnPackTaskConfig(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<TaskConfigT>(GetTaskConfig(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<TaskConfigT> UnPackSizePrefixedTaskConfig(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<TaskConfigT>(GetSizePrefixedTaskConfig(buf)->UnPack(res));
 }
 
 #endif  // FLATBUFFERS_GENERATED_TASKCONFIG_H_

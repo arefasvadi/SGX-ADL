@@ -6,28 +6,18 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
 struct PlainImageMeta;
-struct PlainImageMetaT;
-
-inline const flatbuffers::TypeTable *PlainImageMetaTypeTable();
-
-struct PlainImageMetaT : public flatbuffers::NativeTable {
-  typedef PlainImageMeta TableType;
-  int32_t width;
-  int32_t height;
-  int32_t channels;
-  PlainImageMetaT()
-      : width(0),
-        height(0),
-        channels(0) {
-  }
-};
+struct PlainImageMetaBuilder;
 
 struct PlainImageMeta FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PlainImageMetaT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return PlainImageMetaTypeTable();
-  }
+  typedef PlainImageMetaBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_WIDTH = 4,
     VT_HEIGHT = 6,
@@ -36,34 +26,32 @@ struct PlainImageMeta FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   int32_t width() const {
     return GetField<int32_t>(VT_WIDTH, 0);
   }
-  bool mutate_width(int32_t _width) {
+  bool mutate_width(int32_t _width = 0) {
     return SetField<int32_t>(VT_WIDTH, _width, 0);
   }
   int32_t height() const {
     return GetField<int32_t>(VT_HEIGHT, 0);
   }
-  bool mutate_height(int32_t _height) {
+  bool mutate_height(int32_t _height = 0) {
     return SetField<int32_t>(VT_HEIGHT, _height, 0);
   }
   int32_t channels() const {
     return GetField<int32_t>(VT_CHANNELS, 0);
   }
-  bool mutate_channels(int32_t _channels) {
+  bool mutate_channels(int32_t _channels = 0) {
     return SetField<int32_t>(VT_CHANNELS, _channels, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int32_t>(verifier, VT_WIDTH) &&
-           VerifyField<int32_t>(verifier, VT_HEIGHT) &&
-           VerifyField<int32_t>(verifier, VT_CHANNELS) &&
+           VerifyField<int32_t>(verifier, VT_WIDTH, 4) &&
+           VerifyField<int32_t>(verifier, VT_HEIGHT, 4) &&
+           VerifyField<int32_t>(verifier, VT_CHANNELS, 4) &&
            verifier.EndTable();
   }
-  PlainImageMetaT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PlainImageMetaT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PlainImageMeta> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct PlainImageMetaBuilder {
+  typedef PlainImageMeta Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_width(int32_t width) {
@@ -79,7 +67,6 @@ struct PlainImageMetaBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  PlainImageMetaBuilder &operator=(const PlainImageMetaBuilder &);
   flatbuffers::Offset<PlainImageMeta> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<PlainImageMeta>(end);
@@ -99,52 +86,6 @@ inline flatbuffers::Offset<PlainImageMeta> CreatePlainImageMeta(
   return builder_.Finish();
 }
 
-flatbuffers::Offset<PlainImageMeta> CreatePlainImageMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline PlainImageMetaT *PlainImageMeta::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new PlainImageMetaT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void PlainImageMeta::UnPackTo(PlainImageMetaT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = width(); _o->width = _e; }
-  { auto _e = height(); _o->height = _e; }
-  { auto _e = channels(); _o->channels = _e; }
-}
-
-inline flatbuffers::Offset<PlainImageMeta> PlainImageMeta::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePlainImageMeta(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<PlainImageMeta> CreatePlainImageMeta(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageMetaT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PlainImageMetaT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _width = _o->width;
-  auto _height = _o->height;
-  auto _channels = _o->channels;
-  return CreatePlainImageMeta(
-      _fbb,
-      _width,
-      _height,
-      _channels);
-}
-
-inline const flatbuffers::TypeTable *PlainImageMetaTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_INT, 0, -1 },
-    { flatbuffers::ET_INT, 0, -1 },
-    { flatbuffers::ET_INT, 0, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 3, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
 inline const PlainImageMeta *GetPlainImageMeta(const void *buf) {
   return flatbuffers::GetRoot<PlainImageMeta>(buf);
 }
@@ -155,6 +96,10 @@ inline const PlainImageMeta *GetSizePrefixedPlainImageMeta(const void *buf) {
 
 inline PlainImageMeta *GetMutablePlainImageMeta(void *buf) {
   return flatbuffers::GetMutableRoot<PlainImageMeta>(buf);
+}
+
+inline PlainImageMeta *GetMutableSizePrefixedPlainImageMeta(void *buf) {
+  return flatbuffers::GetMutableSizePrefixedRoot<PlainImageMeta>(buf);
 }
 
 inline bool VerifyPlainImageMetaBuffer(
@@ -177,18 +122,6 @@ inline void FinishSizePrefixedPlainImageMetaBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<PlainImageMeta> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<PlainImageMetaT> UnPackPlainImageMeta(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<PlainImageMetaT>(GetPlainImageMeta(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<PlainImageMetaT> UnPackSizePrefixedPlainImageMeta(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<PlainImageMetaT>(GetSizePrefixedPlainImageMeta(buf)->UnPack(res));
 }
 
 #endif  // FLATBUFFERS_GENERATED_PLAINIMAGEMETA_H_

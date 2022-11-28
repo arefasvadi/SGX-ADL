@@ -6,26 +6,18 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
 struct AESGCM128Enc;
-struct AESGCM128EncT;
-
-inline const flatbuffers::TypeTable *AESGCM128EncTypeTable();
-
-struct AESGCM128EncT : public flatbuffers::NativeTable {
-  typedef AESGCM128Enc TableType;
-  std::vector<uint8_t> enc_content;
-  std::vector<uint8_t> iv;
-  std::vector<uint8_t> mac;
-  std::vector<uint8_t> aad;
-  AESGCM128EncT() {
-  }
-};
+struct AESGCM128EncBuilder;
 
 struct AESGCM128Enc FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef AESGCM128EncT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return AESGCM128EncTypeTable();
-  }
+  typedef AESGCM128EncBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_ENC_CONTENT = 4,
     VT_IV = 6,
@@ -68,12 +60,10 @@ struct AESGCM128Enc FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVector(aad()) &&
            verifier.EndTable();
   }
-  AESGCM128EncT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(AESGCM128EncT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<AESGCM128Enc> Pack(flatbuffers::FlatBufferBuilder &_fbb, const AESGCM128EncT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct AESGCM128EncBuilder {
+  typedef AESGCM128Enc Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enc_content(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> enc_content) {
@@ -92,7 +82,6 @@ struct AESGCM128EncBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  AESGCM128EncBuilder &operator=(const AESGCM128EncBuilder &);
   flatbuffers::Offset<AESGCM128Enc> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<AESGCM128Enc>(end);
@@ -135,56 +124,6 @@ inline flatbuffers::Offset<AESGCM128Enc> CreateAESGCM128EncDirect(
       aad__);
 }
 
-flatbuffers::Offset<AESGCM128Enc> CreateAESGCM128Enc(flatbuffers::FlatBufferBuilder &_fbb, const AESGCM128EncT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline AESGCM128EncT *AESGCM128Enc::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new AESGCM128EncT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void AESGCM128Enc::UnPackTo(AESGCM128EncT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = enc_content(); if (_e) { _o->enc_content.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->enc_content[_i] = _e->Get(_i); } } }
-  { auto _e = iv(); if (_e) { _o->iv.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->iv[_i] = _e->Get(_i); } } }
-  { auto _e = mac(); if (_e) { _o->mac.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->mac[_i] = _e->Get(_i); } } }
-  { auto _e = aad(); if (_e) { _o->aad.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->aad[_i] = _e->Get(_i); } } }
-}
-
-inline flatbuffers::Offset<AESGCM128Enc> AESGCM128Enc::Pack(flatbuffers::FlatBufferBuilder &_fbb, const AESGCM128EncT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateAESGCM128Enc(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<AESGCM128Enc> CreateAESGCM128Enc(flatbuffers::FlatBufferBuilder &_fbb, const AESGCM128EncT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const AESGCM128EncT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _enc_content = _fbb.CreateVector(_o->enc_content);
-  auto _iv = _fbb.CreateVector(_o->iv);
-  auto _mac = _fbb.CreateVector(_o->mac);
-  auto _aad = _o->aad.size() ? _fbb.CreateVector(_o->aad) : 0;
-  return CreateAESGCM128Enc(
-      _fbb,
-      _enc_content,
-      _iv,
-      _mac,
-      _aad);
-}
-
-inline const flatbuffers::TypeTable *AESGCM128EncTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_UCHAR, 1, -1 },
-    { flatbuffers::ET_UCHAR, 1, -1 },
-    { flatbuffers::ET_UCHAR, 1, -1 },
-    { flatbuffers::ET_UCHAR, 1, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 4, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
 inline const AESGCM128Enc *GetAESGCM128Enc(const void *buf) {
   return flatbuffers::GetRoot<AESGCM128Enc>(buf);
 }
@@ -195,6 +134,10 @@ inline const AESGCM128Enc *GetSizePrefixedAESGCM128Enc(const void *buf) {
 
 inline AESGCM128Enc *GetMutableAESGCM128Enc(void *buf) {
   return flatbuffers::GetMutableRoot<AESGCM128Enc>(buf);
+}
+
+inline AESGCM128Enc *GetMutableSizePrefixedAESGCM128Enc(void *buf) {
+  return flatbuffers::GetMutableSizePrefixedRoot<AESGCM128Enc>(buf);
 }
 
 inline bool VerifyAESGCM128EncBuffer(
@@ -217,18 +160,6 @@ inline void FinishSizePrefixedAESGCM128EncBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<AESGCM128Enc> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<AESGCM128EncT> UnPackAESGCM128Enc(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<AESGCM128EncT>(GetAESGCM128Enc(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<AESGCM128EncT> UnPackSizePrefixedAESGCM128Enc(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<AESGCM128EncT>(GetSizePrefixedAESGCM128Enc(buf)->UnPack(res));
 }
 
 #endif  // FLATBUFFERS_GENERATED_AES128GCM_H_

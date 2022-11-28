@@ -6,24 +6,18 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
 struct SignedECC;
-struct SignedECCT;
-
-inline const flatbuffers::TypeTable *SignedECCTypeTable();
-
-struct SignedECCT : public flatbuffers::NativeTable {
-  typedef SignedECC TableType;
-  std::vector<uint8_t> content;
-  std::vector<uint8_t> signature;
-  SignedECCT() {
-  }
-};
+struct SignedECCBuilder;
 
 struct SignedECC FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef SignedECCT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return SignedECCTypeTable();
-  }
+  typedef SignedECCBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_CONTENT = 4,
     VT_SIGNATURE = 6
@@ -48,12 +42,10 @@ struct SignedECC FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVector(signature()) &&
            verifier.EndTable();
   }
-  SignedECCT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(SignedECCT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<SignedECC> Pack(flatbuffers::FlatBufferBuilder &_fbb, const SignedECCT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct SignedECCBuilder {
+  typedef SignedECC Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_content(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> content) {
@@ -66,7 +58,6 @@ struct SignedECCBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  SignedECCBuilder &operator=(const SignedECCBuilder &);
   flatbuffers::Offset<SignedECC> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<SignedECC>(end);
@@ -98,48 +89,6 @@ inline flatbuffers::Offset<SignedECC> CreateSignedECCDirect(
       signature__);
 }
 
-flatbuffers::Offset<SignedECC> CreateSignedECC(flatbuffers::FlatBufferBuilder &_fbb, const SignedECCT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline SignedECCT *SignedECC::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new SignedECCT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void SignedECC::UnPackTo(SignedECCT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = content(); if (_e) { _o->content.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->content[_i] = _e->Get(_i); } } }
-  { auto _e = signature(); if (_e) { _o->signature.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->signature[_i] = _e->Get(_i); } } }
-}
-
-inline flatbuffers::Offset<SignedECC> SignedECC::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SignedECCT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateSignedECC(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<SignedECC> CreateSignedECC(flatbuffers::FlatBufferBuilder &_fbb, const SignedECCT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const SignedECCT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _content = _fbb.CreateVector(_o->content);
-  auto _signature = _fbb.CreateVector(_o->signature);
-  return CreateSignedECC(
-      _fbb,
-      _content,
-      _signature);
-}
-
-inline const flatbuffers::TypeTable *SignedECCTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_UCHAR, 1, -1 },
-    { flatbuffers::ET_UCHAR, 1, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 2, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
 inline const SignedECC *GetSignedECC(const void *buf) {
   return flatbuffers::GetRoot<SignedECC>(buf);
 }
@@ -150,6 +99,10 @@ inline const SignedECC *GetSizePrefixedSignedECC(const void *buf) {
 
 inline SignedECC *GetMutableSignedECC(void *buf) {
   return flatbuffers::GetMutableRoot<SignedECC>(buf);
+}
+
+inline SignedECC *GetMutableSizePrefixedSignedECC(void *buf) {
+  return flatbuffers::GetMutableSizePrefixedRoot<SignedECC>(buf);
 }
 
 inline bool VerifySignedECCBuffer(
@@ -172,18 +125,6 @@ inline void FinishSizePrefixedSignedECCBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<SignedECC> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<SignedECCT> UnPackSignedECC(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<SignedECCT>(GetSignedECC(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<SignedECCT> UnPackSizePrefixedSignedECC(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<SignedECCT>(GetSizePrefixedSignedECC(buf)->UnPack(res));
 }
 
 #endif  // FLATBUFFERS_GENERATED_SIGNEDECC_H_

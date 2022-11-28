@@ -6,24 +6,18 @@
 
 #include "flatbuffers/flatbuffers.h"
 
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
 struct PlainImageLabel;
-struct PlainImageLabelT;
-
-inline const flatbuffers::TypeTable *PlainImageLabelTypeTable();
-
-struct PlainImageLabelT : public flatbuffers::NativeTable {
-  typedef PlainImageLabel TableType;
-  std::vector<float> img_content;
-  std::vector<float> label_content;
-  PlainImageLabelT() {
-  }
-};
+struct PlainImageLabelBuilder;
 
 struct PlainImageLabel FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PlainImageLabelT NativeTableType;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return PlainImageLabelTypeTable();
-  }
+  typedef PlainImageLabelBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_IMG_CONTENT = 4,
     VT_LABEL_CONTENT = 6
@@ -48,12 +42,10 @@ struct PlainImageLabel FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVector(label_content()) &&
            verifier.EndTable();
   }
-  PlainImageLabelT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PlainImageLabelT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PlainImageLabel> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct PlainImageLabelBuilder {
+  typedef PlainImageLabel Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_img_content(flatbuffers::Offset<flatbuffers::Vector<float>> img_content) {
@@ -66,7 +58,6 @@ struct PlainImageLabelBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  PlainImageLabelBuilder &operator=(const PlainImageLabelBuilder &);
   flatbuffers::Offset<PlainImageLabel> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<PlainImageLabel>(end);
@@ -98,48 +89,6 @@ inline flatbuffers::Offset<PlainImageLabel> CreatePlainImageLabelDirect(
       label_content__);
 }
 
-flatbuffers::Offset<PlainImageLabel> CreatePlainImageLabel(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline PlainImageLabelT *PlainImageLabel::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = new PlainImageLabelT();
-  UnPackTo(_o, _resolver);
-  return _o;
-}
-
-inline void PlainImageLabel::UnPackTo(PlainImageLabelT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = img_content(); if (_e) { _o->img_content.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->img_content[_i] = _e->Get(_i); } } }
-  { auto _e = label_content(); if (_e) { _o->label_content.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->label_content[_i] = _e->Get(_i); } } }
-}
-
-inline flatbuffers::Offset<PlainImageLabel> PlainImageLabel::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreatePlainImageLabel(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<PlainImageLabel> CreatePlainImageLabel(flatbuffers::FlatBufferBuilder &_fbb, const PlainImageLabelT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PlainImageLabelT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _img_content = _fbb.CreateVector(_o->img_content);
-  auto _label_content = _fbb.CreateVector(_o->label_content);
-  return CreatePlainImageLabel(
-      _fbb,
-      _img_content,
-      _label_content);
-}
-
-inline const flatbuffers::TypeTable *PlainImageLabelTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_FLOAT, 1, -1 },
-    { flatbuffers::ET_FLOAT, 1, -1 }
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 2, type_codes, nullptr, nullptr, nullptr
-  };
-  return &tt;
-}
-
 inline const PlainImageLabel *GetPlainImageLabel(const void *buf) {
   return flatbuffers::GetRoot<PlainImageLabel>(buf);
 }
@@ -150,6 +99,10 @@ inline const PlainImageLabel *GetSizePrefixedPlainImageLabel(const void *buf) {
 
 inline PlainImageLabel *GetMutablePlainImageLabel(void *buf) {
   return flatbuffers::GetMutableRoot<PlainImageLabel>(buf);
+}
+
+inline PlainImageLabel *GetMutableSizePrefixedPlainImageLabel(void *buf) {
+  return flatbuffers::GetMutableSizePrefixedRoot<PlainImageLabel>(buf);
 }
 
 inline bool VerifyPlainImageLabelBuffer(
@@ -172,18 +125,6 @@ inline void FinishSizePrefixedPlainImageLabelBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<PlainImageLabel> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<PlainImageLabelT> UnPackPlainImageLabel(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<PlainImageLabelT>(GetPlainImageLabel(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<PlainImageLabelT> UnPackSizePrefixedPlainImageLabel(
-    const void *buf,
-    const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<PlainImageLabelT>(GetSizePrefixedPlainImageLabel(buf)->UnPack(res));
 }
 
 #endif  // FLATBUFFERS_GENERATED_PLAINIMAGELABEL_H_

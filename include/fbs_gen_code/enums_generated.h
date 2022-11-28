@@ -6,7 +6,14 @@
 
 #include "flatbuffers/flatbuffers.h"
 
-enum EnumSecurityType {
+// Ensure the included flatbuffers.h is the same version as when this file was
+// generated, otherwise it may not be compatible.
+static_assert(FLATBUFFERS_VERSION_MAJOR == 22 &&
+              FLATBUFFERS_VERSION_MINOR == 11 &&
+              FLATBUFFERS_VERSION_REVISION == 23,
+             "Non-compatible flatbuffers version included");
+
+enum EnumSecurityType : int16_t {
   EnumSecurityType_integrity = 0,
   EnumSecurityType_privacy_integrity = 1,
   EnumSecurityType_MIN = EnumSecurityType_integrity,
@@ -31,12 +38,12 @@ inline const char * const *EnumNamesEnumSecurityType() {
 }
 
 inline const char *EnumNameEnumSecurityType(EnumSecurityType e) {
-  if (e < EnumSecurityType_integrity || e > EnumSecurityType_privacy_integrity) return "";
+  if (flatbuffers::IsOutRange(e, EnumSecurityType_integrity, EnumSecurityType_privacy_integrity)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEnumSecurityType()[index];
 }
 
-enum EnumComputationTaskType {
+enum EnumComputationTaskType : int16_t {
   EnumComputationTaskType_training = 0,
   EnumComputationTaskType_prediction = 1,
   EnumComputationTaskType_MIN = EnumComputationTaskType_training,
@@ -61,37 +68,9 @@ inline const char * const *EnumNamesEnumComputationTaskType() {
 }
 
 inline const char *EnumNameEnumComputationTaskType(EnumComputationTaskType e) {
-  if (e < EnumComputationTaskType_training || e > EnumComputationTaskType_prediction) return "";
+  if (flatbuffers::IsOutRange(e, EnumComputationTaskType_training, EnumComputationTaskType_prediction)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEnumComputationTaskType()[index];
-}
-
-inline const flatbuffers::TypeTable *EnumSecurityTypeTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SHORT, 0, 0 },
-    { flatbuffers::ET_SHORT, 0, 0 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    EnumSecurityTypeTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_ENUM, 2, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *EnumComputationTaskTypeTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SHORT, 0, 0 },
-    { flatbuffers::ET_SHORT, 0, 0 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    EnumComputationTaskTypeTypeTable
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_ENUM, 2, type_codes, type_refs, nullptr, nullptr
-  };
-  return &tt;
 }
 
 #endif  // FLATBUFFERS_GENERATED_ENUMS_H_
