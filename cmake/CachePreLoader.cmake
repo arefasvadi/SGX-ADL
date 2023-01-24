@@ -1,4 +1,4 @@
-set(SGXADL_ENABLE_CLANG_COMPILER ON CACHE BOOL "Use clang as c,cxx compiler")
+# set(SGXADL_ENABLE_CLANG_COMPILER ON CACHE BOOL "Use clang as c,cxx compiler")
 #set(FLATBUFFERS_INCLUDE_DIRS "/usr/local/include/" CACHE STRING "Flatbuffer include directory")
 set(SGXADL_CPPCHECK_ENABLED  OFF CACHE BOOL "Will use cppcheck to generate reports")
 set(SGXADL_CLANG_TIDY_ENABLED  OFF CACHE BOOL "Will use clang-tidy to generate reports")
