@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class TrainLocationsConfigs(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsTrainLocationsConfigs(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = TrainLocationsConfigs()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsTrainLocationsConfigs(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # TrainLocationsConfigs
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -110,17 +116,47 @@ class TrainLocationsConfigs(object):
         return None
 
 def TrainLocationsConfigsStart(builder): builder.StartObject(13)
+def Start(builder):
+    return TrainLocationsConfigsStart(builder)
 def TrainLocationsConfigsAddDatasetDir(builder, datasetDir): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(datasetDir), 0)
+def AddDatasetDir(builder, datasetDir):
+    return TrainLocationsConfigsAddDatasetDir(builder, datasetDir)
 def TrainLocationsConfigsAddDecDatasetDir(builder, decDatasetDir): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(decDatasetDir), 0)
+def AddDecDatasetDir(builder, decDatasetDir):
+    return TrainLocationsConfigsAddDecDatasetDir(builder, decDatasetDir)
 def TrainLocationsConfigsAddNetworkArchPath(builder, networkArchPath): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(networkArchPath), 0)
+def AddNetworkArchPath(builder, networkArchPath):
+    return TrainLocationsConfigsAddNetworkArchPath(builder, networkArchPath)
 def TrainLocationsConfigsAddWeightsSaveDir(builder, weightsSaveDir): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(weightsSaveDir), 0)
+def AddWeightsSaveDir(builder, weightsSaveDir):
+    return TrainLocationsConfigsAddWeightsSaveDir(builder, weightsSaveDir)
 def TrainLocationsConfigsAddWeightsBackupDir(builder, weightsBackupDir): builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(weightsBackupDir), 0)
+def AddWeightsBackupDir(builder, weightsBackupDir):
+    return TrainLocationsConfigsAddWeightsBackupDir(builder, weightsBackupDir)
 def TrainLocationsConfigsAddSnapshotDir(builder, snapshotDir): builder.PrependUOffsetTRelativeSlot(5, flatbuffers.number_types.UOffsetTFlags.py_type(snapshotDir), 0)
+def AddSnapshotDir(builder, snapshotDir):
+    return TrainLocationsConfigsAddSnapshotDir(builder, snapshotDir)
 def TrainLocationsConfigsAddClientPkSigFile(builder, clientPkSigFile): builder.PrependUOffsetTRelativeSlot(6, flatbuffers.number_types.UOffsetTFlags.py_type(clientPkSigFile), 0)
+def AddClientPkSigFile(builder, clientPkSigFile):
+    return TrainLocationsConfigsAddClientPkSigFile(builder, clientPkSigFile)
 def TrainLocationsConfigsAddSgxSkSigFile(builder, sgxSkSigFile): builder.PrependUOffsetTRelativeSlot(7, flatbuffers.number_types.UOffsetTFlags.py_type(sgxSkSigFile), 0)
+def AddSgxSkSigFile(builder, sgxSkSigFile):
+    return TrainLocationsConfigsAddSgxSkSigFile(builder, sgxSkSigFile)
 def TrainLocationsConfigsAddSgxPkSigFile(builder, sgxPkSigFile): builder.PrependUOffsetTRelativeSlot(8, flatbuffers.number_types.UOffsetTFlags.py_type(sgxPkSigFile), 0)
+def AddSgxPkSigFile(builder, sgxPkSigFile):
+    return TrainLocationsConfigsAddSgxPkSigFile(builder, sgxPkSigFile)
 def TrainLocationsConfigsAddSignedTaskConfigPath(builder, signedTaskConfigPath): builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(signedTaskConfigPath), 0)
+def AddSignedTaskConfigPath(builder, signedTaskConfigPath):
+    return TrainLocationsConfigsAddSignedTaskConfigPath(builder, signedTaskConfigPath)
 def TrainLocationsConfigsAddClientAesGcmKeyFile(builder, clientAesGcmKeyFile): builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(clientAesGcmKeyFile), 0)
+def AddClientAesGcmKeyFile(builder, clientAesGcmKeyFile):
+    return TrainLocationsConfigsAddClientAesGcmKeyFile(builder, clientAesGcmKeyFile)
 def TrainLocationsConfigsAddSgxAesGcmKeyFile(builder, sgxAesGcmKeyFile): builder.PrependUOffsetTRelativeSlot(11, flatbuffers.number_types.UOffsetTFlags.py_type(sgxAesGcmKeyFile), 0)
+def AddSgxAesGcmKeyFile(builder, sgxAesGcmKeyFile):
+    return TrainLocationsConfigsAddSgxAesGcmKeyFile(builder, sgxAesGcmKeyFile)
 def TrainLocationsConfigsAddDataConfigPath(builder, dataConfigPath): builder.PrependUOffsetTRelativeSlot(12, flatbuffers.number_types.UOffsetTFlags.py_type(dataConfigPath), 0)
+def AddDataConfigPath(builder, dataConfigPath):
+    return TrainLocationsConfigsAddDataConfigPath(builder, dataConfigPath)
 def TrainLocationsConfigsEnd(builder): return builder.EndObject()
+def End(builder):
+    return TrainLocationsConfigsEnd(builder)

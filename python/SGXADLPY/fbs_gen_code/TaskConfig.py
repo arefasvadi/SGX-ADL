@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class TaskConfig(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsTaskConfig(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = TaskConfig()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsTaskConfig(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # TaskConfig
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -55,6 +61,11 @@ class TaskConfig(object):
         return 0
 
     # TaskConfig
+    def ArchConfigSha256IsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
+    # TaskConfig
     def DatasetSha256(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
@@ -77,6 +88,11 @@ class TaskConfig(object):
         return 0
 
     # TaskConfig
+    def DatasetSha256IsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        return o == 0
+
+    # TaskConfig
     def PubRootRandSeed(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
@@ -84,11 +100,29 @@ class TaskConfig(object):
         return 0
 
 def TaskConfigStart(builder): builder.StartObject(5)
+def Start(builder):
+    return TaskConfigStart(builder)
 def TaskConfigAddSecurityType(builder, securityType): builder.PrependInt16Slot(0, securityType, 0)
+def AddSecurityType(builder, securityType):
+    return TaskConfigAddSecurityType(builder, securityType)
 def TaskConfigAddTaskType(builder, taskType): builder.PrependInt16Slot(1, taskType, 0)
+def AddTaskType(builder, taskType):
+    return TaskConfigAddTaskType(builder, taskType)
 def TaskConfigAddArchConfigSha256(builder, archConfigSha256): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(archConfigSha256), 0)
+def AddArchConfigSha256(builder, archConfigSha256):
+    return TaskConfigAddArchConfigSha256(builder, archConfigSha256)
 def TaskConfigStartArchConfigSha256Vector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartArchConfigSha256Vector(builder, numElems):
+    return TaskConfigStartArchConfigSha256Vector(builder, numElems)
 def TaskConfigAddDatasetSha256(builder, datasetSha256): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(datasetSha256), 0)
+def AddDatasetSha256(builder, datasetSha256):
+    return TaskConfigAddDatasetSha256(builder, datasetSha256)
 def TaskConfigStartDatasetSha256Vector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartDatasetSha256Vector(builder, numElems):
+    return TaskConfigStartDatasetSha256Vector(builder, numElems)
 def TaskConfigAddPubRootRandSeed(builder, pubRootRandSeed): builder.PrependInt64Slot(4, pubRootRandSeed, 0)
+def AddPubRootRandSeed(builder, pubRootRandSeed):
+    return TaskConfigAddPubRootRandSeed(builder, pubRootRandSeed)
 def TaskConfigEnd(builder): return builder.EndObject()
+def End(builder):
+    return TaskConfigEnd(builder)

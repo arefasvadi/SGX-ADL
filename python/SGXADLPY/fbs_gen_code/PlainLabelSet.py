@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class PlainLabelSet(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsPlainLabelSet(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = PlainLabelSet()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsPlainLabelSet(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # PlainLabelSet
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -25,7 +31,7 @@ class PlainLabelSet(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from .PlainLabel import PlainLabel
+            from PlainLabel import PlainLabel
             obj = PlainLabel()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -38,7 +44,20 @@ class PlainLabelSet(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # PlainLabelSet
+    def ImagesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
 def PlainLabelSetStart(builder): builder.StartObject(1)
+def Start(builder):
+    return PlainLabelSetStart(builder)
 def PlainLabelSetAddImages(builder, images): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(images), 0)
+def AddImages(builder, images):
+    return PlainLabelSetAddImages(builder, images)
 def PlainLabelSetStartImagesVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def StartImagesVector(builder, numElems):
+    return PlainLabelSetStartImagesVector(builder, numElems)
 def PlainLabelSetEnd(builder): return builder.EndObject()
+def End(builder):
+    return PlainLabelSetEnd(builder)

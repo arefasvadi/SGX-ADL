@@ -5,4 +5,3 @@
 class EnumComputationTaskType(object):
     training = 0
     prediction = 1
-

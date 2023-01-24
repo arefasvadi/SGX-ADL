@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class PlainLabelMeta(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsPlainLabelMeta(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = PlainLabelMeta()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsPlainLabelMeta(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # PlainLabelMeta
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -26,5 +32,11 @@ class PlainLabelMeta(object):
         return 0
 
 def PlainLabelMetaStart(builder): builder.StartObject(1)
+def Start(builder):
+    return PlainLabelMetaStart(builder)
 def PlainLabelMetaAddNumClasses(builder, numClasses): builder.PrependInt32Slot(0, numClasses, 0)
+def AddNumClasses(builder, numClasses):
+    return PlainLabelMetaAddNumClasses(builder, numClasses)
 def PlainLabelMetaEnd(builder): return builder.EndObject()
+def End(builder):
+    return PlainLabelMetaEnd(builder)

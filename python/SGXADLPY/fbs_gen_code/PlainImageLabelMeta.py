@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class PlainImageLabelMeta(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsPlainImageLabelMeta(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = PlainImageLabelMeta()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsPlainImageLabelMeta(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # PlainImageLabelMeta
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -23,7 +29,7 @@ class PlainImageLabelMeta(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .PlainImageMeta import PlainImageMeta
+            from PlainImageMeta import PlainImageMeta
             obj = PlainImageMeta()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -34,13 +40,21 @@ class PlainImageLabelMeta(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .PlainLabelMeta import PlainLabelMeta
+            from PlainLabelMeta import PlainLabelMeta
             obj = PlainLabelMeta()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
 def PlainImageLabelMetaStart(builder): builder.StartObject(2)
+def Start(builder):
+    return PlainImageLabelMetaStart(builder)
 def PlainImageLabelMetaAddImageMeta(builder, imageMeta): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(imageMeta), 0)
+def AddImageMeta(builder, imageMeta):
+    return PlainImageLabelMetaAddImageMeta(builder, imageMeta)
 def PlainImageLabelMetaAddLabelMeta(builder, labelMeta): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(labelMeta), 0)
+def AddLabelMeta(builder, labelMeta):
+    return PlainImageLabelMetaAddLabelMeta(builder, labelMeta)
 def PlainImageLabelMetaEnd(builder): return builder.EndObject()
+def End(builder):
+    return PlainImageLabelMetaEnd(builder)

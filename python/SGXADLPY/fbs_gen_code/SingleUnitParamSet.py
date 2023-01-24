@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class SingleUnitParamSet(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsSingleUnitParamSet(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = SingleUnitParamSet()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsSingleUnitParamSet(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # SingleUnitParamSet
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -40,7 +46,20 @@ class SingleUnitParamSet(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # SingleUnitParamSet
+    def ParamContentIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
 def SingleUnitParamSetStart(builder): builder.StartObject(1)
+def Start(builder):
+    return SingleUnitParamSetStart(builder)
 def SingleUnitParamSetAddParamContent(builder, paramContent): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(paramContent), 0)
+def AddParamContent(builder, paramContent):
+    return SingleUnitParamSetAddParamContent(builder, paramContent)
 def SingleUnitParamSetStartParamContentVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def StartParamContentVector(builder, numElems):
+    return SingleUnitParamSetStartParamContentVector(builder, numElems)
 def SingleUnitParamSetEnd(builder): return builder.EndObject()
+def End(builder):
+    return SingleUnitParamSetEnd(builder)

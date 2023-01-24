@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class PlainImageLabel(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsPlainImageLabel(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = PlainImageLabel()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsPlainImageLabel(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # PlainImageLabel
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -41,6 +47,11 @@ class PlainImageLabel(object):
         return 0
 
     # PlainImageLabel
+    def ImgContentIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
+    # PlainImageLabel
     def LabelContent(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -62,9 +73,26 @@ class PlainImageLabel(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # PlainImageLabel
+    def LabelContentIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def PlainImageLabelStart(builder): builder.StartObject(2)
+def Start(builder):
+    return PlainImageLabelStart(builder)
 def PlainImageLabelAddImgContent(builder, imgContent): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(imgContent), 0)
+def AddImgContent(builder, imgContent):
+    return PlainImageLabelAddImgContent(builder, imgContent)
 def PlainImageLabelStartImgContentVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def StartImgContentVector(builder, numElems):
+    return PlainImageLabelStartImgContentVector(builder, numElems)
 def PlainImageLabelAddLabelContent(builder, labelContent): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(labelContent), 0)
+def AddLabelContent(builder, labelContent):
+    return PlainImageLabelAddLabelContent(builder, labelContent)
 def PlainImageLabelStartLabelContentVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def StartLabelContentVector(builder, numElems):
+    return PlainImageLabelStartLabelContentVector(builder, numElems)
 def PlainImageLabelEnd(builder): return builder.EndObject()
+def End(builder):
+    return PlainImageLabelEnd(builder)

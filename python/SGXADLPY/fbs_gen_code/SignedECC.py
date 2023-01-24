@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class SignedECC(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsSignedECC(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = SignedECC()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsSignedECC(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # SignedECC
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -41,6 +47,11 @@ class SignedECC(object):
         return 0
 
     # SignedECC
+    def ContentIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
+    # SignedECC
     def Signature(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -62,9 +73,26 @@ class SignedECC(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # SignedECC
+    def SignatureIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def SignedECCStart(builder): builder.StartObject(2)
+def Start(builder):
+    return SignedECCStart(builder)
 def SignedECCAddContent(builder, content): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(content), 0)
+def AddContent(builder, content):
+    return SignedECCAddContent(builder, content)
 def SignedECCStartContentVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartContentVector(builder, numElems):
+    return SignedECCStartContentVector(builder, numElems)
 def SignedECCAddSignature(builder, signature): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(signature), 0)
+def AddSignature(builder, signature):
+    return SignedECCAddSignature(builder, signature)
 def SignedECCStartSignatureVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartSignatureVector(builder, numElems):
+    return SignedECCStartSignatureVector(builder, numElems)
 def SignedECCEnd(builder): return builder.EndObject()
+def End(builder):
+    return SignedECCEnd(builder)

@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class PlainLabel(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsPlainLabel(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = PlainLabel()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsPlainLabel(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # PlainLabel
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -40,7 +46,20 @@ class PlainLabel(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # PlainLabel
+    def LabelContentIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
 def PlainLabelStart(builder): builder.StartObject(1)
+def Start(builder):
+    return PlainLabelStart(builder)
 def PlainLabelAddLabelContent(builder, labelContent): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(labelContent), 0)
+def AddLabelContent(builder, labelContent):
+    return PlainLabelAddLabelContent(builder, labelContent)
 def PlainLabelStartLabelContentVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def StartLabelContentVector(builder, numElems):
+    return PlainLabelStartLabelContentVector(builder, numElems)
 def PlainLabelEnd(builder): return builder.EndObject()
+def End(builder):
+    return PlainLabelEnd(builder)

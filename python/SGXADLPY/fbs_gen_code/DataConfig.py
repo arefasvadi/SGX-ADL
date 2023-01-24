@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class DataConfig(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsDataConfig(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = DataConfig()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsDataConfig(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # DataConfig
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -30,7 +36,7 @@ class DataConfig(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .PlainImageLabelMeta import PlainImageLabelMeta
+            from PlainImageLabelMeta import PlainImageLabelMeta
             obj = PlainImageLabelMeta()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -58,9 +64,26 @@ class DataConfig(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # DataConfig
+    def DatasetSha256IsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
 def DataConfigStart(builder): builder.StartObject(3)
+def Start(builder):
+    return DataConfigStart(builder)
 def DataConfigAddDatasetSize(builder, datasetSize): builder.PrependInt32Slot(0, datasetSize, 0)
+def AddDatasetSize(builder, datasetSize):
+    return DataConfigAddDatasetSize(builder, datasetSize)
 def DataConfigAddImgLabelMeta(builder, imgLabelMeta): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(imgLabelMeta), 0)
+def AddImgLabelMeta(builder, imgLabelMeta):
+    return DataConfigAddImgLabelMeta(builder, imgLabelMeta)
 def DataConfigAddDatasetSha256(builder, datasetSha256): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(datasetSha256), 0)
+def AddDatasetSha256(builder, datasetSha256):
+    return DataConfigAddDatasetSha256(builder, datasetSha256)
 def DataConfigStartDatasetSha256Vector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartDatasetSha256Vector(builder, numElems):
+    return DataConfigStartDatasetSha256Vector(builder, numElems)
 def DataConfigEnd(builder): return builder.EndObject()
+def End(builder):
+    return DataConfigEnd(builder)

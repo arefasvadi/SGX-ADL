@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class ArchConfig(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsArchConfig(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = ArchConfig()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsArchConfig(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # ArchConfig
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -41,6 +47,11 @@ class ArchConfig(object):
         return 0
 
     # ArchConfig
+    def ContentsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
+    # ArchConfig
     def NetworkSha256(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -62,9 +73,26 @@ class ArchConfig(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # ArchConfig
+    def NetworkSha256IsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def ArchConfigStart(builder): builder.StartObject(2)
+def Start(builder):
+    return ArchConfigStart(builder)
 def ArchConfigAddContents(builder, contents): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(contents), 0)
+def AddContents(builder, contents):
+    return ArchConfigAddContents(builder, contents)
 def ArchConfigStartContentsVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartContentsVector(builder, numElems):
+    return ArchConfigStartContentsVector(builder, numElems)
 def ArchConfigAddNetworkSha256(builder, networkSha256): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(networkSha256), 0)
+def AddNetworkSha256(builder, networkSha256):
+    return ArchConfigAddNetworkSha256(builder, networkSha256)
 def ArchConfigStartNetworkSha256Vector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartNetworkSha256Vector(builder, numElems):
+    return ArchConfigStartNetworkSha256Vector(builder, numElems)
 def ArchConfigEnd(builder): return builder.EndObject()
+def End(builder):
+    return ArchConfigEnd(builder)

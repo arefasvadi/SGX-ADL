@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class AESGCM128Enc(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsAESGCM128Enc(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = AESGCM128Enc()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsAESGCM128Enc(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # AESGCM128Enc
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -41,6 +47,11 @@ class AESGCM128Enc(object):
         return 0
 
     # AESGCM128Enc
+    def EncContentIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
+    # AESGCM128Enc
     def Iv(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -61,6 +72,11 @@ class AESGCM128Enc(object):
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
+
+    # AESGCM128Enc
+    def IvIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
 
     # AESGCM128Enc
     def Mac(self, j):
@@ -85,6 +101,11 @@ class AESGCM128Enc(object):
         return 0
 
     # AESGCM128Enc
+    def MacIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
+    # AESGCM128Enc
     def Aad(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
@@ -106,13 +127,38 @@ class AESGCM128Enc(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # AESGCM128Enc
+    def AadIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        return o == 0
+
 def AESGCM128EncStart(builder): builder.StartObject(4)
+def Start(builder):
+    return AESGCM128EncStart(builder)
 def AESGCM128EncAddEncContent(builder, encContent): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(encContent), 0)
+def AddEncContent(builder, encContent):
+    return AESGCM128EncAddEncContent(builder, encContent)
 def AESGCM128EncStartEncContentVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartEncContentVector(builder, numElems):
+    return AESGCM128EncStartEncContentVector(builder, numElems)
 def AESGCM128EncAddIv(builder, iv): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(iv), 0)
+def AddIv(builder, iv):
+    return AESGCM128EncAddIv(builder, iv)
 def AESGCM128EncStartIvVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartIvVector(builder, numElems):
+    return AESGCM128EncStartIvVector(builder, numElems)
 def AESGCM128EncAddMac(builder, mac): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(mac), 0)
+def AddMac(builder, mac):
+    return AESGCM128EncAddMac(builder, mac)
 def AESGCM128EncStartMacVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartMacVector(builder, numElems):
+    return AESGCM128EncStartMacVector(builder, numElems)
 def AESGCM128EncAddAad(builder, aad): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(aad), 0)
+def AddAad(builder, aad):
+    return AESGCM128EncAddAad(builder, aad)
 def AESGCM128EncStartAadVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartAadVector(builder, numElems):
+    return AESGCM128EncStartAadVector(builder, numElems)
 def AESGCM128EncEnd(builder): return builder.EndObject()
+def End(builder):
+    return AESGCM128EncEnd(builder)

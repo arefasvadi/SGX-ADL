@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class CMAC128Auth(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsCMAC128Auth(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = CMAC128Auth()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsCMAC128Auth(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # CMAC128Auth
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -41,6 +47,11 @@ class CMAC128Auth(object):
         return 0
 
     # CMAC128Auth
+    def ContentIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        return o == 0
+
+    # CMAC128Auth
     def Aad(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -61,6 +72,11 @@ class CMAC128Auth(object):
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
+
+    # CMAC128Auth
+    def AadIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
 
     # CMAC128Auth
     def Mac(self, j):
@@ -84,11 +100,32 @@ class CMAC128Auth(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # CMAC128Auth
+    def MacIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        return o == 0
+
 def CMAC128AuthStart(builder): builder.StartObject(3)
+def Start(builder):
+    return CMAC128AuthStart(builder)
 def CMAC128AuthAddContent(builder, content): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(content), 0)
+def AddContent(builder, content):
+    return CMAC128AuthAddContent(builder, content)
 def CMAC128AuthStartContentVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartContentVector(builder, numElems):
+    return CMAC128AuthStartContentVector(builder, numElems)
 def CMAC128AuthAddAad(builder, aad): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(aad), 0)
+def AddAad(builder, aad):
+    return CMAC128AuthAddAad(builder, aad)
 def CMAC128AuthStartAadVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartAadVector(builder, numElems):
+    return CMAC128AuthStartAadVector(builder, numElems)
 def CMAC128AuthAddMac(builder, mac): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(mac), 0)
+def AddMac(builder, mac):
+    return CMAC128AuthAddMac(builder, mac)
 def CMAC128AuthStartMacVector(builder, numElems): return builder.StartVector(1, numElems, 1)
+def StartMacVector(builder, numElems):
+    return CMAC128AuthStartMacVector(builder, numElems)
 def CMAC128AuthEnd(builder): return builder.EndObject()
+def End(builder):
+    return CMAC128AuthEnd(builder)

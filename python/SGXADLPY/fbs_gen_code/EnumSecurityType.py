@@ -5,4 +5,3 @@
 class EnumSecurityType(object):
     integrity = 0
     privacy_integrity = 1
-

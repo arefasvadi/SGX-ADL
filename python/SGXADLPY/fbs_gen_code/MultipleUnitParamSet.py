@@ -3,17 +3,23 @@
 # namespace: 
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class MultipleUnitParamSet(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsMultipleUnitParamSet(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = MultipleUnitParamSet()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsMultipleUnitParamSet(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     # MultipleUnitParamSet
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -32,7 +38,7 @@ class MultipleUnitParamSet(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from .SingleUnitParamSet import SingleUnitParamSet
+            from SingleUnitParamSet import SingleUnitParamSet
             obj = SingleUnitParamSet()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -45,8 +51,23 @@ class MultipleUnitParamSet(object):
             return self._tab.VectorLen(o)
         return 0
 
+    # MultipleUnitParamSet
+    def SectionsIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        return o == 0
+
 def MultipleUnitParamSetStart(builder): builder.StartObject(2)
+def Start(builder):
+    return MultipleUnitParamSetStart(builder)
 def MultipleUnitParamSetAddTotalSections(builder, totalSections): builder.PrependUint32Slot(0, totalSections, 0)
+def AddTotalSections(builder, totalSections):
+    return MultipleUnitParamSetAddTotalSections(builder, totalSections)
 def MultipleUnitParamSetAddSections(builder, sections): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(sections), 0)
+def AddSections(builder, sections):
+    return MultipleUnitParamSetAddSections(builder, sections)
 def MultipleUnitParamSetStartSectionsVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def StartSectionsVector(builder, numElems):
+    return MultipleUnitParamSetStartSectionsVector(builder, numElems)
 def MultipleUnitParamSetEnd(builder): return builder.EndObject()
+def End(builder):
+    return MultipleUnitParamSetEnd(builder)
