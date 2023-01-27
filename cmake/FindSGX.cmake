@@ -45,9 +45,13 @@ if(SGX_INCLUDE_DIR AND SGX_LIBRARY_DIR)
     set(SGX_INCLUDE_DIR "${SGX_PATH}/include" CACHE PATH "Intel SGX include directory" FORCE)
     set(SGX_TLIBC_INCLUDE_DIR "${SGX_INCLUDE_DIR}/tlibc" CACHE PATH "Intel SGX tlibc include directory" FORCE)
     set(SGX_LIBCXX_INCLUDE_DIR "${SGX_INCLUDE_DIR}/libcxx" CACHE PATH "Intel SGX libcxx include directory" FORCE)
-    set(SGX_INTRINSICS_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include/ported-intrinsics CACHE PATH "ported intrinsics from clang 9.0" FORCE)
-    set(SGX_INCLUDE_DIRS ${SGX_INCLUDE_DIR} ${SGX_TLIBC_INCLUDE_DIR} ${SGX_LIBCXX_INCLUDE_DIR} ${SGX_INTRINSICS_INCLUDE_DIR})
-    mark_as_advanced(SGX_INCLUDE_DIR SGX_TLIBC_INCLUDE_DIR SGX_LIBCXX_INCLUDE_DIR SGX_LIBRARY_DIR SGX_INTRINSICS_INCLUDE_DIR)
+    # set(SGX_INTRINSICS_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include/ported-intrinsics CACHE PATH "ported intrinsics from clang 9.0" FORCE)
+    set(SGX_INCLUDE_DIRS ${SGX_INCLUDE_DIR} ${SGX_TLIBC_INCLUDE_DIR} ${SGX_LIBCXX_INCLUDE_DIR} 
+        # ${SGX_INTRINSICS_INCLUDE_DIR}
+        )
+    mark_as_advanced(SGX_INCLUDE_DIR SGX_TLIBC_INCLUDE_DIR SGX_LIBCXX_INCLUDE_DIR SGX_LIBRARY_DIR 
+        # SGX_INTRINSICS_INCLUDE_DIR
+        )
     message(STATUS "Found Intel SGX SDK.")
 endif()
 
@@ -87,7 +91,8 @@ if(SGX_FOUND)
     set(SGX_COMMON_CFLAGS "${SGX_COMMON_FLAGS} -Wjump-misses-init -Wstrict-prototypes -Wunsuffixed-float-constants")
     set(SGX_COMMON_CXXFLAGS "${SGX_COMMON_FLAGS} -Wnon-virtual-dtor")
 
-    set(ENCLAVE_INC_FLAGS "-I${SGX_INCLUDE_DIR} -I${SGX_TLIBC_INCLUDE_DIR} -I${SGX_LIBCXX_INCLUDE_DIR} -I${SGX_INTRINSICS_INCLUDE_DIR}")
+    # set(ENCLAVE_INC_FLAGS "-I${SGX_INCLUDE_DIR} -I${SGX_TLIBC_INCLUDE_DIR} -I${SGX_LIBCXX_INCLUDE_DIR} -I${SGX_INTRINSICS_INCLUDE_DIR}")
+    set(ENCLAVE_INC_FLAGS "-I${SGX_INCLUDE_DIR} -I${SGX_TLIBC_INCLUDE_DIR} -I${SGX_LIBCXX_INCLUDE_DIR}")
     set(ENCLAVE_C_FLAGS "${SGX_COMMON_CFLAGS} -nostdinc -fvisibility=hidden -fpie -fstack-protector-strong ${ENCLAVE_INC_FLAGS}")
     set(ENCLAVE_CXX_FLAGS "${SGX_COMMON_CXXFLAGS} -nostdinc++ -nostdinc -fvisibility=hidden -fpie -fstack-protector-strong ${ENCLAVE_INC_FLAGS}")
 
@@ -112,6 +117,7 @@ if(SGX_FOUND)
         add_custom_command(OUTPUT ${EDL_T_C}
                            COMMAND ${SGX_EDGER8R} ${USE_PREFIX} --trusted ${EDL_ABSPATH} --search-path ${SEARCH_PATHS}
                            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        # message(FATAL_ERROR "THE EDL FILE IS ${EDL_T_C}")
 
         add_library(${target}-edlobj OBJECT ${EDL_T_C})
         set_target_properties(${target}-edlobj PROPERTIES COMPILE_FLAGS ${ENCLAVE_C_FLAGS}
