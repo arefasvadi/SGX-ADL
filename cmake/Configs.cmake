@@ -1,42 +1,42 @@
-message(STATUS "\"SGXADL_ENABLE_CLANG_COMPILER\" is ${SGXADL_ENABLE_CLANG_COMPILER}")
-message(STATUS "\"CMAKE_C_COMPILER\" is ${CMAKE_C_COMPILER}")
-message(STATUS "\"CMAKE_CXX_COMPILER\" is ${CMAKE_CXX_COMPILER}")
+# message(STATUS "\"SGXADL_ENABLE_CLANG_COMPILER\" is ${SGXADL_ENABLE_CLANG_COMPILER}")
+# message(STATUS "\"CMAKE_C_COMPILER\" is ${CMAKE_C_COMPILER}")
+# message(STATUS "\"CMAKE_CXX_COMPILER\" is ${CMAKE_CXX_COMPILER}")
 
 
 #set(CMAKE_C_LINK_EXECUTABLE /usr/bin/ld.ldd CACHE FILEPATH "Linker Exe" FORCE)
 
-set(CLANG_TIDY_DEFAULT_CHECKS_STR
-    -* 
-    #-clang-diagnostic-*
+# set(CLANG_TIDY_DEFAULT_CHECKS_STR
+#     -* 
+#     #-clang-diagnostic-*
 
-    performance-*
+#     performance-*
     
-    #bugprone-* -bugprone-narrowing-conversions
+#     #bugprone-* -bugprone-narrowing-conversions
 
-    #cert-* 
+#     #cert-* 
     
-    #cppcoreguidelines-* -cppcoreguidelines-avoid-magic-numbers -cppcoreguidelines-no-malloc -cppcoreguidelines-pro-bounds-pointer-arithmetic -cppcoreguidelines-pro-type-vararg
+#     #cppcoreguidelines-* -cppcoreguidelines-avoid-magic-numbers -cppcoreguidelines-no-malloc -cppcoreguidelines-pro-bounds-pointer-arithmetic -cppcoreguidelines-pro-type-vararg
     
-    #clang-analyzer-*
+#     #clang-analyzer-*
 
-    #misc-*
+#     #misc-*
     
-    #modernize-* -modernize-use-trailing-return-type
+#     #modernize-* -modernize-use-trailing-return-type
 
-    #google-* -google-readability-casting -google-readability-braces-around-statements
+#     #google-* -google-readability-casting -google-readability-braces-around-statements
 
-    #hicpp-* -hicpp-braces-around-statements
+#     #hicpp-* -hicpp-braces-around-statements
     
-    #llvm-* -llvm-header-guard
+#     #llvm-* -llvm-header-guard
 
-    #fuchsia-*
+#     #fuchsia-*
 
-    #portability-*
+#     #portability-*
     
-    #readability-* -readability-implicit-bool-conversion -readability-magic-numbers
-    #zircorn-*
-)
-set(CLANG_TIDY_DEFAULT_CHECKS "${CLANG_TIDY_DEFAULT_CHECKS_STR}")
+#     #readability-* -readability-implicit-bool-conversion -readability-magic-numbers
+#     #zircorn-*
+# )
+# set(CLANG_TIDY_DEFAULT_CHECKS "${CLANG_TIDY_DEFAULT_CHECKS_STR}")
 
 if ("${SGXADL_MODE}" MATCHES "LAYERWISE")
     set(CUSTOM_ENABLE_LAYERWISE ON)

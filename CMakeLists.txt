@@ -15,19 +15,19 @@ include(Utilities)
 # adding google test framework
 enable_testing()
 
-if (CPPCHECK_ENABLED)
-  find_package(CppCheck)
-endif()
+# if (CPPCHECK_ENABLED)
+#   find_package(CppCheck)
+# endif()
 
-if (CLANG_TIDY_ENABLED)
-  include(ClangTidy)
-  enable_clang_tidy(
-    CHECKS
-      ${CLANG_TIDY_DEFAULT_CHECKS}
-    HEADER_FILTER
-        "${CMAKE_SOURCE_DIR}\/(.*\/)?.*\.h(pp)?$"
-  )
-endif()
+# if (CLANG_TIDY_ENABLED)
+#   include(ClangTidy)
+#   enable_clang_tidy(
+#     CHECKS
+#       ${CLANG_TIDY_DEFAULT_CHECKS}
+#     HEADER_FILTER
+#         "${CMAKE_SOURCE_DIR}\/(.*\/)?.*\.h(pp)?$"
+#   )
+# endif()
 
 if (CUSTOM_ENABLE_PURE_SGX)
   set(DARKNET_SGX_MODE PURE_SGX)
@@ -58,7 +58,7 @@ macro(remove_and_recreate_build_dir)
         message(FATAL_ERROR "args_CACHE_PRELOADER ${args_CACHE_PRELOADER} does not exist!")
     endif()
     if (${CMAKE_BINARY_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
-        message(FATAL_ERROR "You are removing source dir dudeeee!")
+        message(FATAL_ERROR "You are removing source dir exiting!")
     endif()
     add_custom_target(rmrc_preloader
         COMMAND rm -rf ${CMAKE_BINARY_DIR}/*
@@ -80,11 +80,11 @@ remove_and_recreate_build_dir(CACHE_PRELOADER ${CMAKE_CURRENT_SOURCE_DIR}/cmake/
 macro(enclave_config_setter)
   set(prefix_enclave_vars EnclaveConfig)
   set(options)
-  set(oneValueArgs 
+  set(oneValueArgs
                   ENCLAVE_CONFIG_XML_INPUT ENCLAVE_CONFIG_XML_OUTPUT
                   DisableDebug TCSPolicy ReservedMemExecutable
-                  StackMaxSize StackMinSize HeapMinSize 
-                  HeapInitSize HeapMaxSize 
+                  StackMaxSize StackMinSize HeapMinSize
+                  HeapInitSize HeapMaxSize
                   TCSNum TCSMinPool TCSMaxNum
                   ReservedMemMinSize ReservedMemInitSize ReservedMemMaxSize)
   set(multiValueArgs)
@@ -142,8 +142,8 @@ set(SGX_AVIALABLE_HEAP_MAX_MB "(${EnclaveHeapMaxMB})")
 math(EXPR enclave_heapmax " ${EnclaveHeapMaxMB} * (1024*1024) " OUTPUT_FORMAT HEXADECIMAL)
 
 
-if (CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON 
-    AND 
+if (CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON
+    AND
     CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON)
     message(FATAL_ERROR "You cannot have both CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM and CONV_BACKWRD_INPUT_GRAD_COPY_AFTER_COL2IM")
 elseif(CONV_BACKWRD_INPUT_GRAD_COPY_BEFORE_COL2IM MATCHES ON)
@@ -165,17 +165,17 @@ endif()
 
 
 configure_file(
-  ${CMAKE_SOURCE_DIR}/include/common-configs.h.in 
+  ${CMAKE_SOURCE_DIR}/include/common-configs.h.in
   ${CMAKE_SOURCE_DIR}/include/common-configs.h
   @ONLY)
 
 configure_file(
-  ${Trusted_Home}/include/trusted-configs.h.in 
+  ${Trusted_Home}/include/trusted-configs.h.in
   ${Trusted_Home}/include/trusted-configs.h
   @ONLY)
 
 configure_file(
-  ${Untrusted_Home}/include/untrusted-configs.h.in 
+  ${Untrusted_Home}/include/untrusted-configs.h.in
   ${Untrusted_Home}/include/untrusted-configs.h
   @ONLY)
 
@@ -201,7 +201,7 @@ enclave_config_setter(
 if (CUSTOM_ENABLE_DEBUGING)
   set(SGX_MODE Debug CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
-  
+ 
 else()
   set(SGX_MODE PreRelease CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   #set(SGX_MODE "Release")
@@ -364,14 +364,14 @@ else()
   message(FATAL "Should not be here!")
 endif()
 
-add_trusted_library(DARKNET_T 
+add_trusted_library(DARKNET_T
   SRCS
   ${DARKNET_T_SOURCES}
 # clang-tidy cmake script has problem with generators
 #    $<$<STREQUAL:${DARKNET_SGX_MODE},PURE_SGX>:${DARKNET_SOURCE_FILES_SGX}>
 #    $<$<STREQUAL:${DARKNET_SGX_MODE},SGX_LAYERWISE>:${DARKNET_SOURCE_FILES_SGX_LAYERWISE}>
 #    $<$<STREQUAL:${DARKNET_SGX_MODE},>:${DARKNET_SOURCE_FILES_SGX_BLOCK}>
-    ${Trusted_Home}/src/darknet-addons.cpp 
+    ${Trusted_Home}/src/darknet-addons.cpp
     ${Trusted_Home}/src/pcg_basic.cpp
   EDL
     ${Trusted_Edl}
@@ -399,7 +399,7 @@ target_compile_definitions(DARKNET_T PRIVATE -DUSE_SGX
   #$<$<BOOL:${CUSTOM_ENABLE_BLOCKING}>:USE_SGX_BLOCKING> $<$<BOOL:${CUSTOM_ENABLE_LAYERWISE}>:USE_SGX_LAYERWISE>
   ${DARKNET_T_DEFS}
 )
-attatch_clang_tidy_to_target(DARKNET_T)
+# attatch_clang_tidy_to_target(DARKNET_T)
 #clang_tidy_check(DARKNET_T)
 #clang_tidy_check_genex(DARKNET_T)
 
@@ -463,7 +463,7 @@ target_include_directories(${Trusted_Name} PRIVATE
   )
 
 #clang_tidy_check(${Trusted_Name})
-attatch_clang_tidy_to_target(${Trusted_Name})
+# attatch_clang_tidy_to_target(${Trusted_Name})
 
 enclave_sign(
   ${Trusted_Name}
@@ -492,21 +492,21 @@ string (REPLACE ";" " " CUDA_ARCH_FLAGS_SPACE_SEPARATED "${CUDA_ARCH_FLAGS}")
 set(CMAKE_CUDA_FLAGS "${CUDA_ARCH_FLAGS_SPACE_SEPARATED} ${CUDA_HOST_COMPILER_FLAGS} ${CMAKE_CUDA_FLAGS}")
 message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 
-set(DARKNET_GPU_SOURCE_FILES 
+set(DARKNET_GPU_SOURCE_FILES
   third_party/darknet/src/convolutional_kernels.cu
   third_party/darknet/src/deconvolutional_kernels.cu
   third_party/darknet/src/activation_kernels.cu
-  third_party/darknet/src/im2col_kernels.cu 
-  third_party/darknet/src/col2im_kernels.cu 
-  third_party/darknet/src/blas_kernels.cu 
-  third_party/darknet/src/crop_layer_kernels.cu 
-  third_party/darknet/src/dropout_layer_kernels.cu 
-  third_party/darknet/src/maxpool_layer_kernels.cu 
+  third_party/darknet/src/im2col_kernels.cu
+  third_party/darknet/src/col2im_kernels.cu
+  third_party/darknet/src/blas_kernels.cu
+  third_party/darknet/src/crop_layer_kernels.cu
+  third_party/darknet/src/dropout_layer_kernels.cu
+  third_party/darknet/src/maxpool_layer_kernels.cu
   third_party/darknet/src/avgpool_layer_kernels.cu
 )
 
 set(DARKNET_U_SOURCE_FILES ${DARKNET_SOURCE_FILES})
-list(REMOVE_ITEM DARKNET_U_SOURCE_FILES 
+list(REMOVE_ITEM DARKNET_U_SOURCE_FILES
   #third_party/darknet/src/cuda.cpp
   third_party/darknet/src/deconvolutional_layer.cpp
   third_party/darknet/src/detection_layer.cpp
@@ -532,7 +532,7 @@ list(REMOVE_ITEM DARKNET_U_SOURCE_FILES
 add_library(DARKNET_U_GPU SHARED ${DARKNET_GPU_SOURCE_FILES}
                                  ${DARKNET_U_SOURCE_FILES}
                                  )
-set_target_properties(DARKNET_U_GPU 
+set_target_properties(DARKNET_U_GPU
                       PROPERTIES
                       #INTERPROCEDURAL_OPTIMIZATION TRUE
                       CUDA_SEPERABLE_COMPILATION ON
@@ -542,18 +542,18 @@ target_include_directories(DARKNET_U_GPU PUBLIC ${Untrusted_Home}/include  ${CUD
 target_link_libraries(DARKNET_U_GPU PRIVATE curand cublas cudart)
 # ^
 # |
-# cuda 
+# cuda
 # ${CUDA_LIBRARIES}
 # ${CUDA_CUBLAS_LIBRARIES}
 # ${CUDA_curand_LIBRARY}
 
 target_compile_definitions(
-DARKNET_U_GPU 
-  PUBLIC -DGPU -DSGX_VERIFIES 
+DARKNET_U_GPU
+  PUBLIC -DGPU -DSGX_VERIFIES
   PRIVATE -DONLY_GPU
 )
 #clang_tidy_check(DARKNET_U_GPU)
-attatch_clang_tidy_to_target(DARKNET_U_GPU)
+# attatch_clang_tidy_to_target(DARKNET_U_GPU)
 
 
 
@@ -582,7 +582,7 @@ set(App_Cpp_Files
 
 add_untrusted_library(
   ${Untrusted_Lib_Name} SHARED
-  SRCS 
+  SRCS
     ${App_Cpp_Files}
   EDL
     ${Trusted_Edl}
@@ -622,12 +622,12 @@ PRIVATE
 # target_link_directories(${Untrusted_Lib_Name} PUBLIC /usr/local/cuda/lib64)
 target_compile_definitions(${Untrusted_Lib_Name} PUBLIC -DGPU -DSGX_VERIFIES)
 # add_dependencies(${Untrusted_Lib_Name} ${Trusted_Name})
-attatch_clang_tidy_to_target(${Untrusted_Lib_Name})
+# attatch_clang_tidy_to_target(${Untrusted_Lib_Name})
 #clang_tidy_check(${Untrusted_Lib_Name})
 
 add_untrusted_executable(
   ${Untrusted_Name}
-  SRCS 
+  SRCS
       ${Untrusted_Home}/src/main.cpp
   EDL
     ${Trusted_Edl}
@@ -639,19 +639,19 @@ add_untrusted_executable(
 # target_link_directories(${Untrusted_Name} PUBLIC /usr/local/cuda/lib64)
 target_include_directories(${Untrusted_Name} PRIVATE ${Untrusted_Home}/include ${SGX_INCLUDE_DIR})
 target_link_libraries(${Untrusted_Name} PRIVATE ${Untrusted_Lib_Name}
-# curand 
-# cublas 
+# curand
+# cublas
 # cudart
 # cuda
 # ${CUDA_LIBRARIES}
 # ${CUDA_CUBLAS_LIBRARIES}
 # ${CUDA_curand_LIBRARY}
 )
-attatch_clang_tidy_to_target(${Untrusted_Name})
+# attatch_clang_tidy_to_target(${Untrusted_Name})
 #clang_tidy_check(${Untrusted_Name})
 
 find_package(GTest REQUIRED)
-set(TEST_SRC_FILES 
+set(TEST_SRC_FILES
   ./test/unittests/SGXADL-tests.cpp
   ./test/unittests/SGXADL-GeneralEnclave_test.cpp
   ./test/unittests/Record-tests.cpp
@@ -679,6 +679,3 @@ set(TEST_SRC_FILES
 #     COMMAND dot -Tpng target_deps.dot -o target_deps.png
 #     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
 # )
-
-
-  
