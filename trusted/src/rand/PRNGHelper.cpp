@@ -43,7 +43,7 @@ get_iteration_seed(const std::array<uint64_t, 16>& root_seed,
   for (int i=0;i<32;++i) {
     irs.it_seed.batch_layer_seed[i] = prng.getRandomUint64();
   }
-  
+
   sgx_hmac_256bit_tag_t com_tag = {};
 
   auto ret = sgx_hmac_sha256_msg((unsigned char*)&irs,
@@ -53,11 +53,10 @@ get_iteration_seed(const std::array<uint64_t, 16>& root_seed,
                                  com_tag,
                                  SGX_HMAC256_MAC_SIZE);
   CHECK_SGX_SUCCESS(ret, "sgx_hmac_sha256_msg")
-  
-  std::array<uint64_t,16> new_seed;
-  std::memset(new_seed.data(),0,32*sizeof(uint64_t));
+
+  std::array<uint64_t,16> new_seed{};
   std::memcpy(new_seed.data(),com_tag,SGX_HMAC256_MAC_SIZE);
-  
+
   prng.setSeed(new_seed);
   for (int i=0;i<32;++i) {
     irs.it_seed.batch_layer_seed[i] = prng.getRandomUint64();
@@ -67,9 +66,9 @@ get_iteration_seed(const std::array<uint64_t, 16>& root_seed,
   //   "1. <" COLORED_STR(RED,"%s") ">\n"
   //   "2. <" COLORED_STR(BRIGHT_GREEN,"%s") ">\n",
   //   iteration,
-  //   bytesToHexString((uint8_t*)&irs.it_seed.batch_layer_seed[0], 
+  //   bytesToHexString((uint8_t*)&irs.it_seed.batch_layer_seed[0],
   //     sizeof(uint64_t)*16).c_str(),
-  //   bytesToHexString((uint8_t*)(&(irs.it_seed.batch_layer_seed[16])), 
+  //   bytesToHexString((uint8_t*)(&(irs.it_seed.batch_layer_seed[16])),
   //     sizeof(uint64_t)*16).c_str()
   //   )
 

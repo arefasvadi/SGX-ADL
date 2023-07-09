@@ -364,8 +364,8 @@ def process_cifar_10():
                          EnumSecurityType.EnumSecurityType.privacy_integrity]
     comp_task_list = [EnumComputationTaskType.EnumComputationTaskType.training,
                       EnumComputationTaskType.EnumComputationTaskType.prediction]
-    #cifar10_out_dir = "/home/aref/projects/SGX-ADL/test/config/cifar10/"
-    cifar10_out_dir = "/workspaces/SGX-ADL/test/config/cifar10/"
+    cifar10_out_dir = "/home/aref/projects/SGX-ADL/test/config/cifar10/"
+    # cifar10_out_dir = "/workspaces/SGX-ADL/test/config/cifar10/"
     root_seeds = [0]
     cifar10_arch_files = [
         
@@ -803,9 +803,9 @@ def process_imagenet_resnet34():
 
 if __name__ == "__main__":
     
-    # process_cifar_10()
-    process_imagenet_vgg16()
-    process_imagenet_resnet34()
+    process_cifar_10()
+    # process_imagenet_vgg16()
+    # process_imagenet_resnet34()
 
     #pass
     #process_cifar_10()

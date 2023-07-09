@@ -19,7 +19,7 @@
 #undef OPENMP
 #undef CUDNN
 
-#include "enclave_t.h"
+#include "../../enclave_t.h"
 
 #if defined(USE_SGX_LAYERWISE)
 #undef USE_SGX_BLOCKING

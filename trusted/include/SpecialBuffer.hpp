@@ -6,7 +6,7 @@
 
 #include "SpecialBufferCommon.h"
 #include "common.h"
-#include "enclave_t.h"
+#include "../../enclave_t.h"
 //#include "gsl/gsl-lite.hpp"
 #include "timingdefs.h"
 
@@ -22,17 +22,10 @@ namespace sgx {
       std::unique_ptr<T[]>
       getItemsInRange(const uint32_t start, const uint32_t end);
 
-      // gsl::span<T>
-      // getItemsInRangeSpan(const uint32_t start, const uint32_t end);
-
       void
       setItemsInRange(const uint32_t        start,
                       const uint32_t        end,
                       std::unique_ptr<T[]> &content);
-      // void
-      // setItemsInRangeSpan(const uint32_t start,
-      //                 const uint32_t end,
-      //                 gsl::span<T> & content);
 
       inline uint32_t
       getBufferSize() {
@@ -87,10 +80,10 @@ namespace sgx {
       SET_START_TIMING("SpecialBuffer Get Item Allocation")
       auto         ret              = std::unique_ptr<T[]>(new T[buff_len]);
       SET_FINISH_TIMING("SpecialBuffer Get Item Allocation")
-      
+
       int q = buff_len / (interim_buff_len);
       int r = buff_len % (interim_buff_len);
-      
+
       #pragma omp parallel for
       for (int i = 0; i < q; ++i) {
         succ = ocall_get_buffer_layerwise(
@@ -126,7 +119,7 @@ namespace sgx {
       sgx_status_t succ             = SGX_ERROR_UNEXPECTED;
       int          q                = buff_len / (interim_buff_len);
       int          r                = buff_len % (interim_buff_len);
-      
+
       #pragma omp parallel for
       for (int i = 0; i < q; ++i) {
         succ = ocall_set_buffer_layerwise(
@@ -148,10 +141,6 @@ namespace sgx {
       }
       SET_FINISH_TIMING("SpecialBuffer Set Item")
     }
-
-    //template class SpecialBuffer<float>;
-    //template class SpecialBuffer<int>;
-    //template class SpecialBuffer<char>;
 
   }  // namespace trusted
 }  // namespace sgx

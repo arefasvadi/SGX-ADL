@@ -4,7 +4,7 @@
 #define _SGX_TIMINGDEFS_H
 
 #include "trusted-configs.h"
-#include "enclave_t.h"
+#include "../../enclave_t.h"
 
 #include <cstring>
 

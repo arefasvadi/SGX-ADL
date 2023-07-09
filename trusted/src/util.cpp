@@ -1,6 +1,6 @@
 #include "util.h"
 #include "common.h"
-#include "enclave_t.h"
+#include "../../enclave_t.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string>

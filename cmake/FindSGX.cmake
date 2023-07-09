@@ -103,7 +103,7 @@ if(SGX_FOUND)
     function(_build_edl_obj edl edl_search_paths use_prefix)
         get_filename_component(EDL_NAME ${edl} NAME_WE)
         get_filename_component(EDL_ABSPATH ${edl} ABSOLUTE)
-        set(EDL_T_C "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_t.c")
+        set(EDL_T_C "${CMAKE_SOURCE_DIR}/${EDL_NAME}_t.c")
         set(SEARCH_PATHS "")
         foreach(path ${edl_search_paths})
             get_filename_component(ABSPATH ${path} ABSOLUTE)
@@ -116,7 +116,7 @@ if(SGX_FOUND)
         endif()
         add_custom_command(OUTPUT ${EDL_T_C}
                            COMMAND ${SGX_EDGER8R} ${USE_PREFIX} --trusted ${EDL_ABSPATH} --search-path ${SEARCH_PATHS}
-                           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
         # message(FATAL_ERROR "THE EDL FILE IS ${EDL_T_C}")
 
         add_library(${target}-edlobj OBJECT ${EDL_T_C})
@@ -125,7 +125,7 @@ if(SGX_FOUND)
                                                           POSITION_INDEPENDENT_CODE ON)
         target_include_directories(${target}-edlobj PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-        set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_t.h")
+        set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_SOURCE_DIR}/${EDL_NAME}_t.h")
     endfunction()
 
     # build trusted static library to be linked into enclave library
@@ -154,7 +154,7 @@ if(SGX_FOUND)
 
         # ${SGX_COMMON_CFLAGS} \
         # -lsgx_pthread -lsgx_omp -lsgx_dnnl
-        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \ 
+        target_link_libraries(${target} PRIVATE "${SGX_COMMON_CFLAGS} \
             -Wl,-z,relro,-z,now,-z,noexecstack \
             -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L${SGX_LIBRARY_PATH} \
             -Wl,--whole-archive -l${SGX_SWITCHLESS_LIB} -l${SGX_TRTS_LIB} -Wl,--no-whole-archive \
@@ -197,7 +197,7 @@ if(SGX_FOUND)
             string(APPEND TLIB_LIST "$<TARGET_FILE:${TLIB}> ")
             add_dependencies(${target} ${TLIB})
         endforeach()
-        
+
         # set(EXTLIB_LIST "")
         # foreach(EXTLIB ${EXTRA_IMPORTED_LIBS})
         #     string(APPEND EXTLIB_LIST ${EXTLIB})
@@ -274,7 +274,7 @@ if(SGX_FOUND)
         foreach(EDL ${SGX_EDL})
             get_filename_component(EDL_NAME ${EDL} NAME_WE)
             get_filename_component(EDL_ABSPATH ${EDL} ABSOLUTE)
-            set(EDL_U_C "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.c")
+            set(EDL_U_C "${CMAKE_SOURCE_DIR}/${EDL_NAME}_u.c")
             set(SEARCH_PATHS "")
             foreach(path ${SGX_EDL_SEARCH_PATHS})
                 get_filename_component(ABSPATH ${path} ABSOLUTE)
@@ -287,15 +287,15 @@ if(SGX_FOUND)
             endif()
             add_custom_command(OUTPUT ${EDL_U_C}
                                COMMAND ${SGX_EDGER8R} ${USE_PREFIX} --untrusted ${EDL_ABSPATH} --search-path ${SEARCH_PATHS}
-                               WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                               WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
             list(APPEND EDL_U_SRCS ${EDL_U_C})
         endforeach()
 
         add_library(${target} ${mode} ${SGX_SRCS} ${EDL_U_SRCS})
-        
+
         # target_compile_options(${target} PRIVATE "${APP_CXX_FLAGS}")
-        # set_target_properties(${target} PROPERTIES 
+        # set_target_properties(${target} PROPERTIES
         #     INTERPROCEDURAL_OPTIMIZATION TRUE
         # )
         set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${APP_CXX_FLAGS}
@@ -312,7 +312,7 @@ if(SGX_FOUND)
                                          -lpthread \
                                          -l${SGX_USVC_LIB}")
 
-        set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.h")
+        set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_SOURCE_DIR}/${EDL_NAME}_u.h")
     endfunction()
 
     function(add_untrusted_executable target)
@@ -330,7 +330,7 @@ if(SGX_FOUND)
         foreach(EDL ${SGX_EDL})
             get_filename_component(EDL_NAME ${EDL} NAME_WE)
             get_filename_component(EDL_ABSPATH ${EDL} ABSOLUTE)
-            set(EDL_U_C "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.c")
+            set(EDL_U_C "${CMAKE_SOURCE_DIR}/${EDL_NAME}_u.c")
             set(SEARCH_PATHS "")
             foreach(path ${SGX_EDL_SEARCH_PATHS})
                 get_filename_component(ABSPATH ${path} ABSOLUTE)
@@ -343,7 +343,7 @@ if(SGX_FOUND)
             endif()
             add_custom_command(OUTPUT ${EDL_U_C}
                                COMMAND ${SGX_EDGER8R} ${USE_PREFIX} --untrusted ${EDL_ABSPATH} --search-path ${SEARCH_PATHS}
-                               WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                               WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
             list(APPEND EDL_U_SRCS ${EDL_U_C})
         endforeach()
@@ -370,7 +370,7 @@ if(SGX_FOUND)
                                          -lpthread \
                                          -l${SGX_USVC_LIB}")
 
-        set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${EDL_NAME}_u.h")
+        set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_SOURCE_DIR}/${EDL_NAME}_u.h")
     endfunction()
 
 else(SGX_FOUND)

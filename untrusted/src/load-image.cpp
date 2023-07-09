@@ -1,8 +1,8 @@
 #include "load-image.h"
 
-#include <CryptoEngine.hpp>
 #include <algorithm>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <vector>
 
@@ -54,7 +54,7 @@ load_train_test_data(data_params &par) {
 }
 
 bool
-serialize_train_test_data(data_params &                       par,
+serialize_train_test_data(data_params                        &par,
                           std::vector<trainRecordSerialized> &out) {
   /* if (par.height * par.width * par.channels != WIDTH_X_HEIGHT_X_CHAN ||
       par.num_classes != NUM_CLASSES) {
@@ -83,44 +83,9 @@ serialize_train_test_data(data_params &                       par,
   return true;
 }
 
-bool
-encrypt_train_test_data(sgx::untrusted::CryptoEngine<uint8_t> &   crypto_engine,
-                        const std::vector<trainRecordSerialized> &in,
-                        std::vector<trainRecordEncrypted> &       out) {
-  out.resize(in.size());
-  int cnt = 0;
-  for (const auto &record : in) {
-    std::vector<uint8_t> buff((record.data.size() + record.label.size())
-                                  * sizeof(float)
-                              + sizeof(record.shuffleID));
-    std::memcpy(&buff[0], &record.data[0], record.data.size() * sizeof(float));
-    std::memcpy(&buff[record.data.size() * sizeof(float)],
-                &record.label[0],
-                record.label.size() * sizeof(float));
-    std::memcpy(
-        &buff[(record.data.size() + record.label.size()) * sizeof(float)],
-        &record.shuffleID,
-        sizeof(record.shuffleID));
-    auto                 enc = crypto_engine.encrypt(buff);
-    trainRecordEncrypted enc_rec;
-    enc_rec.encData.resize((record.data.size() + record.label.size())
-                               * sizeof(float)
-                           + sizeof(record.shuffleID));
-    auto enc_data = std::get<0>(enc);
-    auto IV       = std::get<1>(enc);
-    auto MAC      = std::get<2>(enc);
-    std::memcpy(&enc_rec.encData[0], &enc_data[0], enc_rec.encData.size());
-    std::memcpy(enc_rec.IV, &IV[0], AES_GCM_IV_SIZE);
-    std::memcpy(enc_rec.MAC, &MAC[0], AES_GCM_TAG_SIZE);
-    out[cnt] = enc_rec;
-    ++cnt;
-  }
-  return true;
-}
-
 void
 handle_idash_encrypted(
-    data_params &                      predict_pub_params,
+    data_params                       &predict_pub_params,
     std::vector<trainRecordEncrypted> &predict_encrypted_dataset) {
   LOG_ERROR("program flow should not reach here for now!\n");
   abort();
@@ -187,108 +152,6 @@ initialize_predict_params(data_params &param) {
   param.num_classes = run_config.common_config.output_shape.num_classes;
 }
 
-void
-initialize_data(data_params &                       tr_pub_params,
-                data_params &                       test_pub_params,
-                data_params &                       predict_pub_params,
-                std::vector<trainRecordSerialized> &plain_dataset,
-                std::vector<trainRecordEncrypted> & encrypted_dataset,
-                std::vector<trainRecordSerialized> &test_plain_dataset,
-                std::vector<trainRecordEncrypted> & test_encrypted_dataset,
-                std::vector<trainRecordSerialized> &predict_plain_dataset,
-                std::vector<trainRecordEncrypted> & predict_encrypted_dataset,
-                sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine) {
-  if (run_config.common_config.task == DNNTaskType::TASK_TRAIN_GPU_VERIFY_SGX
-      || run_config.common_config.task == DNNTaskType::TASK_TRAIN_SGX) {
-    initialize_train_params(tr_pub_params);
-    load_train_test_data(tr_pub_params);
-    serialize_train_test_data(tr_pub_params, plain_dataset);
-    if (run_config.common_config.sec_strategy
-        == SecStrategyType::SEC_PRIVACY_INTEGRITY) {
-      encrypt_train_test_data(crypto_engine, plain_dataset, encrypted_dataset);
-    }
-  } else if (run_config.common_config.task
-                 == DNNTaskType::TASK_TEST_GPU_VERIFY_SGX
-             || run_config.common_config.task == DNNTaskType::TASK_TEST_SGX) {
-    initialize_test_params(test_pub_params);
-    load_train_test_data(test_pub_params);
-    serialize_train_test_data(test_pub_params, test_plain_dataset);
-    if (run_config.common_config.sec_strategy
-        == SecStrategyType::SEC_PRIVACY_INTEGRITY) {
-      encrypt_train_test_data(
-          crypto_engine, test_plain_dataset, test_encrypted_dataset);
-    }
-  } else if (run_config.common_config.task
-                 == DNNTaskType::TASK_INFER_GPU_VERIFY_SGX
-             || run_config.common_config.task == DNNTaskType::TASK_INFER_SGX) {
-    initialize_predict_params(predict_pub_params);
-    if (run_config.is_idash
-        && run_config.common_config.sec_strategy
-               == SecStrategyType::SEC_PRIVACY_INTEGRITY) {
-      handle_idash_encrypted(predict_pub_params, predict_encrypted_dataset);
-      return;
-    }
-    load_train_test_data(predict_pub_params);
-    serialize_train_test_data(predict_pub_params, predict_plain_dataset);
-    if (run_config.common_config.sec_strategy
-        == SecStrategyType::SEC_PRIVACY_INTEGRITY) {
-      encrypt_train_test_data(
-          crypto_engine, predict_plain_dataset, predict_encrypted_dataset);
-    }
-  }
-}
-
-void
-random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset) {
-  LOG_TRACE("entered in random id assign\n");
-  constexpr int group_size   = 5;
-  const int     dataset_size = encrypted_dataset.size();
-  LOG_INFO(
-      "Entered in random_id_assign in untrusted zone for dataset of size "
-      "%d each being %d bytes\n",
-      dataset_size,
-      sizeof(trainRecordEncrypted));
-  int count = 0;
-  while (true) {
-    if (count + group_size < dataset_size) {
-      // ecall on count, count+groupsize-1 index
-      sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-      ret              = ecall_assign_random_id(global_eid,
-                                   (unsigned char *)&(encrypted_dataset[count]),
-                                   group_size * sizeof(trainRecordEncrypted));
-      // std::cout << "calling enclave..\n";
-      if (ret != SGX_SUCCESS) {
-        LOG_ERROR(
-            "ecall assign random_id enclave caused problem! the error is "
-            "%#010X \n",
-            ret);
-        abort();
-      }
-      count += group_size;
-
-    } else if (count == dataset_size) {
-      break;
-    } else {
-      // ecall on count, until the end of list
-      sgx_status_t ret = SGX_ERROR_UNEXPECTED;
-      ret              = ecall_assign_random_id(
-          global_eid,
-          (unsigned char *)&(encrypted_dataset[count]),
-          (dataset_size - count) * sizeof(trainRecordEncrypted));
-      if (ret != SGX_SUCCESS) {
-        LOG_ERROR(
-            "ecall assign random_id enclave caused problem! the error is "
-            "%#010X   \n",
-            ret);
-        abort();
-      }
-
-      break;
-    }
-  }
-  LOG_TRACE("finished in random id assign\n");
-}
-
 std::vector<uint8_t>
 read_file_binary(const char *file_name) {
   std::ifstream file(file_name, std::ios::in | std::ios::binary);
@@ -324,17 +187,3 @@ read_file_text(const char *file_name) {
        std::back_inserter(contents));
   return contents;
 }
-
-// std::vector<uint8_t>
-// flatBuffInitImageMeta() {
-//   flatbuffers::FlatBufferBuilder builder(1024);
-//   auto pim = CreatePlainImageMeta(builder,run_config.common_config.input_shape.width,
-//                          run_config.common_config.input_shape.height,
-//                          run_config.common_config.input_shape.channels);
-
-//   builder.Finish(pim);
-  
-//   std::vector<uint8_t> serialized(builder.GetSize());
-//   std::memcpy(serialized.data(), builder.GetBufferPointer(), builder.GetSize());
-//   return serialized;
-// }

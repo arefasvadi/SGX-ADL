@@ -1,5 +1,5 @@
 #include "prepare-dnnl.h"
-#include "enclave_t.h"
+#include "../../enclave_t.h"
 #ifdef USE_SGX
 #include "common.h"
 #include "util.h"

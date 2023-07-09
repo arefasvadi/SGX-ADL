@@ -1,6 +1,5 @@
 #pragma once
 
-#include "CryptoEngine.hpp"
 #include "common.h"
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -61,37 +60,3 @@ bool load_train_test_data(data_params &par);
 
 bool serialize_train_test_data(data_params &par,
                                std::vector<trainRecordSerialized> &out);
-
-bool encrypt_train_test_data(
-    sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine,
-    const std::vector<trainRecordSerialized> &in,
-    std::vector<trainRecordEncrypted> &out);
-
-//void initialize_train_params_cifar(data_params &param);
-//void initialize_test_params_cifar(data_params &param);
-
-//void initialize_train_params_imagenet(data_params &param);
-//void initialize_test_params_imagenet(data_params &param);
-
-void initialize_data(data_params &tr_pub_params, data_params &test_pub_params, data_params &predict_pub_params,
-                     std::vector<trainRecordSerialized> &plain_dataset,
-                     std::vector<trainRecordEncrypted> &encrypted_dataset,
-                     std::vector<trainRecordSerialized> &test_plain_dataset,
-                     std::vector<trainRecordEncrypted> &test_encrypted_dataset,
-                     std::vector<trainRecordSerialized> &predict_plain_dataset,
-                     std::vector<trainRecordEncrypted> &predict_encrypted_dataset,
-                     sgx::untrusted::CryptoEngine<uint8_t> &crypto_engine);
-
-void random_id_assign(std::vector<trainRecordEncrypted> &encrypted_dataset);
-
-//std::vector<uint8_t> flatBuffInitImageMeta();
-// PlainImage flatBuffInitPlainImage();
-// PlainImageSet flatBuffInitImageDataSet();
-
-// PlainLabelMeta flatBuffInitLabelMeta();
-// PlainLabel flatBuffInitPlainLabel();
-// PlainLabelSet flatBuffInitLabelDataSet();
-
-// PlainImageLabelMeta flatBuffInitImageLabelMeta();
-// PlainImageLabel flatBuffInitPlainImageLabel();
-// PlainImageLabelSet flatBuffInitImageLabelDataSet();

@@ -6,7 +6,6 @@
 #include "dnnl.hpp"
 #include "example_utils.hpp"
 
-void simple_dnnl_mult();
 void main_logger(int level, const char *file, int line, const char *format,
                  ...);
 

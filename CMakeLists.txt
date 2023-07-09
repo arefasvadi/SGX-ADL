@@ -193,7 +193,7 @@ enclave_config_setter(
   TCSNum 16
   TCSMinPool 12
   TCSMaxNum 32
-  ReservedMemMinSize 0x2000000 
+  ReservedMemMinSize 0x2000000
   ReservedMemInitSize 0x2000000
   ReservedMemMaxSize 0x2000000
 )
@@ -201,7 +201,7 @@ enclave_config_setter(
 if (CUSTOM_ENABLE_DEBUGING)
   set(SGX_MODE Debug CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
- 
+
 else()
   set(SGX_MODE PreRelease CACHE STRING "SGX build mode: Debug; PreRelease; Release." FORCE)
   #set(SGX_MODE "Release")
@@ -404,25 +404,13 @@ target_compile_definitions(DARKNET_T PRIVATE -DUSE_SGX
 #clang_tidy_check_genex(DARKNET_T)
 
 set(Enclave_Cpp_Files
-  #${Trusted_Home}/src/bitonic-sort.cpp 
   ${Trusted_Home}/src/enclave-app.cpp
-  ${Trusted_Home}/src/DNNConfigIO.cpp 
-  #${Trusted_Home}/src/DNNTrainer.cpp
   ${Trusted_Home}/src/rand/PRNGHelper.cpp 
-  #${Trusted_Home}/src/BlockHeader.cpp 
-  #${Trusted_Home}/src/IBlockable.cpp 
   ${Trusted_Home}/src/util.cpp
   ${Trusted_Home}/src/extra-util.cpp
 #  ${Trusted_Home}/src/prepare-dnnl.cpp
   ${CMAKE_SOURCE_DIR}/src/hexString.cpp
-  #${Trusted_Home}/src/tests.cpp
   ${Trusted_Home}/src/SpecialBufferCommon.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
-
-  #${CMAKE_SOURCE_DIR}/third_party/blasfeo/blas_api/sgemm.c
   )
   
 # add_library(LIBXSMM_T STATIC IMPORTED)
@@ -559,25 +547,9 @@ DARKNET_U_GPU
 
 set(App_Cpp_Files
   ${Untrusted_Home}/src/app.cpp
-  ${Untrusted_Home}/src/extras-torch.cpp
   ${Untrusted_Home}/src/load-image.cpp
   ${CMAKE_SOURCE_DIR}/src/hexString.cpp
-  ${CMAKE_SOURCE_DIR}/src/Record/IRecord.cpp
-  ${CMAKE_SOURCE_DIR}/src/Record/ImageRecord.cpp
-  ${CMAKE_SOURCE_DIR}/src/Record/ImageWithLabelRecord.cpp
-  ${CMAKE_SOURCE_DIR}/src/Record/IRecordSet.cpp
-  ${CMAKE_SOURCE_DIR}/src/Record/VectorRecordSet.cpp
-  ${CMAKE_SOURCE_DIR}/src/Record/VectorRecordSetView.cpp
-  #${CMAKE_SOURCE_DIR}/third_party/cryptopp-pem/pem_read.cpp
-  #${CMAKE_SOURCE_DIR}/third_party/cryptopp-pem/x509cert.cpp
-  #${CMAKE_SOURCE_DIR}/third_party/cryptopp-pem/pem_write.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/IChannel.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWayReceiver.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleOneWaySender.cpp
-  #${CMAKE_SOURCE_DIR}/src/Channel/SimpleTwoWayChannel.cpp
-
   # ${DARKNET_U_SOURCE_FILES}
-
   )
 
 add_untrusted_library(
